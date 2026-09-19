@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // LOCAL stand-in for P4's /api/proxy (docs/04 TODO item 1), so the ElevenLabs voice and
 // dispatcher can be built and measured before the real DigitalOcean Function exists. The
-// API key and the agent id live HERE, server-side, read from the environment or .env.local;
-// they never reach the browser bundle (docs/01 threat model). Node only, never imported by
+// API key, the agent id and the coach voice pick live HERE, server-side, read from the
+// environment or .env.local; they never reach the browser bundle (docs/01 threat model). Node only, never imported by
 // app code, and outside the *.ts globs so neither the test suite nor the bundle sees it.
 //
 // Two ways to run it:
@@ -15,6 +15,10 @@
 //
 // Routes, relative to the mount point:
 //   POST /v1/text-to-speech/*        forwarded to ElevenLabs with the key header added
+//   GET  /voice                      { coach: { voiceId, voiceName } | null }: the coach voice
+//                                    named by ELEVENLABS_COACH_VOICE (a voice id or a name from
+//                                    the account's library), resolved once. null means "not set
+//                                    or not found": the browser keeps its default (Brian).
 //   GET  /dispatcher/session         { signedUrl, firstMessage } for the dispatcher agent named
 //                                    by ELEVENLABS_AGENT_ID; 404 when no agent is configured.
 //                                    firstMessage is the agent's configured opening line: the
@@ -26,6 +30,7 @@ import { readFileSync } from 'node:fs';
 const UPSTREAM = 'https://api.elevenlabs.io';
 const TTS_PREFIX = '/v1/text-to-speech/';
 const SESSION_ROUTE = '/dispatcher/session';
+const VOICE_ROUTE = '/voice';
 const ENV_LOCAL = new URL('../../../.env.local', import.meta.url);
 
 /** Value of `name` from the environment, else from .env.local, else null. */
@@ -58,9 +63,10 @@ function readBody(req) {
 /**
  * Request handler that adds the key to the allowed ElevenLabs calls. `agentId` may be null:
  * the TTS route still works and the dispatcher route answers 404 so the app keeps its
- * scripted dispatcher (docs/07 P3 task 7).
+ * scripted dispatcher (docs/07 P3 task 7). `coachVoice` may be null: /voice answers
+ * `{ coach: null }` and the browser keeps its default voice.
  */
-export function createKeyProxy({ apiKey, agentId = null }) {
+export function createKeyProxy({ apiKey, agentId = null, coachVoice = null }) {
   if (!apiKey) throw new Error('createKeyProxy needs `apiKey`; set ELEVENLABS_API_KEY in .env.local.');
 
   const forward = async (path, init) => {
@@ -81,9 +87,35 @@ export function createKeyProxy({ apiKey, agentId = null }) {
     return firstMessage;
   };
 
+  // The coach voice is configuration, fixed for the process: resolved once against the
+  // account's library, so a human can write "Daniel" instead of copying an id. A miss is
+  // logged once and answered as null, never as a silent different voice.
+  let resolvedCoach;
+  const resolveCoachVoice = async () => {
+    if (resolvedCoach !== undefined) return resolvedCoach;
+    if (!coachVoice) return (resolvedCoach = null);
+    const upstream = await forward('/v1/voices', { method: 'GET', headers: {} });
+    const voices = upstream.ok ? (await upstream.json()).voices ?? [] : [];
+    const wanted = coachVoice.trim().toLowerCase();
+    const hit =
+      voices.find((v) => v.voice_id === coachVoice.trim()) ??
+      voices.find((v) => String(v.name).toLowerCase() === wanted) ??
+      voices.find((v) => String(v.name).toLowerCase().startsWith(wanted));
+    if (!hit) {
+      console.warn(`  ElevenLabs: no voice matching ELEVENLABS_COACH_VOICE="${coachVoice}" in this account; the default coach voice speaks`);
+      return (resolvedCoach = null);
+    }
+    resolvedCoach = { voiceId: hit.voice_id, voiceName: hit.name };
+    console.log(`  ElevenLabs: coach voice ${hit.name} (${hit.voice_id})`);
+    return resolvedCoach;
+  };
+
   return async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://proxy');
     try {
+      if (req.method === 'GET' && url.pathname === VOICE_ROUTE) {
+        return sendJson(res, 200, { coach: await resolveCoachVoice() });
+      }
       if (req.method === 'GET' && url.pathname === SESSION_ROUTE) {
         if (!agentId) return sendJson(res, 404, { error: 'No ELEVENLABS_AGENT_ID configured' });
         const upstream = await forward(
@@ -121,7 +153,8 @@ if (isMain) {
     process.exit(1);
   }
   const agentId = readLocalEnv('ELEVENLABS_AGENT_ID');
-  const handle = createKeyProxy({ apiKey, agentId });
+  const coachVoice = readLocalEnv('ELEVENLABS_COACH_VOICE');
+  const handle = createKeyProxy({ apiKey, agentId, coachVoice });
   const port = Number(process.argv[2] ?? 8788);
   createServer((req, res) => {
     // Dev CORS: a page on another port calls this directly. Under Vite it is same-origin.

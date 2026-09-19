@@ -8,7 +8,7 @@ import { createFakePerception, isFakeRequested, type FakePerceptionHandle } from
 import { canonicalLines, createSession, WATCHING_STATES } from '../../session';
 import { reverseGeocode } from '../../geocode';
 import { createVoice } from '../../../src/voice';
-import { createDispatcher, createSpeaker, warmSpeaker } from '../../providers';
+import { configureCoachVoice, createDispatcher, createSpeaker, warmSpeaker } from '../../providers';
 import { CameraView } from '../CameraView';
 import { LaunchScreen } from '../LaunchScreen';
 import { StepGuide, guideFor } from '../guide';
@@ -31,6 +31,9 @@ export function LiveApp() {
   const fake = useMemo(() => isFakeRequested(), []);
   const perception = useMemo<Perception>(() => (fake ? createFakePerception() : createPerception()), [fake]);
   const speaker = useMemo(createSpeaker, []);
+  // The configured coach voice arrives from the proxy while LAUNCH is on screen; warming waits
+  // for it so the first lines are synthesized in the right voice, never twice.
+  const coachReady = useMemo(() => configureCoachVoice(speaker), [speaker]);
   const voice = useMemo(() => createVoice({ provider: speaker }), [speaker]);
   const session = useMemo(
     () => createSession({ perception, voice, dispatcher: createDispatcher, reverseGeocode }),
@@ -51,7 +54,7 @@ export function LiveApp() {
           requestFullscreen();
           requestWakeLock();
           session.start();
-          warmSpeaker(speaker, canonicalLines());
+          void coachReady.then(() => warmSpeaker(speaker, canonicalLines()));
         }}
       />
     );

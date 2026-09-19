@@ -8,7 +8,7 @@ import { flags } from '../src/flags';
 import { WebSpeechProvider, type SpeakerProvider } from '../src/voice/out';
 import { ElevenLabsProvider } from '../src/voice/providers/elevenlabs';
 import { createAgentDispatcher, type AgentDispatcherStatus } from '../src/voice/providers/elevenlabs-agent';
-import { COACH_VOICE_ID, COACH_VOICE_NAME, DISPATCHER_VOICE_ID } from '../src/voice/providers/voices';
+import { COACH_VOICE_ID, COACH_VOICE_NAME, DISPATCHER_VOICE_ID, fetchCoachVoice } from '../src/voice/providers/voices';
 
 /** WebSpeech always; ElevenLabs on top of it only behind its flag, so the default stays local. */
 export function createSpeaker(): SpeakerProvider {
@@ -20,6 +20,17 @@ export function createSpeaker(): SpeakerProvider {
     dispatcherVoiceId: DISPATCHER_VOICE_ID,
     fallback: webSpeech,
   });
+}
+
+/**
+ * Apply the coach voice configured next to the key (ELEVENLABS_COACH_VOICE, docs/09). Runs once
+ * at mount, off the tap path; resolves when the speaker is ready to warm. WebSpeech has no
+ * voice library, and an unset or unreachable proxy leaves Brian speaking.
+ */
+export async function configureCoachVoice(speaker: SpeakerProvider): Promise<void> {
+  if (!(speaker instanceof ElevenLabsProvider)) return;
+  const coach = await fetchCoachVoice();
+  if (coach) speaker.setVoice(coach);
 }
 
 /** The scripted call-taker speaks through the queue; the ElevenLabs agent, behind its flag, wraps it as the fallback. */

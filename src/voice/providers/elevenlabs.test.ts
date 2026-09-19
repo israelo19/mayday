@@ -178,3 +178,27 @@ describe('ElevenLabsProvider', () => {
     expect(dead.provider.currentVoiceName()).toBe('fallback');
   });
 });
+
+describe('ElevenLabsProvider.setVoice', () => {
+  it('speaks later lines in the new voice and keeps the old voice cache intact', async () => {
+    const { provider, calls, played } = build(okAudio);
+    await provider.speak('Push hard and fast.');
+    provider.setVoice({ voiceId: 'newvoice', voiceName: 'Daniel' });
+    expect(provider.voice()).toEqual({ voiceId: 'newvoice', voiceName: 'Daniel' });
+    expect(provider.currentVoiceName()).toBe('ElevenLabs Daniel');
+    await provider.speak('Push hard and fast.');
+    expect(calls.map((c) => c.split('/text-to-speech/')[1]?.split('/')[0])).toEqual(['coachvoice', 'newvoice']);
+    // Back to the first voice: its line is still cached, no third fetch.
+    provider.setVoice({ voiceId: 'coachvoice' });
+    await provider.speak('Push hard and fast.');
+    expect(calls.length).toBe(2);
+    expect(played.length).toBe(3);
+  });
+
+  it('leaves the dispatcher voice alone', async () => {
+    const { provider, calls } = build(okAudio, { dispatcherVoiceId: 'sarah' });
+    provider.setVoice({ voiceId: 'newvoice' });
+    await provider.speak('Where are you?', { voice: 'dispatcher' });
+    expect(calls[0]).toContain('/text-to-speech/sarah/');
+  });
+});

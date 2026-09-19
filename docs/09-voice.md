@@ -118,6 +118,28 @@ if (flags.elevenLabs) {
 - Rehearse with the flag OFF; flip it for the judged run. The cache makes that cheap.
   `?flag=elevenLabs,dispatcherSim` flips both ElevenLabs features at once (src/flags.ts).
 
+### Choosing the coach voice
+
+Brian is the default and the app has no voice setting: LAUNCH is one button (docs/05), and a
+bystander in an emergency configures nothing. The voice is configured where the key is:
+
+```
+# .env.local, next to the key
+ELEVENLABS_COACH_VOICE=Daniel        # a name from your voice library, or a voice id
+```
+
+- The proxy resolves the value once against `GET /v1/voices` (exact id, then exact name, then
+  name prefix, case-insensitive) and serves the result at `GET /api/proxy/voice` as
+  `{ coach: { voiceId, voiceName } | null }`. A miss logs a warning at the console and answers
+  `null`; it never substitutes a different voice quietly.
+- `configureCoachVoice(speaker)` in `web/providers.ts` asks once at mount, off the tap path,
+  with a 2 s budget, and calls `ElevenLabsProvider.setVoice()`. `LiveApp` warms the cache only
+  after that promise settles, so the canonical lines are synthesized once, in the right voice.
+- Anything short of a clean answer (unset, unmatched, proxy down, slow) keeps Brian. The
+  dispatcher voice is not configurable: Sarah is a second character on stage.
+- The browser bundle still reads no environment variable; the voice id travels through the
+  proxy like everything else ElevenLabs. Voice ids are not secrets, but the rule stays simple.
+
 ## The live dispatcher (docs/04 item 3, `flags.dispatcherSim`)
 
 `createAgentDispatcher` in `src/voice/providers/elevenlabs-agent.ts` implements the same

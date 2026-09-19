@@ -9,4 +9,6 @@ export function readLocalEnv(name: string): string | null;
 export function createKeyProxy(o: {
   apiKey: string;
   agentId?: string | null;
+  /** ELEVENLABS_COACH_VOICE: a voice id or a name in the account's library; null keeps the default. */
+  coachVoice?: string | null;
 }): (req: IncomingMessage, res: ServerResponse) => Promise<void>;

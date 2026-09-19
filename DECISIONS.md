@@ -413,3 +413,10 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   `start_url`: `vite-plugin-pwa` defaults it to `/`, which made an icon launch drop the
   `?flag=` the phone was added with. Adding the icon from the flagged URL is the phone's
   bookmark; flags still do not persist in storage.
+- **Sat 19:45 (Ricky, `11labs-voice-config`)** The coach's ElevenLabs voice is configurable
+  next to the key, not in the app. `ELEVENLABS_COACH_VOICE` in `.env.local` takes a voice id or
+  a library name; the proxy resolves it once and serves `GET /api/proxy/voice`, the app asks
+  while LAUNCH is on screen and swaps the provider's voice with `setVoice()` before warming.
+  Brian stays the default and any miss keeps Brian. An in-app voice picker was built first and
+  removed the same evening: a bystander opens the app and taps once, and a settings layer,
+  however small, is a layer between them and "I NEED HELP". Sarah, the dispatcher, is fixed.

@@ -98,7 +98,8 @@ function webAudioPlayer(): AudioPlayer {
 
 export class ElevenLabsProvider implements SpeakerProvider {
   readonly name = 'elevenlabs';
-  private readonly o: Required<Omit<ElevenLabsOptions, 'dispatcherVoiceId' | 'voiceName' | 'fetchFn' | 'player'>> &
+  // Not readonly: setVoice() swaps the coach voice when the rescuer picks another one.
+  private o: Required<Omit<ElevenLabsOptions, 'dispatcherVoiceId' | 'voiceName' | 'fetchFn' | 'player'>> &
     Pick<ElevenLabsOptions, 'dispatcherVoiceId' | 'voiceName'>;
   private readonly fetchFn: typeof fetch;
   private readonly player: AudioPlayer;
@@ -121,6 +122,20 @@ export class ElevenLabsProvider implements SpeakerProvider {
 
   cachedLineCount(): number {
     return this.cache.size;
+  }
+
+  /** The coach voice in use, for the picker and the debug panel. */
+  voice(): { voiceId: string; voiceName: string } {
+    return { voiceId: this.o.voiceId, voiceName: this.o.voiceName ?? this.o.voiceId };
+  }
+
+  /**
+   * Swap the coach voice (the rescuer's pick from the voice library). The cache is keyed by
+   * voice, so lines warmed for the old voice stay and the new one warms on its own; the
+   * dispatcher voice and the fallback are untouched.
+   */
+  setVoice(voice: { voiceId: string; voiceName?: string }): void {
+    this.o = { ...this.o, voiceId: voice.voiceId, voiceName: voice.voiceName };
   }
 
   /** What the debug panel shows: this voice while lines are landing, the fallback's once not. */
@@ -166,7 +181,8 @@ export class ElevenLabsProvider implements SpeakerProvider {
    * Pre-synthesize the canonical lines (docs/04's cache idea): one warm run costs roughly
    * 40 lines x ~90 chars x 0.5 credits, then every replay is free and offline-capable.
    */
-  async warm(lines: readonly string[], voiceId = this.o.voiceId): Promise<number> {
+  async warm(lines: readonly string[], voiceId?: string): Promise<number> {
+    voiceId ??= this.o.voiceId;
     let cachedCount = 0;
     for (const line of lines) {
       if (this.cache.has(this.key(voiceId, line))) {
