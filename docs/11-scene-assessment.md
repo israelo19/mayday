@@ -112,7 +112,7 @@ Flag: `?flag=sceneAssess`. Key: `GEMINI_API_KEY` in `.env.local`, model by `GEMI
 (default `gemini-3.6-flash`; `gemini-3.5-flash-lite` is quicker and weaker). Gemini answers boxes on the
 0 to 1000 scale `parseBox` already reads, so the client is provider-agnostic. `FEATHERLESS_API_KEY` is the
 fallback (`Qwen/Qwen2.5-VL-7B-Instruct`, or `Qwen/Qwen3-VL-8B-Instruct` for a sharper run), chosen by
-`VISION_PROVIDER` or by being the only key present. `node scripts/assess-frame.mjs photo.jpg [model]` runs the app's exact question on a
+`MODEL_PROVIDER` or by being the only key present. `node scripts/assess-frame.mjs photo.jpg [model]` runs the app's exact question on a
 photo, for comparing models before the demo. `?fake=1&flag=sceneAssess` demos the whole flow with a canned
 model ("model says" in the fake controls). The cards and buttons are unchanged.
 

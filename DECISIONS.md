@@ -546,4 +546,9 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   missed, one sentence in flight, 8 s between tries. `RouteSuggestion.source` gained `'model'`,
   which the amber bar already renders as "Sounds like" since it is not the camera. The dead
   `route: TriageRoute` field on the stored suggestion went with it: nothing had read it since it
-  was added. Behind `?flag=intentRoute`, `?fake=1` gets a word overlap stub.
+  was added. Behind `?flag=intentRoute`, `?fake=1` gets a word overlap stub.- **Sat 20:05 (Ricky, `gemini-api` worktree)** The provider layer lost its `vision` prefix now
+  that it serves the intent route too: `MODEL_PROVIDERS`, `resolveProvider()`, `MODEL_PROVIDER`.
+  Switching models is that one environment variable and nothing else; no app code names a
+  provider. A blind rename also rewrote the `/vision/assess` route constant, which the tests
+  did not catch because nothing tests the proxy. Caught by curling both routes against the real
+  upstream with a bad key, which is now the check to run after any edit to devproxy.mjs.

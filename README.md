@@ -103,7 +103,7 @@ stay for anyone who prefers to tap.
    `npm run dev` then mounts `/api/proxy/vision/assess` and prints
    `Scene model: gemini-3.6-flash (gemini) via /api/proxy/vision/assess`. `GEMINI_VISION_MODEL`
    picks another model; `gemini-3.5-flash-lite` is quicker and weaker. `FEATHERLESS_API_KEY`
-   is the fallback provider, used when there is no Gemini key or when `VISION_PROVIDER=featherless`.
+   is the fallback provider, used when there is no Gemini key or when `MODEL_PROVIDER=featherless`.
 2. Open the phone URL with `?flag=sceneAssess`. After "I NEED HELP" the look card reads "One
    picture is with the model", then the eyes chip reads "Saw: …", a box lands on the person,
    and the app asks "It looks like someone is bleeding badly. Say yes, or tap."

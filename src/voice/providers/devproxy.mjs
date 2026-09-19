@@ -44,7 +44,7 @@ const INTENT_ROUTE = '/intent/route';
  * OpenAI-compatible endpoint (ai.google.dev/gemini-api/docs/openai), Featherless natively.
  * Adding a third is a row here, not a branch anywhere else.
  */
-export const VISION_PROVIDERS = {
+export const MODEL_PROVIDERS = {
   gemini: {
     chat: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
     keyEnv: 'GEMINI_API_KEY',
@@ -64,7 +64,7 @@ export const VISION_PROVIDERS = {
 };
 
 /** Gemini first: it is the sponsor track (docs/04 items 4 and 7) and the boxes come back better. */
-export const DEFAULT_VISION_PROVIDER = 'gemini';
+export const DEFAULT_PROVIDER = 'gemini';
 /** A 640 px JPEG is well under this; anything bigger is not a frame from the app. */
 const MAX_IMAGE_CHARS = 2_000_000;
 const ENV_LOCAL = new URL('../../../.env.local', import.meta.url);
@@ -84,14 +84,15 @@ export function readLocalEnv(name) {
 }
 
 /**
- * The scene model this machine can actually reach: the provider named by VISION_PROVIDER if
- * it has a key, else Gemini, else Featherless, else null. One resolver so the Vite mount, the
- * standalone server and scripts/assess-frame.mjs can never disagree about which model ran.
+ * The model this machine can actually reach, for both AI routes: the provider named by
+ * MODEL_PROVIDER if it has a key, else Gemini, else Featherless, else null. One resolver so the
+ * Vite mount, the standalone server and scripts/assess-frame.mjs can never disagree about which
+ * model ran. Switching providers is this one environment variable and nothing else.
  */
-export function resolveVisionProvider(name = readLocalEnv('VISION_PROVIDER')) {
-  const wanted = name && VISION_PROVIDERS[name] ? [name] : [DEFAULT_VISION_PROVIDER, 'featherless'];
+export function resolveProvider(name = readLocalEnv('MODEL_PROVIDER')) {
+  const wanted = name && MODEL_PROVIDERS[name] ? [name] : [DEFAULT_PROVIDER, 'featherless'];
   for (const id of wanted) {
-    const provider = VISION_PROVIDERS[id];
+    const provider = MODEL_PROVIDERS[id];
     const key = readLocalEnv(provider.keyEnv);
     if (key) return { id, key, chat: provider.chat, model: readLocalEnv(provider.modelEnv) ?? provider.defaultModel };
   }
@@ -104,9 +105,9 @@ export function resolveVisionProvider(name = readLocalEnv('VISION_PROVIDER')) {
  * is the intent router. Returns the model's text untouched: every judgement about whether the
  * answer is usable belongs to src/ai, which is the side that knows what it asked for.
  */
-export async function askModel({ provider = DEFAULT_VISION_PROVIDER, chat, key, model, image = null, mime = 'image/jpeg', system, user, maxTokens = 320 }) {
-  const endpoint = chat ?? VISION_PROVIDERS[provider]?.chat;
-  if (!endpoint) throw new Error(`unknown vision provider: ${provider}`);
+export async function askModel({ provider = DEFAULT_PROVIDER, chat, key, model, image = null, mime = 'image/jpeg', system, user, maxTokens = 320 }) {
+  const endpoint = chat ?? MODEL_PROVIDERS[provider]?.chat;
+  if (!endpoint) throw new Error(`unknown provider: ${provider}`);
   const started = Date.now();
   const upstream = await fetch(endpoint, {
     method: 'POST',
@@ -154,8 +155,8 @@ function readBody(req) {
  * route whose key is missing answers 404 and the app keeps its local stub (the scripted
  * dispatcher, WebSpeech, no scene assessment).
  */
-export function createKeyProxy({ apiKey = null, agentId = null, vision = null }) {
-  if (!apiKey && !vision) throw new Error('createKeyProxy needs a key: ELEVENLABS_API_KEY, GEMINI_API_KEY or FEATHERLESS_API_KEY in .env.local.');
+export function createKeyProxy({ apiKey = null, agentId = null, provider = null }) {
+  if (!apiKey && !provider) throw new Error('createKeyProxy needs a key: ELEVENLABS_API_KEY, GEMINI_API_KEY or FEATHERLESS_API_KEY in .env.local.');
 
   const forward = async (path, init) => {
     const upstream = await fetch(UPSTREAM + path, {
@@ -180,7 +181,7 @@ export function createKeyProxy({ apiKey = null, agentId = null, vision = null })
     try {
       if (req.method === 'POST' && (url.pathname === VISION_ROUTE || url.pathname === INTENT_ROUTE)) {
         const wantsImage = url.pathname === VISION_ROUTE;
-        if (!vision) return sendJson(res, 404, { error: 'No model key configured: GEMINI_API_KEY or FEATHERLESS_API_KEY' });
+        if (!provider) return sendJson(res, 404, { error: 'No model key configured: GEMINI_API_KEY or FEATHERLESS_API_KEY' });
         const raw = await readBody(req);
         let body;
         try {
@@ -192,10 +193,10 @@ export function createKeyProxy({ apiKey = null, agentId = null, vision = null })
         if (typeof system !== 'string' || typeof user !== 'string') return sendJson(res, 400, { error: 'system and user prompts are required' });
         if (wantsImage && (typeof image !== 'string' || image.length === 0 || image.length > MAX_IMAGE_CHARS)) return sendJson(res, 400, { error: 'image must be a base64 string of a small JPEG' });
         const reply = await askModel({
-          provider: vision.id,
-          chat: vision.chat,
-          key: vision.key,
-          model: vision.model,
+          provider: provider.id,
+          chat: provider.chat,
+          key: provider.key,
+          model: provider.model,
           image: wantsImage ? image : null,
           mime: mime === 'image/png' ? 'image/png' : 'image/jpeg',
           system,
@@ -238,13 +239,13 @@ export function createKeyProxy({ apiKey = null, agentId = null, vision = null })
 const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/^.*\//, '/'));
 if (isMain) {
   const apiKey = readLocalEnv('ELEVENLABS_API_KEY');
-  const vision = resolveVisionProvider();
-  if (!apiKey && !vision) {
+  const provider = resolveProvider();
+  if (!apiKey && !provider) {
     console.error('No key. Set ELEVENLABS_API_KEY, GEMINI_API_KEY or FEATHERLESS_API_KEY in the environment or .env.local.');
     process.exit(1);
   }
   const agentId = readLocalEnv('ELEVENLABS_AGENT_ID');
-  const handle = createKeyProxy({ apiKey, agentId, vision });
+  const handle = createKeyProxy({ apiKey, agentId, provider });
   const port = Number(process.argv[2] ?? 8788);
   createServer((req, res) => {
     // Dev CORS: a page on another port calls this directly. Under Vite it is same-origin.
@@ -255,7 +256,7 @@ if (isMain) {
     void handle(req, res);
   }).listen(port, () => {
     console.log(
-      `dev proxy on http://localhost:${port}: elevenlabs ${apiKey ? `on, agent ${agentId ? 'set' : 'not set'}` : 'off'}; vision ${vision ? `on (${vision.id} ${vision.model})` : 'off'}`,
+      `dev proxy on http://localhost:${port}: elevenlabs ${apiKey ? `on, agent ${agentId ? 'set' : 'not set'}` : 'off'}; model ${provider ? `on (${provider.id} ${provider.model})` : 'off'}`,
     );
   });
 }

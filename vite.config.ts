@@ -5,7 +5,7 @@ import mkcert from 'vite-plugin-mkcert';
 import { VitePWA } from 'vite-plugin-pwa';
 import * as QRCode from 'qrcode';
 import { appendFileSync } from 'node:fs';
-import { createKeyProxy, readLocalEnv, resolveVisionProvider } from './src/voice/providers/devproxy.mjs';
+import { createKeyProxy, readLocalEnv, resolveProvider } from './src/voice/providers/devproxy.mjs';
 
 // HTTPS in dev because getUserMedia needs a secure context on any origin other than
 // localhost (the phone on the LAN hits https://<laptop-ip>:5173).
@@ -60,16 +60,16 @@ function phoneQr(): PluginOption {
 function keyProxy(): PluginOption {
   const apiKey = readLocalEnv('ELEVENLABS_API_KEY');
   const agentId = readLocalEnv('ELEVENLABS_AGENT_ID');
-  const vision = resolveVisionProvider();
+  const provider = resolveProvider();
   // Dev and preview servers share the connect stack, so one mount serves both hooks.
   const mount = (server: Pick<ViteDevServer, 'middlewares'>): void => {
-    if (!apiKey && !vision) {
+    if (!apiKey && !provider) {
       console.log('  Keys: none in .env.local; WebSpeech carries the demo and the camera keeps its own cues');
       return;
     }
-    server.middlewares.use('/api/proxy', createKeyProxy({ apiKey, agentId, vision }));
+    server.middlewares.use('/api/proxy', createKeyProxy({ apiKey, agentId, provider }));
     console.log(`  ElevenLabs: ${apiKey ? `key proxy at /api/proxy, dispatcher agent ${agentId ? 'set' : 'NOT set'}` : 'off (no ELEVENLABS_API_KEY)'}`);
-    console.log(`  Scene model: ${vision ? `${vision.model} (${vision.id}) via /api/proxy/vision/assess, on with ?flag=sceneAssess` : 'off (no GEMINI_API_KEY or FEATHERLESS_API_KEY)'}`);
+    console.log(`  Model: ${provider ? `${provider.model} (${provider.id}), serving ?flag=sceneAssess and ?flag=intentRoute` : 'off (no GEMINI_API_KEY or FEATHERLESS_API_KEY)'}`);
   };
   return { name: 'mayday-key-proxy', configureServer: mount, configurePreviewServer: mount };
 }
