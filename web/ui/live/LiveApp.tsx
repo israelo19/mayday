@@ -63,7 +63,8 @@ export function LiveApp() {
       <div className="live-top">
         <ListeningChip listening={snap.listening} heard={snap.lastHeard} keyword={snap.lastKeyword} />
         <div className="live-top-right">
-          <button className="live-call" onClick={() => session.call911()} disabled={snap.callActive}>
+          {/* Every state keeps the button; states flagged call911 in the machine data make it pulse. It opens the SIMULATED dispatcher and never dials. */}
+          <button className={`live-call${snap.call911 && !snap.callActive ? ' urgent' : ''}`} onClick={() => session.call911()} disabled={snap.callActive}>
             {snap.callActive ? 'On the line' : 'Call 911'}
           </button>
           {snap.callActive && <span className="live-sim">Simulated dispatcher</span>}
