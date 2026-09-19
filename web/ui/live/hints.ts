@@ -36,6 +36,8 @@ export function voiceOffLabel(code: string | null, platform: Platform, supported
 
 /** How long triage stays camera-first before the question card and buttons come up. */
 export const TRIAGE_LOOK_MS = 3000;
+/** With a frame out to the scene model, the look may run this long before the card comes up anyway. */
+export const TRIAGE_LOOK_MAX_MS = 7000;
 
 export type LookInput = {
   phase: string;
@@ -45,6 +47,8 @@ export type LookInput = {
   suggestion: boolean;
   /** The person tapped the look card. */
   revealed: boolean;
+  /** A frame is with the scene model; its answer is worth a short wait. */
+  assessing?: boolean;
   /** Milliseconds since triage was entered. */
   sinceMs: number;
 };
@@ -58,5 +62,6 @@ export type LookInput = {
 export function isLooking(i: LookInput): boolean {
   if (i.phase !== 'triage' || i.revealed || i.suggestion) return false;
   if (i.eyesStatus === 'off' || i.eyesStatus === 'error') return false;
+  if (i.assessing && i.sinceMs < TRIAGE_LOOK_MAX_MS) return true;
   return i.sinceMs < TRIAGE_LOOK_MS;
 }

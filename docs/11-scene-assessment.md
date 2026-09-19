@@ -95,3 +95,51 @@ coaching loop and never blocks it (principle 3); when the picture is bad the app
 Never: blood-pixel detection, depth in centimetres from one camera, any label that reads as a
 diagnosis (docs/03). The literature above is why: pose is robust, pixels lie, and a VLM under a
 bad picture invents.
+
+## Built, Sat 08:40 (worktree `scene-assessment`)
+
+Tiers 1 and 2 above are in, each behind the seam the principles ask for.
+
+| Piece | Where | Rule it keeps |
+|---|---|---|
+| Boxes, posture, stillness per person | `src/perception/scene.ts`, drawn by `overlay.ts`, on the facts as `scene` | On-device, facts only (principle 2) |
+| One frame to a vision model | `src/ai/assess.ts`, route `/vision/assess` in `devproxy.mjs` | Episodic, never on the coaching path, null on any miss (principle 3) |
+| Closed labels, validated | `parseAssessment`: `collapsed`, `bleeding`, `choking`, else `unclear`; a coaching sentence is dropped | No model text is ever an instruction (principle 1) |
+| The question | `ASSESSMENT_HINTS` in `src/protocol/phrases.ts`; the session asks, the human says yes or taps | The engine never moves on the camera (principle 1) |
+| The screen | eyes chip, "Camera: …" banner with cues, the patient's box over the video | Fail loud: a bad picture means no box, no banner (principle 4) |
+
+Flag: `?flag=sceneAssess`. Key: `FEATHERLESS_API_KEY` in `.env.local`, model by `FEATHERLESS_VISION_MODEL`
+(development default `Qwen/Qwen2.5-VL-7B-Instruct`; `Qwen/Qwen3-VL-8B-Instruct` or `google/gemma-3-27b-it`
+for the judged run). `node scripts/assess-frame.mjs photo.jpg [model]` runs the app's exact question on a
+photo, for comparing models before the demo. `?fake=1&flag=sceneAssess` demos the whole flow with a canned
+model ("model says" in the fake controls). The cards and buttons are unchanged.
+
+## Reuse next: pain, breathing, movement
+
+Each of these has published work on the landmarks or the frame we already have. In order:
+
+1. **Pain from the face, on-device.** The Prkachin and Solomon Pain Intensity score is a sum of
+   facial action units (brow lowering AU4, orbital tightening AU6/7, levator contraction AU9/10,
+   eye closure AU43). MediaPipe's Face Landmarker outputs 52 blendshapes that loosely map to those
+   units, and pain-from-keypoints has been done on mobile video
+   ([J Imaging 2025](https://pmc.ncbi.nlm.nih.gov/articles/PMC12112665/), [arXiv 2006.12246](https://arxiv.org/pdf/2006.12246),
+   [ICU AU detection](https://arxiv.org/pdf/2005.02121), [MediaPipe Face Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker)).
+   A third model per frame is what froze the phone once, so it runs at two frames a second and only
+   in triage. It is a cue for the banner ("face shows pain"), never a score on screen.
+2. **Breathing from the chest.** Respiration rate from smartphone video uses chest or abdomen
+   motion and a dominant peak in the spectrum, and has been done on MediaPipe chest landmarks
+   ([PLOS One 2016](https://journals.plos.org/plosone/article?id=10.1371%2Fjournal.pone.0151013),
+   [real-time camera system 2021](https://link.springer.com/article/10.1007/s11517-021-02371-5)). Same
+   peak detector as compressions, a 0.1 to 0.7 Hz band, only when the phone is propped and the
+   patient's pose is still. It answers "is he breathing?" as a cue with the human confirming;
+   a handheld phone makes the signal a lie, so the propped-phone check gates it.
+3. **Convulsive movement.** Video seizure detection from skeleton graphs reaches 82 to 100%
+   sensitivity in controlled settings ([review 2024](https://www.epilepsybehavior.com/article/S1525-5050(24)00116-1/fulltext),
+   [prospective study](https://www.sciencedirect.com/science/article/pii/S1525505024005006)). A rhythmic
+   high-frequency movement of a lying person's box is a cue for a future seizure machine; it needs
+   that machine's data file first, which is out of scope this weekend.
+4. **Boxes from a grounding model.** Qwen2.5-VL answers boxes in pixels, Qwen3-VL and Gemini on a
+   0 to 1000 scale ([Qwen2.5-VL report](https://arxiv.org/pdf/2502.13923),
+   [Qwen3-VL grounding](https://debuggercafe.com/grounding-qwen3-vl-detection-with-sam2/)); the parser
+   reads both. Per-person attributes from the same call (the BodyLanguageDetection pattern) would let
+   the model box every person with a state, not only the patient.

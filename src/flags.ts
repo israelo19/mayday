@@ -9,6 +9,8 @@ export interface Flags {
   dispatcherSim: boolean;
   visionDescribe: boolean;
   narrationFlavor: boolean;
+  /** One frame to a scene model in triage (docs/04 item 7, docs/11). The frame leaves the phone. */
+  sceneAssess: boolean;
 }
 
 const DEFAULTS: Flags = {
@@ -16,6 +18,7 @@ const DEFAULTS: Flags = {
   dispatcherSim: false,
   visionDescribe: false,
   narrationFlavor: false,
+  sceneAssess: false,
 };
 
 /** Flags for a query string such as `?flag=elevenLabs,dispatcherSim`; unknown names are ignored. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TRIAGE_LOOK_MS, isLooking, voiceOffLabel } from './hints';
+import { TRIAGE_LOOK_MAX_MS, TRIAGE_LOOK_MS, isLooking, voiceOffLabel } from './hints';
 
 const phone = { iOS: true, standalone: false };
 const homeScreen = { iOS: true, standalone: true };
@@ -46,6 +46,12 @@ describe('isLooking', () => {
     expect(isLooking({ ...base, eyesStatus: 'error' })).toBe(false);
     expect(isLooking({ ...base, eyesStatus: 'off' })).toBe(false);
     expect(isLooking({ ...base, phase: 'coaching' })).toBe(false);
+  });
+
+  it('waits a little longer while a frame is with the scene model, but not forever', () => {
+    expect(isLooking({ ...base, sinceMs: TRIAGE_LOOK_MS + 500, assessing: true })).toBe(true);
+    expect(isLooking({ ...base, sinceMs: TRIAGE_LOOK_MAX_MS, assessing: true })).toBe(false);
+    expect(isLooking({ ...base, sinceMs: TRIAGE_LOOK_MS + 500, assessing: false })).toBe(false);
   });
 
   it('still looks while the camera is starting or sees nobody yet', () => {

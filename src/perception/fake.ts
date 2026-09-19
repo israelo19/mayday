@@ -2,7 +2,7 @@
 // pillow. Enabled with ?fake=1. The generator underneath is pure, so the engine tests and the
 // live demo are fed by the same code. Owned by P2 (docs/07); kept in step with P1's Perception
 // interface (roi(), tuning, the wider debug surface) by whoever changes that interface.
-import type { PerceptionFacts } from '../types';
+import type { PerceptionFacts, SceneLabel, SceneObservation } from '../types';
 import type { Perception, PerceptionDebug, PerceptionMode, PerceptionStatus } from './index';
 import type { Roi } from './roi';
 import { DEFAULT_TUNING, GUIDANCE, type Sample, type Tuning } from './signal';
@@ -18,6 +18,8 @@ export type FakeControls = {
   recoilRatio: number;
   /** Triage: the camera sees a person lying still (docs/03 scene hint). */
   personDown: boolean;
+  /** What the stub scene model answers with (docs/04 item 7); `unclear` asks nothing. */
+  scene: SceneLabel;
 };
 
 const DEFAULTS: FakeControls = {
@@ -27,6 +29,7 @@ const DEFAULTS: FakeControls = {
   handsOn: null,
   recoilRatio: 0.85,
   personDown: false,
+  scene: 'unclear',
 };
 
 /** Facts the engine would see if the rescuer behaved exactly as the controls say. */
@@ -34,6 +37,7 @@ export class FakeFacts {
   readonly controls: FakeControls;
   private handsOffSince: number | null = null;
   private startedAt: number | null = null;
+  private downSince: number | null = null;
 
   constructor(controls: Partial<FakeControls> = {}) {
     this.controls = { ...DEFAULTS, ...controls };
@@ -48,6 +52,8 @@ export class FakeFacts {
     if (this.startedAt === null) this.startedAt = t;
     if (c.handsOn !== false) this.handsOffSince = null;
     else if (this.handsOffSince === null) this.handsOffSince = t;
+    if (c.personDown) this.downSince ??= t;
+    else this.downSince = null;
 
     if (c.cameraCovered) {
       // Exactly what the real module does below the confidence gate: measurements disappear.
@@ -59,8 +65,17 @@ export class FakeFacts {
         recoilRatio: null,
         handsOnRegion: null,
         handsOffMs: null,
+        scene: { people: [] },
       };
     }
+    const scene: SceneObservation = {
+      people: [
+        ...(c.personDown
+          ? [{ box: { x: 0.15, y: 0.55, w: 0.7, h: 0.25 }, posture: 'lying' as const, stillMs: t - (this.downSince ?? t), confidence: 0.9 }]
+          : []),
+        ...(c.compressing ? [{ box: { x: 0.35, y: 0.2, w: 0.3, h: 0.5 }, posture: 'upright' as const, stillMs: 0, confidence: 0.9 }] : []),
+      ],
+    };
     // Rate needs a few cycles of history before the real module reports one (docs/03).
     const warm = t - this.startedAt >= 3000;
     return {
@@ -72,6 +87,7 @@ export class FakeFacts {
       handsOnRegion: c.handsOn,
       handsOffMs: c.handsOn === null ? null : this.handsOffSince === null ? 0 : t - this.handsOffSince,
       sceneHint: c.personDown ? 'person_down' : null,
+      scene,
     };
   }
 }
@@ -180,8 +196,9 @@ class FakePerception implements FakePerceptionHandle {
     };
   }
 
+  /** Not a picture: the stub scene model never looks at it, and the real one is never given the fake. */
   captureFrame(): string | null {
-    return null;
+    return 'ZmFrZQ==';
   }
 
   readonly debug: PerceptionDebug = {

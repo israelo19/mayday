@@ -93,6 +93,25 @@ local stub underneath and fall back to it on any miss, so the wifi-off demo is u
 5. To hear the difference without the flow: `?debug=1&flag=elevenLabs`, the voice chip reads
    "ElevenLabs Brian", and "Speak a test line" goes through the proxy.
 
+### The scene model on the phone
+
+One camera frame goes to a vision model at the start of triage, and its answer becomes a
+question the person confirms (docs/04 item 7, docs/11). Behind a flag; the cards and buttons
+stay for anyone who prefers to tap.
+
+1. Put `FEATHERLESS_API_KEY=...` in `.env.local`. `npm run dev` then mounts `/api/proxy/vision/assess`
+   and prints `Scene model: <model> via /api/proxy/vision/assess`. `FEATHERLESS_VISION_MODEL`
+   picks the model; the default is the small `Qwen/Qwen2.5-VL-7B-Instruct`, try
+   `Qwen/Qwen3-VL-8B-Instruct` for the judged run.
+2. Open the phone URL with `?flag=sceneAssess`. After "I NEED HELP" the look card reads "One
+   picture is with the model", then the eyes chip reads "Saw: …", a box lands on the person,
+   and the app asks "It looks like someone is bleeding badly. Say yes, or tap."
+3. No key, or no answer within four seconds: nothing happens, and the camera's own cues carry on.
+
+`node scripts/assess-frame.mjs photo.jpg [model]` runs the app's exact question on a photo.
+`?fake=1&flag=sceneAssess` demos the flow with a canned model: pick what it says in the fake controls,
+then "Start over", since the frame goes out about a second into triage.
+
 ## M0 demo check
 
 1. Open `?debug=1`. The footer reads `status: running`, fps is above 10, the pose skeleton is

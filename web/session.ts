@@ -11,12 +11,14 @@
 // originate here are about the phone and the camera, never about the patient.
 // Lives in web/ because it owns the clock, geolocation and the DOM; src/ stays the engine.
 // Zero network calls. Owned by P4 (docs/07); built by P1 on the `listen` branch.
-import type { CoachingEvent, GeoFix, HandoffReport, PerceptionFacts, Sitrep, State } from '../src/types';
+import type { CoachingEvent, GeoFix, HandoffReport, PerceptionFacts, SceneAssessment, Sitrep, State } from '../src/types';
+import type { SceneAssessor } from '../src/ai/assess';
+import { ASSESS_FRAME_PX } from '../src/ai/assess';
 import type { DispatcherSim } from '../src/ai/dispatcher';
 import type { Perception, RoiState } from '../src/perception';
 import { GUIDANCE } from '../src/perception';
 import type { Voice, VoiceInStatus } from '../src/voice';
-import { CONFIRM_WORDS, createEngine, machines, matchKeyword, REJECT_WORDS, routeKeyword, SCENE_HINTS, STALE_FACTS_MS, suggestRoute, TRIAGE_ROUTES, type Engine, type TriageRoute } from '../src/protocol';
+import { ASSESSMENT_HINTS, CONFIRM_WORDS, createEngine, machines, matchKeyword, REJECT_WORDS, routeKeyword, SCENE_HINTS, STALE_FACTS_MS, suggestRoute, TRIAGE_ROUTES, type Engine, type TriageRoute } from '../src/protocol';
 import { buildHandoff, buildSitrep, createEventLog, handoffQrPayload, qrDataUrl, type EventLog } from '../src/sitrep';
 
 export type SessionPhase = 'idle' | 'triage' | 'coaching' | 'handoff';
@@ -88,6 +90,10 @@ export type SessionSnapshot = {
   /** The recognizer's last error code ('not-allowed', 'network', ...), so the chip can say why the mic is off. */
   listenError: string | null;
   suggestion: RouteSuggestion | null;
+  /** The scene model's latest answer this triage, for the screen (docs/04 item 7). */
+  assessment: SceneAssessment | null;
+  /** A frame is with the scene model right now. */
+  assessing: boolean;
   lastHeard: string | null;
   lastHeardAt: number;
   lastKeyword: string | null;
@@ -150,6 +156,8 @@ export type SessionDeps = {
   dispatcher?: DispatcherFactory;
   /** Diagnostics only (web/trace.ts): every recognizer event, by name. Never routes. */
   micTrace?: (name: string, detail?: string) => void;
+  /** One frame to a scene model in triage (docs/04 item 7). Absent: the camera's own cues only. */
+  assessor?: SceneAssessor;
 };
 
 export const MACHINE_LABEL: Record<string, string> = {
@@ -177,6 +185,11 @@ const SCENE_HINT_RETRY_MS = 30_000;
 const HEARD_SHOWN_MS = 4_000;
 const SUGGESTION_TTL_MS = 20_000;
 const CAMERA_SAW_SHOWN_MS = 5_000;
+/** The camera gets a moment to expose and find a pose before a frame is worth sending. */
+const ASSESS_AFTER_MS = 1_200;
+/** An unclear answer is tried once more, later; a clear one stands. */
+const ASSESS_RETRY_MS = 6_000;
+const ASSESS_MAX_TRIES = 2;
 
 /** Not medical: this is about the camera, spoken once per state when the hands never settle. */
 export const ROI_FAILED_LINE = "I can't find your hands on the wound. I'll keep coaching by voice.";
@@ -229,6 +242,13 @@ export function createSession(deps: SessionDeps): Session {
   let geoRequested = false;
   let roiAnnouncedFor: string | null = null;
   let cameraSaw: { label: string; at: number } | null = null;
+  let assessment: SceneAssessment | null = null;
+  let assessing = false;
+  let assessTries = 0;
+  let assessedAt = -Infinity;
+  // A camera question the person said no to waits SCENE_HINT_RETRY_MS before either camera
+  // source may ask about that route again (docs/03: a rejected hint waits 30 s).
+  const rejectedAt = new Map<string, number>();
   // A call911 state entered while the simulated call is already open is skipped on the next
   // tick: telling someone on the line to call is noise, and the state's own lines go stale
   // unplayed when the engine moves on (docs/09). Not medical: it is about the phone.
@@ -249,6 +269,11 @@ export function createSession(deps: SessionDeps): Session {
     stateEnteredAt = now();
     phase = machineId === 'triage' ? 'triage' : state?.terminal ? 'handoff' : 'coaching';
     if (callActive && state?.call911) skipCallPrompt = true;
+    if (machineId === 'triage') {
+      assessment = null;
+      assessTries = 0;
+      rejectedAt.clear();
+    }
 
     if (bpm === null) {
       if (metronomeBpm !== null) voice.out.stopMetronome();
@@ -378,6 +403,7 @@ export function createSession(deps: SessionDeps): Session {
     considerTranscript(t);
     if (suggestion && t - suggestion.at > SUGGESTION_TTL_MS) suggestion = null;
     considerScene(t);
+    considerAssessment(t);
     if (t - lastReportAt >= REPORT_MS) refreshReports(false);
     notify();
   }
@@ -415,10 +441,54 @@ export function createSession(deps: SessionDeps): Session {
     if (t - facts.t > STALE_FACTS_MS || t - sceneAskedAt < SCENE_HINT_RETRY_MS) return;
     const hint = SCENE_HINTS.person_down;
     const route = TRIAGE_ROUTES.find((r) => r.to === hint.to);
-    if (!route) return;
+    if (!route || t - (rejectedAt.get(hint.to) ?? -Infinity) < SCENE_HINT_RETRY_MS) return;
     sceneAskedAt = t;
     suggestion = { route, at: t, label: hint.label, keyword: hint.keyword, to: hint.to, heard: 'camera: a person lying still', source: 'camera' };
     log.append({ t, kind: 'system', detail: 'camera: a person lying still, asked whether someone collapsed' });
+    voice.out.enqueue({ priority: 'correction', text: hint.confirm, stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'suggest', cooldownMs: 3000, t });
+  }
+
+  /**
+   * One frame to the scene model (docs/04 item 7, docs/11): once the camera has had a moment
+   * in triage, and once more later if the first answer was unclear. The label earns the same
+   * Yes/No question a heard phrase does; the engine never moves on it.
+   */
+  function considerAssessment(t: number): void {
+    const assessor = deps.assessor;
+    if (!assessor || phase !== 'triage' || assessing || assessTries >= ASSESS_MAX_TRIES) return;
+    if (t - stateEnteredAt < ASSESS_AFTER_MS) return;
+    if (assessTries > 0 && (assessment?.label !== 'unclear' || t - assessedAt < ASSESS_RETRY_MS)) return;
+    if (perception.debug.status() !== 'running' || !facts || t - facts.t > STALE_FACTS_MS) return;
+    const size = perception.debug.frameSize();
+    const image = perception.captureFrame(ASSESS_FRAME_PX);
+    if (!image || !size) return;
+    const scale = Math.min(1, ASSESS_FRAME_PX / Math.max(size.width, size.height));
+    assessing = true;
+    assessTries++;
+    log.append({ t, kind: 'system', detail: 'camera: one frame sent to the scene model' });
+    void assessor
+      .assess({ image, mime: 'image/jpeg', width: Math.round(size.width * scale), height: Math.round(size.height * scale) })
+      .then((result) => {
+        assessing = false;
+        assessedAt = now();
+        if (!result) {
+          log.append({ t: now(), kind: 'system', detail: 'camera: no answer from the scene model' });
+        } else {
+          assessment = result;
+          log.append({ t: now(), kind: 'system', detail: `camera: looks like ${result.label} (${result.confidence})${result.scene ? `: ${result.scene}` : ''}` });
+          suggestFromAssessment(result);
+        }
+        notify();
+      });
+  }
+
+  function suggestFromAssessment(a: SceneAssessment): void {
+    if (a.label === 'unclear' || phase !== 'triage' || suggestion) return;
+    const hint = ASSESSMENT_HINTS[a.label];
+    const route = TRIAGE_ROUTES.find((r) => r.to === hint.to);
+    const t = now();
+    if (!route || t - (rejectedAt.get(hint.to) ?? -Infinity) < SCENE_HINT_RETRY_MS) return;
+    suggestion = { route, at: t, label: hint.label, keyword: hint.keyword, to: hint.to, heard: `camera: ${a.scene || a.label}`, source: 'camera' };
     voice.out.enqueue({ priority: 'correction', text: hint.confirm, stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'suggest', cooldownMs: 3000, t });
   }
 
@@ -564,6 +634,8 @@ export function createSession(deps: SessionDeps): Session {
       listening,
       listenError,
       suggestion: suggestion ? { label: suggestion.label, keyword: suggestion.keyword, to: suggestion.to, heard: suggestion.heard, source: suggestion.source } : null,
+      assessment,
+      assessing,
       lastHeard: t - lastHeardAt <= HEARD_SHOWN_MS ? lastHeard : null,
       lastHeardAt,
       lastKeyword: t - lastHeardAt <= HEARD_SHOWN_MS ? lastKeyword : null,
@@ -637,6 +709,10 @@ export function createSession(deps: SessionDeps): Session {
       geoRequested = false;
       roiAnnouncedFor = null;
       cameraSaw = null;
+      assessment = null;
+      assessing = false;
+      assessTries = 0;
+      rejectedAt.clear();
       skipCallPrompt = false;
       session.start();
     },
@@ -681,6 +757,7 @@ export function createSession(deps: SessionDeps): Session {
     rejectSuggestion(): void {
       if (!suggestion) return;
       log.append({ t: now(), kind: 'user', detail: `rejected: ${suggestion.label}` });
+      if (suggestion.source === 'camera') rejectedAt.set(suggestion.to, now());
       suggestion = null;
       notify();
     },
