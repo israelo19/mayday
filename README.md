@@ -71,7 +71,7 @@ Decisions the docs did not settle are logged in `DECISIONS.md`.
 
 ## Team
 
-- Emmanuel Adedeji
-- Bryce Biyeba
-- Ricky Chen
-- Israel Ogwu
+- [Emmanuel Adedeji](https://www.linkedin.com/in/e-adedeji/)
+- [Bryce Biyeba](https://www.linkedin.com/in/bryce-biyeba/)
+- [Ricky Chen](https://www.linkedin.com/in/ricky-ch3n/)
+- [Israel Ogwu](https://www.linkedin.com/in/israelogwu/)
