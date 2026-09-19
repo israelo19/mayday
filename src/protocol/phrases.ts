@@ -7,6 +7,7 @@
 //             only ever moves on a keyword or a tap.
 // Owned by P2 (docs/07); built on `polish`. Keep entries in canonical inflection: "choking"
 // covers choke/choked/chokes through the stemmer, listing more than one would be a duplicate.
+import type { SceneHint } from '../types';
 import { stemKey, tokens } from './language';
 
 export type TriageRoute = {
@@ -113,6 +114,20 @@ export const TRIAGE_ROUTES: readonly TriageRoute[] = [
     cues: { chok: 3, throat: 2, airway: 2, stuck: 1, swallow: 1, food: 1, gag: 1, heimlich: 3, lodg: 2, cough: 1, silent: 1, air: 1, eat: 1, ate: 1, chew: 1, neck: 1 },
   },
 ];
+
+/**
+ * What each camera cue suggests (docs/03 "Scene hint"). Routing data like the cues above: the
+ * confirm line is a question about what the phone saw, the keyword is one triage already
+ * accepts, and nothing moves until the human says yes or taps.
+ */
+export const SCENE_HINTS: Readonly<Record<SceneHint, { to: string; label: string; keyword: string; confirm: string }>> = {
+  person_down: {
+    to: 'cardiac.scene_check',
+    label: 'Collapsed',
+    keyword: 'collapsed',
+    confirm: 'It looks like someone has collapsed. Say yes, or tap.',
+  },
+};
 
 /** First keyword of a route: the one a confirmed suggestion is entered by. */
 export function routeKeyword(route: TriageRoute): string {

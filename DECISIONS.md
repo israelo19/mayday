@@ -382,3 +382,18 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   open is skipped on the next tick with a system log line: telling someone on the line to
   call is noise, and the state's lines go stale unplayed when the engine moves on. None of
   this changes what the machines say; it changes when the phone repeats itself.
+- **Sat 06:15 (Ricky, `mobile-polish`)** The live screen's top is one column in normal flow
+  (chip row, metric, dispatcher panel) instead of three absolutely positioned boxes, so the
+  folded dispatcher can no longer sit on the pressure timer. Buttons are one size: NEXT and
+  "Ambulance is here" 50 px and equal width, twins 44 px, the picture strip 18vh. The mic
+  chip is a button when the mic is off: it shows the recognizer's error code (`onError` on
+  `VoiceInOptions`) and tapping it calls `session.retryListening()`, because iOS Safari only
+  grants recognition that starts inside a user gesture and the first attempt may have raced
+  the speech that started in the same tap. The reason lands in the log as a system line.
+- **Sat 06:15 (Ricky, `mobile-polish`)** The camera's first triage cue ships: `sceneHint:
+  'person_down'` on the facts, from a torso-angle detector on the pose the module already
+  measures (25 degrees from horizontal, held 2 s, hips visible). In triage it earns the same
+  Yes/No suggestion the polish branch built for unmatched speech, with its own line ("It looks
+  like someone has collapsed. Say yes, or tap."), and yes routes by `collapsed`. The engine
+  never moves on the hint; a rejected or ignored hint waits 30 s. Hands-at-throat stays off
+  (a second model per frame is what froze the phone). Roadmap in docs/03.

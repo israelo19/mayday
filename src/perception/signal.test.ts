@@ -4,6 +4,7 @@ import {
   Ema,
   GUIDANCE,
   PeakDetector,
+  PersonDownDetector,
   cameraGuidance,
   isActive,
   meanRecoil,
@@ -215,5 +216,43 @@ describe('pickRescuer', () => {
     const only = person({ x: 0.5, y: 0.5, hipDrop: 0.05 });
     expect(pickRescuer([only], null)).toBe(only);
     expect(pickRescuer([], null)).toBeUndefined();
+  });
+});
+
+describe('PersonDownDetector', () => {
+  type Lm = { x: number; y: number; visibility: number };
+  /** Shoulders at (x, y); hips offset by (dx, dy) in the image; everything else at the shoulder midpoint. */
+  function body(o: { dx: number; dy: number; hipVis?: number }): Lm[] {
+    const lm: Lm[] = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, visibility: 0.9 }));
+    lm[11] = { x: 0.45, y: 0.5, visibility: 0.9 };
+    lm[12] = { x: 0.55, y: 0.5, visibility: 0.9 };
+    lm[23] = { x: 0.5 + o.dx - 0.03, y: 0.5 + o.dy, visibility: o.hipVis ?? 0.9 };
+    lm[24] = { x: 0.5 + o.dx + 0.03, y: 0.5 + o.dy, visibility: o.hipVis ?? 0.9 };
+    return lm;
+  }
+  const lying = body({ dx: 0.3, dy: 0.02 });
+  const kneeling = body({ dx: 0.02, dy: 0.25 });
+
+  it('fires only after a horizontal torso has held for the hold time', () => {
+    const d = new PersonDownDetector(2000);
+    expect(d.update(lying, true, 0)).toBe(false);
+    expect(d.update(lying, true, 1900)).toBe(false);
+    expect(d.update(lying, true, 2000)).toBe(true);
+  });
+
+  it('never fires for an upright pose, a low-confidence pose, or hidden hips', () => {
+    const d = new PersonDownDetector(2000);
+    for (const t of [0, 1000, 3000]) expect(d.update(kneeling, true, t)).toBe(false);
+    for (const t of [0, 1000, 3000]) expect(d.update(lying, false, t)).toBe(false);
+    const hidden = body({ dx: 0.3, dy: 0.02, hipVis: 0.2 });
+    for (const t of [0, 1000, 3000]) expect(d.update(hidden, true, t)).toBe(false);
+  });
+
+  it('restarts the clock when the pose gets up', () => {
+    const d = new PersonDownDetector(2000);
+    d.update(lying, true, 0);
+    d.update(kneeling, true, 1000);
+    expect(d.update(lying, true, 2500)).toBe(false);
+    expect(d.update(lying, true, 4500)).toBe(true);
   });
 });

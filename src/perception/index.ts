@@ -19,6 +19,7 @@ import {
   DEFAULT_TUNING,
   Ema,
   PeakDetector,
+  PersonDownDetector,
   TimeSeries,
   cameraGuidance,
   clampTuning,
@@ -137,6 +138,8 @@ class PerceptionImpl implements Perception {
   private readonly luma = new LumaSampler();
   private readonly roiTracker = new RoiTracker();
   private readonly choking = new ChokingGestureDetector();
+  private readonly personDown = new PersonDownDetector();
+  private personDownNow = false;
   private readonly subs = new Set<(f: PerceptionFacts) => void>();
 
   private lastPose: readonly NormalizedLandmark[] | null = null;
@@ -307,6 +310,8 @@ class PerceptionImpl implements Perception {
     this.lastPose = null;
     this.lastHands = [];
     this.guidance = null;
+    this.personDownNow = false;
+    this.personDown.reset();
     this.frameIndex = 0;
     this.frameTimes = [];
   }
@@ -389,6 +394,7 @@ class PerceptionImpl implements Perception {
       this.ema.reset();
     }
     this.blindNow = blind;
+    this.personDownNow = this.personDown.update(lm ?? null, confidence >= this.gate.threshold, now);
 
     if (lm && confidence >= this.gate.threshold) {
       this.shouldersSeenAt = now;
@@ -431,6 +437,7 @@ class PerceptionImpl implements Perception {
       recoilRatio: blind ? null : meanRecoil(this.detector.peakList(), this.detector.troughList(), now),
       handsOnRegion: locked ? this.lastRoi.handsOn : null,
       handsOffMs: locked ? this.lastRoi.handsOffMs : null,
+      sceneHint: this.personDownNow ? 'person_down' : null,
     };
     this.facts = facts;
     for (const cb of this.subs) cb(facts);

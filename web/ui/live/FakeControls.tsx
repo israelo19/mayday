@@ -20,6 +20,7 @@ export function FakeControls({ perception }: { perception: FakePerceptionHandle 
       <button onClick={() => set({ compressing: !c.compressing })}>{c.compressing ? 'stop pushing' : 'push'}</button>
       <button onClick={() => set({ cameraCovered: !c.cameraCovered })}>{c.cameraCovered ? 'uncover' : 'cover lens'}</button>
       <button onClick={() => set({ handsOn: c.handsOn === false ? true : false })}>{c.handsOn === false ? 'hands on' : 'lift hands'}</button>
+      <button onClick={() => set({ personDown: !c.personDown })}>{c.personDown ? 'person up' : 'person down'}</button>
     </div>
   );
 }

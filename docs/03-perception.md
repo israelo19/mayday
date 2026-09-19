@@ -35,5 +35,20 @@ Two people are usually in frame: the patient lying flat and the rescuer kneeling
 
 A handheld phone adds camera shake to the shoulder signal. The guidance and the machines both say to put the phone down; if a second bystander holds it, the rate is still measured but the perception matrix row for it is the honest number.
 
-## Scene hint (planned, on-device, docs/04 item 7's offline half)
-A pose-only fact for triage, suggestion only, never a transition: `sceneHint: 'person_down' | 'hands_at_throat' | null`. Person down = a measurable pose whose torso axis is within ~25 degrees of horizontal for > 2 s. Hands at throat = the existing ChokingGestureDetector, which today runs only in `pose+hands` mode (bleeding states) and reaches only the debug screen; it would need hands tracked during triage. The session maps a hint to a pre-written triage line and a highlighted button; the human confirms. This is the same rule as the choking gesture above.
+## Scene hint (on-device, docs/04 item 7's offline half)
+`PerceptionFacts.sceneHint` is the camera's one word to triage: `'person_down'` or null. It is a cue, never a route.
+
+- **Person down (shipped).** `PersonDownDetector` in signal.ts: a measurable pose (shoulders past the confidence gate, hips visible) whose shoulder-to-hip line is within 25 degrees of horizontal for 2 s. Kneeling reads as 70 degrees or more, so a helper bending in does not trip it, and the hold time filters a crouch. Runs on the pose the module already measures, so it costs nothing extra on the phone.
+- **What the session does with it.** In `triage.listening`, with no suggestion open, it becomes the same Yes/No suggestion a heard phrase earns (`SCENE_HINTS` in src/protocol/phrases.ts): the app says "It looks like someone has collapsed. Say yes, or tap." and shows "Looks like collapsed? Yes / No". Yes routes by the keyword `collapsed`, which triage already accepts; No, or silence, and the camera waits 30 s before asking again. The engine never moves on the hint itself. `?fake=1` has a "person down" switch.
+- **Hands at throat (not shipped).** The `ChokingGestureDetector` exists but runs only in `pose+hands` mode (bleeding states) and reaches only the debug screen. Tracking hands during triage costs a second model per frame, which is the kind of load that froze the phone on Sat 05:35; it stays off until the perception matrix has a number for it.
+
+## What the camera can honestly tell a bystander (roadmap)
+Live today, all on-device: compression rate and activity, recoil proxy, hands on or off the wound, blind and camera guidance, and the person-down cue above. Each one is a measurement the machine data turns into a line, or a question the human answers.
+
+Next in order of value, each behind the same rule (a cue earns a question, never an instruction):
+1. **Hands at throat** in triage, once hand tracking during triage has a phone fps number.
+2. **Rescuer fatigue**: a rate that drifts down over a minute is a swap cue earlier than the fixed 120 s reminder. Machine rule on existing facts; no new perception.
+3. **One frame to a vision model** for the unclear case (docs/04 item 7): closed label set, same suggestion row, flag off by default.
+4. **Hand placement on the chest** needs the patient's pose and the rescuer's hands at once; two poses per frame froze the phone, so this waits for a Worker or a lighter model.
+
+Never: blood-pixel detection (lighting and skin tone make it lie), depth in centimetres from one camera, any label that reads as a diagnosis. The bystander supports the patient; the app supports the bystander with a beat, a picture, a correction and a question, and the camera stays on the helper's hands.

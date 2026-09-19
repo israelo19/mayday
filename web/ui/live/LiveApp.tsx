@@ -89,7 +89,7 @@ export function LiveApp() {
           {snap.suggestion && (
             <div className="live-banner amber live-suggest">
               <span>
-                Sounds like <b>{snap.suggestion.label.toLowerCase()}</b>?
+                {snap.suggestion.source === 'camera' ? 'Looks like' : 'Sounds like'} <b>{snap.suggestion.label.toLowerCase()}</b>?
               </span>
               <span className="live-suggest-actions">
                 <button type="button" onClick={() => session.confirmSuggestion()}>
