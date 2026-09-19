@@ -125,9 +125,13 @@ Tests for the pure signal code: `npm test`.
 
 Open the app, or `?fake=1` on a laptop with no camera. Tap "I NEED HELP".
 
-1. The chip at the top reads "Listening". Say "he's not breathing", or tap the button. The
-   card switches to CPR and the first line is spoken and shown. "Gunshot" and "Choking" route
-   the same way.
+1. The chip at the top reads "Listening" (or "Speaking, then listening" while the app talks:
+   wait for it). Say "he's not breathing", "he got shot", "gunshot", "she's choking", or tap.
+   The card switches to that protocol and the first line is spoken and shown with its picture.
+   Say something the app has no phrase for, such as "he ate something and now he's silent and
+   holding his neck", and it asks "Sounds like choking?" with Yes and No.
+1. Once a state has been read the card shrinks to its caption so the camera shows the rescuer;
+   tap the card to reopen or hide the picture.
 2. Every spoken answer has a button under the card. NEXT always moves. "Ambulance is here"
    ends the machine and opens the handoff.
 3. In compressions the metronome runs and the pill shows the live rate. Stop pushing for three
