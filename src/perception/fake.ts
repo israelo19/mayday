@@ -77,6 +77,11 @@ export interface FakePerceptionHandle extends Perception {
   emitAt(t: number): PerceptionFacts;
 }
 
+/** The `?fake=1` contract lives here so P4's swap in session.ts is one line. */
+export function isFakeRequested(search = globalThis.location?.search ?? ''): boolean {
+  return new URLSearchParams(search).get('fake') === '1';
+}
+
 export function createFakePerception(
   opts: { controls?: Partial<FakeControls>; intervalMs?: number } = {},
 ): FakePerceptionHandle {
