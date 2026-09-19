@@ -1,18 +1,20 @@
-// App root, docs/05. Four screens (LAUNCH -> COACH -> SITREP -> HANDOFF) driven by mock data
-// from src/ui/mockDemoData.ts until src/session.ts and P2's engine exist to drive them for
-// real (see DECISIONS.md). `?debug=1` still gets the M0 debug view. Owned by P4 (docs/07).
-import { useMemo, useState } from 'react';
+// App root, docs/05 + design proposal (see DECISIONS.md). LAUNCH -> (Yes/talk) CALL PREP ->
+// COACH -> SITREP -> HANDOFF, driven by mock data from src/ui/mockDemoData.ts until
+// src/session.ts and P2's engine exist to drive it for real. `?debug=1` still gets the M0
+// debug view. Owned by P4 (docs/07).
+import { useEffect, useMemo, useState } from 'react';
 import { createPerception } from './perception';
 import { WebSpeechProvider } from './voice/out';
 import { Metronome } from './voice/metronome';
 import { DebugScreen } from './ui/DebugScreen';
 import { LaunchScreen } from './ui/LaunchScreen';
+import { CallPrepScreen } from './ui/CallPrepScreen';
 import { CoachScreen } from './ui/CoachScreen';
 import { SitrepScreen } from './ui/SitrepScreen';
 import { HandoffScreen } from './ui/HandoffScreen';
 import { MOCK_COACH_STEPS, MOCK_HANDOFF, MOCK_SITREP } from './ui/mockDemoData';
 
-type Screen = 'launch' | 'coach' | 'sitrep' | 'handoff';
+type Screen = 'launch' | 'callPrep' | 'coach' | 'sitrep' | 'handoff';
 
 /** Screen Wake Lock so a propped phone never sleeps mid-coaching (docs/05). Best-effort: not
  * every browser has it, and it can be refused; coaching must never depend on it. */
@@ -21,7 +23,7 @@ function requestWakeLock(): void {
   nav.wakeLock?.request('screen').catch(() => {});
 }
 
-/** Fullscreen on launch (docs/05), fired from the LAUNCH tap so it's a real user gesture. */
+/** Fullscreen on launch (docs/05), fired from a real user gesture so browsers allow it. */
 function requestFullscreen(): void {
   document.documentElement.requestFullscreen?.().catch(() => {});
 }
@@ -35,10 +37,17 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('launch');
   const [stepIndex, setStepIndex] = useState(0);
   const [dispatcherOpen, setDispatcherOpen] = useState(false);
+  const [callSeconds, setCallSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!dispatcherOpen) return;
+    const id = setInterval(() => setCallSeconds((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [dispatcherOpen]);
 
   if (debug) return <DebugScreen perception={perception} speaker={speaker} metronome={metronome} />;
 
-  function handleStart(): void {
+  function enterCoaching(): void {
     requestFullscreen();
     requestWakeLock();
     setScreen('coach');
@@ -46,6 +55,7 @@ export default function App() {
 
   function handleCall911(): void {
     navigator.vibrate?.(200);
+    setCallSeconds(0);
     setDispatcherOpen(true);
   }
 
@@ -59,21 +69,35 @@ export default function App() {
 
   switch (screen) {
     case 'launch':
-      return <LaunchScreen onStart={handleStart} />;
-    case 'coach': {
-      const step = MOCK_COACH_STEPS[stepIndex];
+      return (
+        <LaunchScreen
+          onNeedHelp={() => {
+            requestFullscreen();
+            setScreen('callPrep');
+          }}
+          onNotYet={enterCoaching}
+        />
+      );
+    case 'callPrep':
+      return (
+        <CallPrepScreen
+          sitrep={MOCK_SITREP.callPrep}
+          onCall911={handleCall911}
+          onStartGuidance={enterCoaching}
+          onBack={() => setScreen('launch')}
+        />
+      );
+    case 'coach':
       return (
         <CoachScreen
           perception={perception}
-          line={step.line}
-          metricLabel={step.metricLabel}
-          metricValue={step.metricValue}
+          step={MOCK_COACH_STEPS[stepIndex]}
           dispatcherOpen={dispatcherOpen}
+          callSeconds={callSeconds}
           onCall911={handleCall911}
           onNext={handleNext}
         />
       );
-    }
     case 'sitrep':
       return <SitrepScreen speaker={speaker} sitrep={MOCK_SITREP} onNext={() => setScreen('handoff')} />;
     case 'handoff':

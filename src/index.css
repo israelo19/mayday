@@ -1,14 +1,17 @@
 /* Mayday base styles. Dark, maximum contrast, thumb reachable. Plain CSS on purpose. */
 :root {
   color-scheme: dark;
-  --bg: #000;
+  /* Design proposal (Sat, see DECISIONS.md): near-black navy instead of pure black, teal as the
+     "active/good" color instead of green, red reserved for critical/call actions. --ok keeps its
+     name (P1's DebugScreen reads it as "confidence is good") even though the value is now teal. */
+  --bg: #05080a;
   --fg: #fff;
-  --muted: #9aa0a6;
+  --muted: #7c8a90;
   --accent: #ff3b30;
-  --ok: #34c759;
+  --ok: #2fe6c0;
   --warn: #ffcc00;
-  --panel: #111;
-  --border: #2a2a2a;
+  --panel: #0e1517;
+  --border: #1e2a2d;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 16px;
   line-height: 1.3;
