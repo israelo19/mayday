@@ -106,6 +106,10 @@ export type SessionDeps = {
   /** Test seam: replaces setInterval; returns a cancel function. */
   interval?: (fn: () => void, ms: number) => () => void;
   geolocate?: () => Promise<GeoFix | null>;
+  /** Turns the coordinate fix into a street address for readAloud(). Defaults to a no-op so
+   * this file's own code stays true to "zero network calls" (line 13); the real implementation
+   * (web/geocode.ts, a Nominatim fetch) is injected from LiveApp.tsx, same as `dispatcher`. */
+  reverseGeocode?: (lat: number, lon: number) => Promise<string | null>;
   vibrate?: (ms: number) => void;
   /** Defaults to the voice module's scripted call-taker. */
   dispatcher?: DispatcherFactory;
@@ -149,6 +153,7 @@ export function createSession(deps: SessionDeps): Session {
       return () => clearInterval(id);
     });
   const geolocate = deps.geolocate ?? defaultGeolocate;
+  const reverseGeocode = deps.reverseGeocode ?? (async () => null);
   const vibrate = deps.vibrate ?? ((ms: number) => navigator.vibrate?.(ms));
 
   const subs = new Set<() => void>();
@@ -220,6 +225,15 @@ export function createSession(deps: SessionDeps): Session {
           detail: fix ? `location fix ${fix.lat.toFixed(5)}, ${fix.lon.toFixed(5)}` : 'no location fix',
         });
         refreshReports(true);
+        // Address arrives later, if at all (reverseGeocode defaults to a no-op, see above);
+        // readAloud() falls back to coordinates until/unless this resolves.
+        if (fix) {
+          void reverseGeocode(fix.lat, fix.lon).then((address) => {
+            if (address === null || geo !== fix) return; // superseded by a newer fix meanwhile
+            geo = { ...fix, address };
+            refreshReports(true);
+          });
+        }
       });
     }
     refreshReports(true);

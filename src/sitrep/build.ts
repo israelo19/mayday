@@ -58,7 +58,9 @@ function readAloud(
   const lines: string[] = [];
   lines.push(
     geo
-      ? `My location is ${geo.lat.toFixed(5)}, ${geo.lon.toFixed(5)}.`
+      ? geo.address
+        ? `My location is ${geo.address}.`
+        : `My location is ${geo.lat.toFixed(5)}, ${geo.lon.toFixed(5)}.`
       : 'I do not have a location fix. I will describe where I am.',
   );
   lines.push(emergency);
