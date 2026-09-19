@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import type { DispatcherLine, DispatcherStatus } from '../../session';
 import type { Sitrep } from '../../../src/types';
-import { dispatcherDone } from '../../../src/voice';
+import { dispatcherDone, repliesFor } from '../../../src/voice';
 
 type Props = {
   status: DispatcherStatus;
@@ -29,8 +29,11 @@ export function DispatcherPanel({ status, lines, sitrep, onReply, onHangUp }: Pr
   const scripted = status === 'scripted' || status === 'fallback';
   // The script has asked everything it has: fold the panel so the coaching underneath is
   // visible again, and stop offering replies there is nothing left to answer.
-  const done = status === 'ended' || (scripted && dispatcherDone(lines.filter((l) => l.who === 'dispatcher').map((l) => l.text)));
-  const showReplies = scripted && !done;
+  const said = lines.filter((l) => l.who === 'dispatcher').map((l) => l.text);
+  const done = status === 'ended' || (scripted && dispatcherDone(said));
+  // Answers fit the question just asked; the bystander picks the true one (docs/04 item 3).
+  const replies = scripted && !done ? repliesFor(said[said.length - 1] ?? null, sitrep) : [];
+  const showReplies = replies.length > 0;
   useEffect(() => {
     if (done) setOpen(false);
   }, [done]);
@@ -54,14 +57,11 @@ export function DispatcherPanel({ status, lines, sitrep, onReply, onHangUp }: Pr
           </div>
           {showReplies && (
             <div className="live-dispatch-replies">
-              {(sitrep?.readAloud ?? []).slice(0, 4).map((l) => (
+              {replies.map((l) => (
                 <button key={l} className="live-reply" onClick={() => onReply(l)}>
                   {l}
                 </button>
               ))}
-              <button className="live-reply" onClick={() => onReply('Okay.')}>
-                Okay
-              </button>
             </div>
           )}
           <button className="live-ghost small" onClick={onHangUp}>

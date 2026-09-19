@@ -13,7 +13,14 @@ export type PerceptionFacts = {
   recoilRatio: number | null; // 0..1, trough return quality proxy
   handsOnRegion: boolean | null; // bleeding module: hands within wound ROI
   handsOffMs: number | null; // continuous ms hands have been off ROI
+  /**
+   * What the camera sees before anyone is coached, for triage only: a person lying still.
+   * A cue, never a route; the session asks and the human confirms (docs/03 "Scene hint").
+   */
+  sceneHint?: SceneHint | null;
 };
+
+export type SceneHint = 'person_down';
 
 /** Below this, perception is not trustworthy and the engine coaches by voice alone (docs/03). */
 export const BLIND_CONFIDENCE = 0.5;

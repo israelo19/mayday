@@ -425,3 +425,43 @@ export function pickRescuer<T extends readonly LandmarkLike[]>(
     (a, b) => uprightness(b) - uprightness(a) || shoulderConfidence(b) - shoulderConfidence(a),
   )[0];
 }
+
+// ---------------------------------------------------------------------------
+// Scene hint for triage (docs/03): a person lying still. Cue only, never a route.
+// ---------------------------------------------------------------------------
+
+/** Torso within this many degrees of horizontal reads as lying down. Kneeling is ~70 or more. */
+export const PERSON_DOWN_MAX_DEG = 25;
+/** The pose must hold still that way this long, so someone bending to help does not trip it. */
+export const PERSON_DOWN_HOLD_MS = 2000;
+const HIP_VISIBLE = 0.5;
+
+/** Angle of the shoulder-to-hip line from horizontal, in degrees: 0 lying across the frame, 90 upright. */
+export function torsoAngleDeg(lm: readonly LandmarkLike[]): number {
+  const dx = (lm[LEFT_HIP].x + lm[RIGHT_HIP].x) / 2 - shoulderMidX(lm);
+  const dy = (lm[LEFT_HIP].y + lm[RIGHT_HIP].y) / 2 - shoulderMidY(lm);
+  return (Math.atan2(Math.abs(dy), Math.abs(dx)) * 180) / Math.PI;
+}
+
+/** True once a measurable pose has lain near-horizontal for the hold time. */
+export class PersonDownDetector {
+  private since: number | null = null;
+  constructor(
+    private readonly holdMs = PERSON_DOWN_HOLD_MS,
+    private readonly maxDeg = PERSON_DOWN_MAX_DEG,
+  ) {}
+
+  update(lm: readonly LandmarkLike[] | null, confident: boolean, now: number): boolean {
+    const hipsSeen = !!lm && Math.min(lm[LEFT_HIP].visibility, lm[RIGHT_HIP].visibility) >= HIP_VISIBLE;
+    if (!lm || !confident || !hipsSeen || torsoAngleDeg(lm) > this.maxDeg) {
+      this.since = null;
+      return false;
+    }
+    this.since ??= now;
+    return now - this.since >= this.holdMs;
+  }
+
+  reset(): void {
+    this.since = null;
+  }
+}

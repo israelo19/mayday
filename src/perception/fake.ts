@@ -16,6 +16,8 @@ export type FakeControls = {
   /** Bleeding module: hands on the wound, off it, or null when no ROI is being tracked. */
   handsOn: boolean | null;
   recoilRatio: number;
+  /** Triage: the camera sees a person lying still (docs/03 scene hint). */
+  personDown: boolean;
 };
 
 const DEFAULTS: FakeControls = {
@@ -24,6 +26,7 @@ const DEFAULTS: FakeControls = {
   cameraCovered: false,
   handsOn: null,
   recoilRatio: 0.85,
+  personDown: false,
 };
 
 /** Facts the engine would see if the rescuer behaved exactly as the controls say. */
@@ -68,6 +71,7 @@ export class FakeFacts {
       recoilRatio: c.compressing && warm ? c.recoilRatio : null,
       handsOnRegion: c.handsOn,
       handsOffMs: c.handsOn === null ? null : this.handsOffSince === null ? 0 : t - this.handsOffSince,
+      sceneHint: c.personDown ? 'person_down' : null,
     };
   }
 }
