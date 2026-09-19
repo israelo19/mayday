@@ -10,23 +10,28 @@
     "build": "tsc -b && vite build",
     "prebuild": "node scripts/prepare-assets.mjs",
     "preview": "vite preview --host",
-    "typecheck": "tsc -b",
+    "typecheck": "tsc -b && tsc -p tsconfig.test.json",
     "assets": "node scripts/prepare-assets.mjs",
-    "postinstall": "node scripts/prepare-assets.mjs"
+    "postinstall": "node scripts/prepare-assets.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",
+    "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
-    "vite-plugin-mkcert": "^2.1.0"
+    "vite-plugin-mkcert": "^2.1.0",
+    "vitest": "^5.0.1"
   }
 }
