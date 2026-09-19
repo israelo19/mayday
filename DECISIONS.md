@@ -413,3 +413,12 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   `start_url`: `vite-plugin-pwa` defaults it to `/`, which made an icon launch drop the
   `?flag=` the phone was added with. Adding the icon from the flagged URL is the phone's
   bookmark; flags still do not persist in storage.
+- **Sat 06:40 (Ricky, `review`)** The CPR beat that "never stops" was a hidden page, not a
+  missed stop(): the session and voice seams already stop the metronome on handoff and restart
+  (tests green), but a backgrounded tab throttles `setInterval` to once a second or less while
+  the audio clock keeps running, so each firing scheduled every missed beat at once, ten at a
+  time, with nobody looking at the screen to end it. `Metronome` now pauses on
+  `visibilitychange` hidden, resumes on visible if it was running, and when the interval falls
+  behind the audio clock it skips the missed beats instead of bursting them. The beat belongs
+  to a screen someone is looking at; the wake lock keeps that screen on during coaching.
+  `src/voice/metronome.test.ts` drives the class on a fake audio clock.
