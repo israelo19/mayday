@@ -308,7 +308,9 @@ export function createSession(deps: SessionDeps): Session {
   function onCameraTransition(label: string): void {
     const t = now();
     cameraSaw = { label, at: t };
-    voice.out.enqueue({ priority: 'correction', text: CAMERA_SAW_LINE, stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'camera-saw', cooldownMs: 10_000, t });
+    // Narration, not correction: correction would jump the remaining protocol lines
+    // ("Push hard and fast") and talk over the machine. The chip already shows what it saw.
+    voice.out.enqueue({ priority: 'narration', text: CAMERA_SAW_LINE, stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'camera-saw', cooldownMs: 10_000, t });
   }
 
   function attachEngine(): void {
@@ -514,10 +516,9 @@ export function createSession(deps: SessionDeps): Session {
     return {
       status:
         status === 'error' ? 'error'
-        : status === 'loading-model' || status === 'starting-camera' ? 'starting'
-        : !running ? 'off'
-        : blindNow() || !facts ? 'blind'
-        : 'watching',
+        : status === 'loading-model' || status === 'starting-camera' || status === 'idle' ? 'starting'
+        : running ? (blindNow() || !facts ? 'blind' : 'watching')
+        : 'off',
       fps: running ? perception.debug.fps() : 0,
       rescuer,
       hands: handsMode ? perception.roi().state : null,

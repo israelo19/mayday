@@ -171,7 +171,10 @@ describe('session', () => {
     p.emitAt(T0 + 100);
     tick(100);
     expect(s.snapshot().stateKey).toBe('cardiac.compressions');
-    expect(v.enqueued.some((e) => e.dedupeKey === 'camera-saw')).toBe(true);
+    const saw = v.enqueued.find((e) => e.dedupeKey === 'camera-saw');
+    expect(saw).toBeDefined();
+    // Narration, not correction: correction would jump the remaining "Push hard and fast" line.
+    expect(saw?.priority).toBe('narration');
     expect(s.snapshot().eyes.saw).toBe('Started compressions');
     // It is about the camera, so it is never the card's correction.
     expect(s.snapshot().coaching).toBeNull();
@@ -181,7 +184,9 @@ describe('session', () => {
   it('reports what the camera is doing for the eyes chip', () => {
     const { s, p, tick } = rig();
     s.start();
-    expect(s.snapshot().eyes.status).toBe('off');
+    // The camera is about to start (CameraView mounts on this same tap). 'off' is a refused
+    // or stopped camera; idle-before-start is 'starting' so triage does not flash the question.
+    expect(s.snapshot().eyes.status).toBe('starting');
     void p.start(null as unknown as HTMLVideoElement);
     p.emitAt(T0);
     tick(100);
@@ -208,6 +213,7 @@ describe('session', () => {
     (p as unknown as { roi: () => { state: string } }).roi = () => ({ state: 'failed' });
     tick(200);
     expect(v.enqueued.some((e) => e.text === ROI_FAILED_LINE)).toBe(true);
+    expect(s.snapshot().coaching?.dedupeKey).not.toBe('roi-failed');
     s.finish();
     expect(p.debug.mode()).toBe('pose');
   });
