@@ -5,8 +5,9 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
 
 - **Sat 01:20** The context docs were at the repo root; CLAUDE.md and START_PROMPT expect
   `docs/`. Moved them (`git mv`), CLAUDE.md stays at the root.
-- **Sat 01:25** Three implementers instead of four. Roles, file ownership, interface seams
-  and the re-based clock are in `docs/07-work-split.md`.
+- **Sat 01:25** Roles redefined for four implementers (docs/06's A/B/C/D become P1 Eyes,
+  P2 Brain, P3 Mouth, P4 Face and ship) with singular file ownership, interface seams and a
+  re-based clock, all in `docs/07-work-split.md`. A three-person draft existed for ten minutes.
 - **Sat 01:30** Model files (`pose_landmarker_lite.task` 5.8 MB, `hand_landmarker.task`
   7.8 MB) are committed in `public/models` so a fresh clone runs with no network.
   `scripts/prepare-assets.mjs` downloads only if a file is missing. The WASM runtime is
@@ -41,3 +42,8 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
 - **Sat 01:50** `start()` on the perception module is generation-guarded so React
   StrictMode's mount/unmount/mount in dev cannot leave two camera streams or two frame
   loops running.
+- **Sat 01:40** `vite-plugin-mkcert` aborts the dev server when its one-time `mkcert -install`
+  cannot get a sudo password (no terminal, or a teammate who declines). Dev HTTPS now defaults
+  to `@vitejs/plugin-basic-ssl` (self-signed, zero setup, click through the warning once per
+  device); mkcert stays available behind `MAYDAY_MKCERT=1`. Camera works on either because a
+  secure context is about the https scheme, not certificate trust.

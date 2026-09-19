@@ -22,12 +22,15 @@ npm install        # also copies the MediaPipe WASM runtime into public/wasm
 npm run dev        # https://localhost:5173 and https://<your-LAN-ip>:5173
 ```
 
-- First run: `vite-plugin-mkcert` downloads `mkcert` and asks for your macOS password once
-  to trust the local certificate authority. Laptop browsers then show no warning.
-- Phone on the same wifi: open `https://<your-LAN-ip>:5173` (printed by Vite). Accept the
-  certificate warning (Advanced, proceed), or install the CA from `mkcert -CAROOT` on the phone.
-- If mkcert is not an option on your machine: `npx ngrok http https://localhost:5173` and open
-  the ngrok URL on the phone.
+- Dev serves a self-signed certificate (`@vitejs/plugin-basic-ssl`). No setup, no sudo.
+  The browser shows a warning once per device: Advanced, proceed. Camera works after that.
+- Phone on the same wifi: open `https://<your-LAN-ip>:5173` (Vite prints it) and accept the
+  warning the same way. Chrome on Android is the demo browser.
+- Want a trusted certificate on the laptop (no warning)? `MAYDAY_MKCERT=1 npm run dev` runs
+  mkcert and asks for your macOS password once. Not needed for the demo.
+- Laptop only, no certificate at all: `MAYDAY_HTTP=1 npm run dev` and open `http://localhost:5173`
+  (localhost is a secure context, so the camera works). Phones cannot use this one.
+- Can't do either: `npx ngrok http https://localhost:5173` and open the ngrok URL on the phone.
 - The MediaPipe model files are committed in `public/models`. `scripts/prepare-assets.mjs`
   only downloads them if they are missing. Nothing is fetched from a CDN at runtime.
 
@@ -58,7 +61,7 @@ a real camera.
   /ai            episodic cloud calls, all stubbed behind interfaces (docs/04)
   /sitrep        event log, SITREP builder, handoff report
   /ui            screens and overlays (docs/05)
-/docs            context documents; docs/07 is the three-person work split
+/docs            context documents; docs/07 is the four-person work split
 /public/models   MediaPipe .task model files (committed)
 /public/wasm     MediaPipe WASM runtime (generated, gitignored)
 /scripts         prepare-assets.mjs
