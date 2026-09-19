@@ -34,6 +34,8 @@ export type SpeakOptions = {
   onStart?: () => void;
   /** 0 neutral; 1, 2 = the same dedupeKey repeating recently. Providers raise urgency, not words. */
   insistence?: 0 | 1 | 2;
+  /** The simulated dispatcher speaks in a second voice so the stage exchange is legible. */
+  voice?: 'coach' | 'dispatcher';
 };
 
 /** Something that can speak one utterance and cancel it. */
@@ -50,6 +52,7 @@ export interface SpeakerProvider {
 export class WebSpeechProvider implements SpeakerProvider {
   readonly name = 'webspeech';
   private voice: SpeechSynthesisVoice | null = null;
+  private dispatcherVoice: SpeechSynthesisVoice | null = null;
   private current: SpeechSynthesisUtterance | null = null;
   /** Bumped on cancel() so an in-flight chunk chain knows to stop (docs/07 P3 task 2). */
   private generation = 0;
@@ -78,7 +81,12 @@ export class WebSpeechProvider implements SpeakerProvider {
       (/Google US English|Samantha|Alex|Aria|Jenny/i.test(v.name) ? 2 : 0) +
       (v.localService ? 1 : 0) +
       (v.default ? 0.5 : 0);
-    this.voice = [...voices].sort((a, b) => score(b) - score(a))[0] ?? null;
+    const ranked = [...voices].sort((a, b) => score(b) - score(a));
+    this.voice = ranked[0] ?? null;
+    // The simulated dispatcher gets the next-best distinct English voice; if the device has
+    // only one, a pitch shift in speakOne() keeps the two speakers tellable apart.
+    this.dispatcherVoice =
+      ranked.find((v) => v !== this.voice && v.lang.toLowerCase().startsWith('en')) ?? null;
   }
 
   /** Resolves once getVoices() is populated (Chrome fills it async), or after a short timeout. */
@@ -115,23 +123,26 @@ export class WebSpeechProvider implements SpeakerProvider {
     const chunks = chunkForSpeech(text);
     for (let i = 0; i < chunks.length; i++) {
       if (gen !== this.generation) return; // cancelled mid-chain
-      await this.speakOne(chunks[i], opts?.insistence ?? 0, i === 0 ? opts?.onStart : undefined);
+      await this.speakOne(chunks[i], opts ?? {}, i === 0 ? opts?.onStart : undefined);
     }
   }
 
-  private speakOne(text: string, insistence: number, onStart?: () => void): Promise<void> {
+  private speakOne(text: string, opts: SpeakOptions, onStart?: () => void): Promise<void> {
     // Only interrupt when something is actually playing: on iOS Safari a cancel() followed
     // immediately by speak() can leave the new utterance silent with no end/error event.
     if (speechSynthesis.speaking || speechSynthesis.pending) this.cancelUtterance();
     return new Promise((resolve) => {
+      const insistence = opts.insistence ?? 0;
+      const asDispatcher = opts.voice === 'dispatcher';
       const u = new SpeechSynthesisUtterance(text);
       u.lang = 'en-US';
       // Insistence is urgency through delivery, never wording: a touch faster and lower,
       // full volume. The instruction itself is untouched (CLAUDE.md principle 1).
-      u.rate = this.rate * (1 + 0.06 * insistence);
-      u.pitch = 1 - 0.05 * insistence;
+      u.rate = (asDispatcher ? 1.0 : this.rate) * (1 + 0.06 * insistence);
+      u.pitch = (asDispatcher && !this.dispatcherVoice ? 0.82 : 1) - 0.05 * insistence;
       u.volume = 1;
-      if (this.voice) u.voice = this.voice;
+      const chosen = asDispatcher ? (this.dispatcherVoice ?? this.voice) : this.voice;
+      if (chosen) u.voice = chosen;
       let settled = false;
       const done = () => {
         if (settled) return;
@@ -197,6 +208,11 @@ export interface VoiceOutFull extends VoiceOut {
   recentlySpoken(): readonly string[];
   /** Drop every queued line and stop the current one. State change or session end. */
   cancelAll(): void;
+  /**
+   * Entry point for src/voice's own lines (SITREP read-aloud, dispatcher turns). Same lanes
+   * and preemption as enqueue(), so a coaching critical always wins over either of them.
+   */
+  speakInternal(s: InternalSpeech): void;
 }
 
 /** Structural so tests and future metronome changes don't couple to the class. */
@@ -231,6 +247,20 @@ type Queued = {
   e: CoachingEvent;
   /** Newest known fact time when this was queued; fact-to-audible latency measures from here. */
   factT: number | null;
+  /** 'dispatcher' plays in the second voice; only voice-internal lines set it. */
+  voiceHint?: 'coach' | 'dispatcher';
+  /** Fires after the line played to its natural end; read-aloud paces itself with this. */
+  onDone?: () => void;
+};
+
+/** A line from inside src/voice (read-aloud, dispatcher), never from the protocol engine. */
+export type InternalSpeech = {
+  text: string;
+  priority: CoachingEvent['priority'];
+  /** Must start with VOICE_STATE_PREFIX so it neither counts as nor goes stale with protocol state. */
+  stateId: string;
+  voice?: 'coach' | 'dispatcher';
+  onDone?: () => void;
 };
 
 export function createVoiceOut(opts: VoiceOutOptions): VoiceOutFull {
@@ -328,6 +358,7 @@ export function createVoiceOut(opts: VoiceOutOptions): VoiceOutFull {
     void provider
       .speak(q.e.text, {
         insistence: insistenceOf(q.e),
+        voice: q.voiceHint,
         onStart: () => {
           if (current?.token !== myToken) return; // preempted before audio started
           startedAt = now();
@@ -341,8 +372,25 @@ export function createVoiceOut(opts: VoiceOutOptions): VoiceOutFull {
         if (startedAt === null) markAudible(q, now());
         current = null;
         lastEndedAt = now();
+        q.onDone?.(); // natural end only: a preempted line replays before it counts as done
         pump();
       });
+  };
+
+  /** Shared lane placement for protocol events and voice-internal lines alike. */
+  const push = (q: Queued): void => {
+    const e = q.e;
+    if (e.priority === 'critical') {
+      lanes.critical.push(q);
+      if (current && current.q.e.priority !== 'critical') preemptCurrent();
+    } else if (e.priority === 'correction') {
+      const i = e.dedupeKey ? lanes.correction.findIndex((x) => x.e.dedupeKey === e.dedupeKey) : -1;
+      if (i >= 0) lanes.correction[i] = q; // newer replaces queued, position kept
+      else lanes.correction.push(q);
+    } else {
+      lanes.narration.push(q);
+    }
+    pump();
   };
 
   return {
@@ -356,18 +404,17 @@ export function createVoiceOut(opts: VoiceOutOptions): VoiceOutFull {
       // state; queued narration for any other state is stale and will be dropped unplayed.
       if (!isVoiceInternal(e)) latestStateId = e.stateId;
       if (onCooldown(e)) return;
-      const q: Queued = { e, factT: (e as { t?: number }).t ?? lastFactT };
-      if (e.priority === 'critical') {
-        lanes.critical.push(q);
-        if (current && current.q.e.priority !== 'critical') preemptCurrent();
-      } else if (e.priority === 'correction') {
-        const i = e.dedupeKey ? lanes.correction.findIndex((x) => x.e.dedupeKey === e.dedupeKey) : -1;
-        if (i >= 0) lanes.correction[i] = q; // newer replaces queued, position kept
-        else lanes.correction.push(q);
-      } else {
-        lanes.narration.push(q);
-      }
-      pump();
+      push({ e, factT: (e as { t?: number }).t ?? lastFactT });
+    },
+
+    speakInternal(s: InternalSpeech): void {
+      const stateId = s.stateId.startsWith(VOICE_STATE_PREFIX) ? s.stateId : VOICE_STATE_PREFIX + s.stateId;
+      push({
+        e: { priority: s.priority, text: s.text, stateId },
+        factT: null,
+        voiceHint: s.voice,
+        onDone: s.onDone,
+      });
     },
 
     startMetronome(bpm: number): void {
