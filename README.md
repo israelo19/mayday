@@ -56,7 +56,11 @@ coach-screen preview. No camera needed.
 
 The phone runs the web app itself, as a PWA. No store, no account, no shell: Chrome on
 Android has the camera, Web Speech, vibrate and wake lock the app needs, and Safari on iOS
-has all but vibrate.
+has all but vibrate. Two iPhone caveats for voice input, both said on the mic chip when they
+bite: WebKit gives a home-screen app no speech recognizer at all, so demo voice in Safari
+itself and use the icon only when the buttons will do; and the recognizer is the OS speech
+service, so Siri & Dictation must be on (Settings, General, Keyboard, Enable Dictation) and the
+phone needs internet for it. Coaching, the beat and speech output need neither.
 
 1. `npm run dev` (or `npm run preview` for the production build). Under Vite's URL list it
    prints a QR of the LAN address. Scan it with the phone's camera app.

@@ -42,6 +42,17 @@
 .live-eyes-fps { font-weight: 500; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .live-suggest-text .live-eye { vertical-align: -3px; margin-right: 6px; }
 
+/* Triage's camera-first opening: one card, the camera above it, a tap brings the question up. */
+.live-look { display: flex; align-items: center; gap: 12px; text-align: left; background: var(--glass); backdrop-filter: blur(10px); border: 1px solid rgba(127, 227, 198, 0.45); color: var(--ink); border-radius: 18px; padding: 16px; font-size: 17px; line-height: 1.3; min-height: 64px; }
+.live-look b { color: var(--mint); }
+.live-look .live-eye { flex: none; width: 22px; height: 22px; color: var(--mint); animation: live-look-blink 2.4s ease-in-out infinite; }
+@keyframes live-look-blink { 0%, 44%, 56%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.1); } }
+
+/* Everything in the bottom stack rises in when it mounts, so the question arriving after the look reads as a step, not a jump. */
+.live-bottom > * { animation: live-rise 0.32s ease-out; }
+@keyframes live-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .live-bottom > *, .live-look .live-eye { animation: none; } }
+
 .live-metric { align-self: flex-start; background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 16px; padding: 10px 14px; min-width: 110px; }
 .live-metric-value { font-size: 36px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .live-metric.ok .live-metric-value { color: var(--mint); }
