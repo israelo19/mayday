@@ -1,6 +1,7 @@
 # 06 - Build plan (24h compressed) and kill criteria
 
 Roles: A=perception, B=protocol data+engine, C=voice I/O, D=UI+SITREP+deck. Adjust names, keep ownership singular.
+Three-person mapping (P1 Eyes, P2 Brain+Mouth, P3 Face+Ship), file ownership, seams and re-based clock: docs/07-work-split.md.
 
 ## M0 (by hour 2) - skeleton with eyes
 Vite+React+TS scaffolded, deployed on localhost HTTPS. Camera renders. PoseLandmarker running with landmarks drawn. Debug waveform chart of shoulder-y live on screen. WebSpeech says a test line on a button.
