@@ -51,22 +51,22 @@ Other scripts: `npm run typecheck`, `npm test` (vitest), `npm run build` (output
 guide gallery: every protocol picture, a simulated bystander to watch the guide react, and a
 coach-screen preview. No camera needed.
 
-## Run it on a phone with Expo Go
+## Run it on a phone
 
-`mobile/` is an Expo Go shell around the same web app: a full-screen WebView plus the
-phone's own speech, haptics, keep-awake and camera permission. Nothing medical lives in it.
-Once per laptop: `npm run mobile:install`, then `npx --prefix mobile expo login` (free
-account, Expo signs the tunnel URL with it). Then, every session:
+The phone runs the web app itself, as a PWA. No store, no account, no shell: Chrome on
+Android has the camera, Web Speech, vibrate and wake lock the app needs, and Safari on iOS
+has all but vibrate.
 
-```sh
-npm run mobile:tunnel
-```
+1. `npm run dev` (or `npm run preview` for the production build). Under Vite's URL list it
+   prints a QR of the LAN address. Scan it with the phone's camera app.
+2. Accept the self-signed certificate warning once (Advanced, proceed). Camera works after
+   that because a secure context is about the https scheme, not certificate trust.
+3. Chrome menu, "Add to Home Screen": the app opens full screen from its own icon from then
+   on, and a reload with wifi off still loads once a session has run online
+   (`vite-plugin-pwa`, see Deploy). The deployed DigitalOcean URL skips step 2 entirely.
 
-That builds the web app, serves the build locally, and starts the Expo dev server with its
-tunnel; Metro proxies `/app/` to the build. Scan the QR with Expo Go. The page arrives over
-the tunnel's real certificate, so the camera works without touching the phone's trust store.
-`npm run mobile:tunnel:dev` serves the Vite dev server instead. Details, what falls back
-inside the shell, and the deployed-site variant: `mobile/README.md`.
+Expo Go was tried and dropped: on the current SDK it refuses any project whose dev server
+is not signed in to an Expo account, on the laptop and on the phone (DECISIONS.md, Sat 05:00).
 
 ## M0 demo check
 
@@ -108,15 +108,13 @@ Tests for the pure signal code: `npm test`.
   /voice         speech out (queue, metronome), speech in (keyword router) (docs/04)
   /ai            episodic cloud calls, all stubbed behind interfaces (docs/04)
   /sitrep        event log, SITREP builder, handoff report
-  /platform      the Expo Go shell bridge: wire protocol (shared with mobile/) and the page adapter
 /web             the browser app: main.tsx, App.tsx, index.css, and session.ts once the engine lands
   /ui            screens and overlays (docs/05)
   /ui/guide      step guides: one picture per protocol line, gallery at ?guide=1 (docs/05)
-/mobile          Expo Go shell around the web app, own package.json (mobile/README.md)
 /docs            context documents; docs/07 is the four-person work split
 /public/models   MediaPipe .task model files (committed)
 /public/wasm     MediaPipe WASM runtime (generated, gitignored)
-/scripts         prepare-assets.mjs, check-ai-boundaries.mjs, mobile-tunnel.mjs
+/scripts         prepare-assets.mjs, check-ai-boundaries.mjs
 ```
 
 Decisions the docs did not settle are logged in `DECISIONS.md`.

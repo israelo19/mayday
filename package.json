@@ -15,11 +15,7 @@
     "postinstall": "node scripts/prepare-assets.mjs",
     "lint": "node scripts/check-ai-boundaries.mjs",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "mobile": "npm --prefix mobile start",
-    "mobile:install": "npm --prefix mobile install",
-    "mobile:tunnel:dev": "node scripts/mobile-tunnel.mjs --dev",
-    "mobile:tunnel": "node scripts/mobile-tunnel.mjs"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",
@@ -28,10 +24,12 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.2",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "qrcode": "^1.5.4",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
     "vite-plugin-mkcert": "^2.1.0",

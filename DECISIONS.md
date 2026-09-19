@@ -189,3 +189,19 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   (P1's file, two lines) so the shell's speaker reaches `?debug=1` too; `App.tsx` picks
   `ShellSpeakerProvider` when `shellInfo()` is non-null and `WebSpeechProvider` otherwise.
   `web/session.ts` is still to be written once `p2-brain` is on main.
+- **Sat 05:00 (P4)** Expo Go dropped; the phone runs the PWA. On the current SDK, Expo Go
+  sends a signature request with every load and the CLI can only answer it with a
+  certificate fetched for a logged-in Expo account, on the laptop and in Expo Go on the
+  phone; no flag, offline mode or LAN setting avoids it (checked in the CLI source, and
+  confirmed on the demo phone: "You need to be signed in to Expo Go and Expo CLI"). Ricky
+  does not want an Expo account for a hackathon demo, and neither should a judge. So the
+  shell (`mobile/`), its bridge (`src/platform/`), the tunnel script and the `mobile:*`
+  scripts are removed in full rather than left as dead code; the Sat 03:40 entries stay as
+  history. What replaces them is what docs/07 planned from the start: Chrome on the Android
+  demo phone, "Add to Home Screen" through `vite-plugin-pwa`, and a QR of the LAN URL that
+  `npm run dev` and `npm run preview` now print under Vite's URL list (`qrcode`, the package
+  P2 already sanctioned). Chrome has the camera, Web Speech, vibrate and wake lock the app
+  needs; the shell's only extras were native speech and haptics on iOS. The `src` versus
+  `web` split (Sat 04:30) stays: it was about ownership and a clean engine, not about the
+  shell. Capacitor is the route if a native shell is ever wanted: the page ships inside the
+  app, so no server, certificate or account, at the cost of Xcode and Android Studio builds.

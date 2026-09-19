@@ -37,7 +37,7 @@ Last commit before Sun 09:00 ET, no exceptions, not even README fixes.
 | `src/perception/**` except `src/perception/fake.ts`, `public/models/**`, `scripts/prepare-assets.mjs`, `web/ui/CameraView.tsx`, `web/ui/Waveform.tsx`, `web/ui/DebugScreen.tsx`, `fixtures/**` | P1 |
 | `src/types.ts`, `src/protocol/**`, `src/sitrep/**`, `tests/**`, `src/perception/fake.ts` | P2 |
 | `src/voice/**` | P3 |
-| `web/App.tsx`, `web/session.ts`, `web/ui/**` (except P1's three files), `src/ai/**`, `src/flags.ts`, `src/platform/**`, `mobile/**`, `scripts/mobile-tunnel.mjs`, `api/**`, `vite.config.ts`, `package.json`, `README.md`, `DECISIONS.md`, `docs/pitch.md`, deploy config | P4 |
+| `web/App.tsx`, `web/session.ts`, `web/ui/**` (except P1's three files), `src/ai/**`, `src/flags.ts`, `api/**`, `vite.config.ts`, `package.json`, `README.md`, `DECISIONS.md`, `docs/pitch.md`, deploy config | P4 |
 
 Branching: main only. `git pull --rebase` before every commit. Commit at least hourly with a
 message that says what demonstrably works. No PRs; ownership prevents conflicts, process does not.

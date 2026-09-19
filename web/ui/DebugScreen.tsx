@@ -16,7 +16,7 @@ const TUNING_KEY = 'mayday.eyes.tuning';
 const RATE_LOW = 100;
 const RATE_HIGH = 120;
 
-// Any SpeakerProvider: WebSpeech in a browser, the phone's own voice inside the Expo Go shell.
+// Any SpeakerProvider, not the WebSpeech class: the debug view only speaks and names the voice.
 type Props = { perception: Perception; speaker: SpeakerProvider & { currentVoiceName?(): string | null }; metronome: Metronome };
 
 type Snapshot = {

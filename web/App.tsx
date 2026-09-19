@@ -5,9 +5,8 @@
 // (see DECISIONS.md). Owned by P4 (docs/07).
 import { useMemo, useState } from 'react';
 import { createPerception } from '../src/perception';
-import { WebSpeechProvider, type SpeakerProvider } from '../src/voice/out';
+import { WebSpeechProvider } from '../src/voice/out';
 import { Metronome } from '../src/voice/metronome';
-import { ShellSpeakerProvider, installShell } from '../src/platform/shell';
 import { DebugScreen } from './ui/DebugScreen';
 import { GuideGallery } from './ui/guide';
 import { LaunchScreen } from './ui/LaunchScreen';
@@ -36,19 +35,9 @@ export default function App() {
   return <MaydayApp />;
 }
 
-/**
- * Inside the Expo Go shell (mobile/) the phone speaks; a WebView's own speechSynthesis is
- * unusable (Android's exists and never speaks), so the choice is by shell identity, never by
- * capability sniffing. The same object goes to P3's queue as its `provider` option.
- */
-function createSpeaker(): SpeakerProvider {
-  const shell = installShell();
-  return shell ? new ShellSpeakerProvider(shell) : new WebSpeechProvider(1.05);
-}
-
 function MaydayApp() {
   const perception = useMemo(() => createPerception(), []);
-  const speaker = useMemo(createSpeaker, []);
+  const speaker = useMemo(() => new WebSpeechProvider(1.05), []);
   const metronome = useMemo(() => new Metronome(), []);
   const debug = useMemo(() => new URLSearchParams(window.location.search).has('debug'), []);
 
