@@ -16,8 +16,14 @@ import { StepGuide, guideFor } from '../guide';
 import { DispatcherPanel } from './DispatcherPanel';
 import { FakeControls } from './FakeControls';
 import { HandoffPanel } from './HandoffPanel';
+import { isLooking, voiceOffLabel, type Platform } from './hints';
 import { useSession } from './useSession';
 import './live.css';
+
+function readPlatform(): Platform {
+  const nav = navigator as Navigator & { standalone?: boolean };
+  return { standalone: nav.standalone === true, iOS: /iP(hone|ad|od)/.test(navigator.userAgent) };
+}
 
 function requestWakeLock(): void {
   const nav = navigator as Navigator & { wakeLock?: { request(type: 'screen'): Promise<unknown> } };
@@ -38,6 +44,12 @@ export function LiveApp() {
     [perception, voice],
   );
   const snap = useSession(session);
+  const platform = useMemo(readPlatform, []);
+  // Triage opens on the camera: the question card and its buttons hold back for a moment so
+  // the eyes get a look at the scene first (hints.ts). A tap on the look card ends it early.
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => setRevealed(false), [snap.stateKey]);
+  const looking = isLooking({ phase: snap.phase, eyesStatus: snap.eyes.status, suggestion: snap.suggestion !== null, revealed, sinceMs: Date.now() - snap.stateEnteredAt });
   // The bystander's own shoulder signal under the compression picture (docs/05 wiring). The real
   // module stamps samples with performance.now(); the fake one with Date.now(), so shift those.
   const live = useMemo<LiveSource>(() => {
@@ -85,7 +97,7 @@ export function LiveApp() {
       {snap.phase !== 'handoff' && (
         <div className="live-top">
           <div className="live-top-row">
-            <ListeningChip listening={snap.listening} speaking={snap.speaking} heard={snap.lastHeard} keyword={snap.lastKeyword} error={snap.listenError} onRetry={() => session.retryListening()} />
+            <ListeningChip listening={snap.listening} speaking={snap.speaking} heard={snap.lastHeard} keyword={snap.lastKeyword} error={snap.listenError} platform={platform} onRetry={() => session.retryListening()} />
             <div className="live-top-right">
               {/* Every state keeps the button; states flagged call911 in the machine data make it pulse. It opens the SIMULATED dispatcher and never dials. */}
               <button className={`live-call${snap.call911 && !snap.callActive ? ' urgent' : ''}`} onClick={() => session.call911()} disabled={snap.callActive}>
@@ -94,7 +106,7 @@ export function LiveApp() {
               {snap.callActive && <span className="live-sim">Simulated dispatcher</span>}
             </div>
           </div>
-          <EyesChip eyes={snap.eyes} />
+          <EyesChip eyes={snap.eyes} triage={snap.phase === 'triage'} cameraSuggestion={snap.suggestion?.source === 'camera'} />
           <Metric snap={snap} />
           {snap.callActive && (
             <DispatcherPanel status={snap.dispatcherStatus} lines={snap.dispatcherLines} sitrep={snap.sitrep} onReply={(t) => session.replyToDispatcher(t)} onHangUp={() => session.hangUp()} />
@@ -134,26 +146,37 @@ export function LiveApp() {
             <div className="live-banner red">Can't see you clearly. Coaching by voice.</div>
           )}
 
-          <Instruction snap={snap} live={live} />
-
-          <div className="live-twins">
-            {snap.twins.map((tw) => (
-              <button key={tw.keyword} className={`live-twin${snap.phase === 'triage' ? ' triage' : ''}`} onClick={() => session.say(tw.keyword)}>
-                {tw.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="live-actions">
-            {snap.phase === 'coaching' && (
-              <button className="live-ghost" onClick={() => session.finish()}>
-                Ambulance is here
-              </button>
-            )}
-            <button className="live-next" onClick={() => session.advance()} disabled={!snap.canAdvance}>
-              Next
+          {looking ? (
+            <button type="button" className="live-look" onClick={() => setRevealed(true)}>
+              <EyeIcon />
+              <span>
+                <b>Looking at the scene.</b> Say what happened, or tap to choose.
+              </span>
             </button>
-          </div>
+          ) : (
+            <>
+              <Instruction snap={snap} live={live} />
+
+              <div className="live-twins">
+                {snap.twins.map((tw) => (
+                  <button key={tw.keyword} className={`live-twin${snap.phase === 'triage' ? ' triage' : ''}`} onClick={() => session.say(tw.keyword)}>
+                    {tw.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="live-actions">
+                {snap.phase === 'coaching' && (
+                  <button className="live-ghost" onClick={() => session.finish()}>
+                    Ambulance is here
+                  </button>
+                )}
+                <button className="live-next" onClick={() => session.advance()} disabled={!snap.canAdvance}>
+                  Next
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -162,11 +185,11 @@ export function LiveApp() {
   );
 }
 
-function ListeningChip({ listening, speaking, heard, keyword, error, onRetry }: { listening: string; speaking: boolean; heard: string | null; keyword: string | null; error: string | null; onRetry: () => void }) {
+function ListeningChip({ listening, speaking, heard, keyword, error, platform, onRetry }: { listening: string; speaking: boolean; heard: string | null; keyword: string | null; error: string | null; platform: Platform; onRetry: () => void }) {
   const on = listening === 'listening' || listening === 'restarting';
   const off = !on;
   // While the app talks the mic is muted for echo (docs/09), so say so: a judge who answers
-  // over the prompt would otherwise think the app ignored them.
+  // over the prompt would otherwise think the app ignored them. Off, the label is the fix.
   const label = keyword
     ? `Heard: ${keyword}`
     : heard
@@ -175,7 +198,7 @@ function ListeningChip({ listening, speaking, heard, keyword, error, onRetry }: 
         ? 'Speaking, then listening'
         : on
           ? 'Listening'
-          : `Voice off${error ? ` (${error})` : ''}, tap to retry`;
+          : voiceOffLabel(error, platform, listening !== 'unavailable' || error !== null);
   // Off states are a button: iOS only grants recognition that starts inside a tap.
   return (
     <button type="button" className={`live-chip${on && !speaking ? ' live-chip-on' : ''}${keyword ? ' live-chip-hit' : ''}`} onClick={off ? onRetry : undefined} disabled={!off}>
@@ -195,19 +218,22 @@ function EyeIcon() {
 }
 
 /** What the camera is doing, in five words: the eyes are the product, so they get a line of their own. */
-function EyesChip({ eyes }: { eyes: Eyes }) {
+function EyesChip({ eyes, triage, cameraSuggestion }: { eyes: Eyes; triage: boolean; cameraSuggestion: boolean }) {
+  // In triage the camera looks at the scene for the patient; while coaching it measures the helper.
   const label =
     eyes.saw ? `Saw: ${eyes.saw.toLowerCase()}`
+    : cameraSuggestion ? 'Saw: a person lying still'
     : eyes.status === 'error' ? 'Camera off'
     : eyes.status === 'starting' ? 'Starting camera'
     : eyes.status === 'off' ? 'Camera off'
     : eyes.hands === 'locked' ? 'Watching your hands on the wound'
     : eyes.hands === 'locking' ? 'Finding your hands'
     : eyes.hands === 'failed' ? 'Hands not found, coaching by voice'
+    : triage ? (eyes.status === 'blind' ? 'Looking at the scene' : 'Someone in view')
     : eyes.status === 'blind' ? 'No one in view'
     : eyes.rescuer ? 'Watching you'
     : 'Watching';
-  const tone = eyes.saw ? 'hit' : eyes.status === 'watching' && (eyes.rescuer || eyes.hands === 'locked') ? 'on' : eyes.status === 'error' ? 'off' : '';
+  const tone = eyes.saw || cameraSuggestion ? 'hit' : eyes.status === 'watching' && (eyes.rescuer || eyes.hands === 'locked') ? 'on' : eyes.status === 'error' ? 'off' : '';
   return (
     <div className={`live-eyes${tone ? ` live-eyes-${tone}` : ''}`}>
       <EyeIcon />

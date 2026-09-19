@@ -441,3 +441,17 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   and keeps recognizer errors and dispatcher plumbing in the log but off the paramedic's screen.
   The launch screen names the app, says the camera is about to watch, and labels the demo's
   simulated 911 call.
+- **Sat 06:55 (Ricky, `review`, from the first iPhone run)** Two things the phone showed. The mic
+  chip read `service-not-allowed`, which is WebKit's code for the OS speech service, not the
+  site permission: Siri & Dictation off, the Speech Recognition privacy toggle denied for
+  Safari, no internet for the recognizer, or a home-screen app, which iOS gives no recognizer
+  at all. The chip now names the fix (`voiceOffLabel` in `web/ui/live/hints.ts`, tested) and
+  the README carries the iPhone caveat: demo voice in Safari itself. And triage put the
+  question card and three buttons over the camera the instant the eyes opened. Triage now
+  opens camera-first for three seconds (`TRIAGE_LOOK_MS`, `isLooking`): the person-down
+  detector needs two seconds of a still pose and the spoken prompt takes about as long, so a
+  "Looking at the scene" card stands in for the question until a tap, a suggestion from the
+  camera or the mic, the timer, or a missing camera ends it. Voice routes throughout, the tap
+  is one, so docs/05's zero-navigation launch still holds. The eyes chip reads "Looking at the
+  scene" or "Someone in view" in triage instead of "Watching you", and "Saw: a person lying
+  still" while the camera's own suggestion is up.
