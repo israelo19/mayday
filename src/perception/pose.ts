@@ -17,7 +17,10 @@ export function loadVisionFileset(): Promise<VisionFileset> {
   return filesetPromise;
 }
 
-/** GPU delegate first (WebGL), CPU fallback. Lite model, VIDEO mode, one pose. */
+/**
+ * GPU delegate first (WebGL), CPU fallback. Lite model, VIDEO mode, up to two poses: the patient
+ * and the rescuer can both be in frame, and signal.ts picks the rescuer (docs/03).
+ */
 export async function loadPoseLandmarker(): Promise<{ landmarker: PoseLandmarker; delegate: Delegate }> {
   const fileset = await loadVisionFileset();
   let lastErr: unknown = null;
@@ -26,7 +29,7 @@ export async function loadPoseLandmarker(): Promise<{ landmarker: PoseLandmarker
       const landmarker = await PoseLandmarker.createFromOptions(fileset, {
         baseOptions: { modelAssetPath: POSE_MODEL_URL, delegate },
         runningMode: 'VIDEO',
-        numPoses: 1,
+        numPoses: 2,
         minPoseDetectionConfidence: 0.5,
         minPosePresenceConfidence: 0.5,
         minTrackingConfidence: 0.5,
