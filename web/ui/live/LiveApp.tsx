@@ -18,6 +18,7 @@ import { FakeControls } from './FakeControls';
 import { HandoffPanel } from './HandoffPanel';
 import { isLooking, voiceOffLabel, type Platform } from './hints';
 import { useSession } from './useSession';
+import { installTrace, micTrace, traceRequested } from '../../trace';
 import './live.css';
 
 function readPlatform(): Platform {
@@ -40,7 +41,7 @@ export function LiveApp() {
   const speaker = useMemo(createSpeaker, []);
   const voice = useMemo(() => createVoice({ provider: speaker }), [speaker]);
   const session = useMemo(
-    () => createSession({ perception, voice, dispatcher: createDispatcher, reverseGeocode }),
+    () => createSession({ perception, voice, dispatcher: createDispatcher, reverseGeocode, micTrace: traceRequested() ? micTrace : undefined }),
     [perception, voice],
   );
   const snap = useSession(session);
@@ -69,7 +70,11 @@ export function LiveApp() {
   useEffect(() => {
     // Dev aid: `mayday.log.entries()` in the console shows what the session heard and did.
     (window as unknown as { mayday?: unknown }).mayday = session;
-    return () => session.stop();
+    const stopTrace = installTrace(session);
+    return () => {
+      stopTrace();
+      session.stop();
+    };
   }, [session]);
 
   if (snap.phase === 'idle') {

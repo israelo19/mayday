@@ -4,6 +4,7 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 import mkcert from 'vite-plugin-mkcert';
 import { VitePWA } from 'vite-plugin-pwa';
 import * as QRCode from 'qrcode';
+import { appendFileSync } from 'node:fs';
 import { createKeyProxy, readLocalEnv } from './src/voice/providers/devproxy.mjs';
 
 // HTTPS in dev because getUserMedia needs a secure context on any origin other than
@@ -71,12 +72,45 @@ function keyProxy(): PluginOption {
   return { name: 'mayday-key-proxy', configureServer: mount, configurePreviewServer: mount };
 }
 
+/**
+ * Dev-only sink for the phone trace (web/trace.ts, `?trace=1`): the page posts JSON lines to
+ * /__trace and they print here under [trace], and append to MAYDAY_TRACE_FILE when set. A
+ * phone has no console a laptop can read; this is how a mic or camera problem on the phone
+ * gets debugged from the laptop. Never mounted on the preview or the deploy.
+ */
+function traceSink(): PluginOption {
+  return {
+    name: 'mayday-trace',
+    configureServer(server) {
+      const file = process.env.MAYDAY_TRACE_FILE;
+      server.middlewares.use('/__trace', (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end();
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk: Buffer | string) => {
+          body += chunk.toString();
+        });
+        req.on('end', () => {
+          for (const line of body.split('\n')) if (line.trim()) console.log(`  [trace] ${line}`);
+          if (file) appendFileSync(file, body.endsWith('\n') ? body : `${body}\n`);
+          res.statusCode = 204;
+          res.end();
+        });
+      });
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     react(),
     ...https,
     phoneQr(),
     keyProxy(),
+    traceSink(),
     // docs/07 P4 task 7: an accidental reload with wifi off must still load. `vite-plugin-pwa`
     // is a pre-approved exception to the no-new-libraries rule (DECISIONS.md).
     VitePWA({

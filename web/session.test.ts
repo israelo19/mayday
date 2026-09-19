@@ -170,6 +170,14 @@ describe('session', () => {
     expect(s.snapshot().coaching).toBeNull();
   });
 
+  it('shows what the mic is hearing before the sentence is done, without logging it', () => {
+    const { s, v } = rig();
+    s.start();
+    v.mic()?.onInterim?.('my dad fell');
+    expect(s.snapshot().lastHeard).toBe('my dad fell');
+    expect(s.log.entries().some((e) => e.kind === 'user' && e.detail === 'my dad fell')).toBe(false);
+  });
+
   it('says so when the camera, not a tap, moved the machine on', () => {
     const { s, v, p, tick } = rig();
     s.start();

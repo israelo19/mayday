@@ -475,3 +475,17 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   live camera can reopen them), `unlock()` speaks the silent utterance before waiting for
   voices, and `listen()` runs before `engine.start()`.
 
+- **Sat 07:40 (Ricky, `review`, second iPhone run)** "Voice only reacts to 'not breathing'" was
+  WebKit's continuous mode: iOS and macOS Safari send interim results only, each one the whole
+  utterance so far, and no final until the session stops, while the listener handed only finals
+  to the app. Keywords still routed (they are spotted on interims); the chip text, the user log
+  line and the "sounds like X?" suggestion, all gated on finals, never happened. `src/voice/in.ts`
+  now treats an interim unchanged for `INTERIM_SETTLE_MS` (1.2 s) as the sentence, flushes an
+  unsettled one on `end`, skips a later identical final, shows interims on the chip through
+  `onInterim`, and fires a keyword once per occurrence by comparing a grown transcript with the
+  words that were already there (a cumulative transcript used to re-fire an old keyword after
+  the 1.5 s window, which could walk a state ahead on words said earlier). The replay is
+  `in.test.ts`, "a recognizer that never sends a final". Also: `?trace=1` (web/trace.ts, the
+  `/__trace` sink in vite.config.ts, `micTrace` on the session) posts every recognizer event, mic
+  status, transcript, speaking state and JS error from a phone to the dev server log, because a
+  phone has no console the laptop can read.

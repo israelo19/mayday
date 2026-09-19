@@ -13,12 +13,19 @@
 //      late). Short fragments never trip it: a human answering "not breathing" right after
 //      the app SAID "breathing" must still route.
 //
+// WebKit (iOS and macOS Safari) in continuous mode sends interim results only, each one the
+// whole utterance so far, and no final until the session stops; Chrome sends finals itself.
+// So an interim that stops changing for INTERIM_SETTLE_MS is treated as the sentence, and a
+// keyword fires once per occurrence, judged against the words that were already there.
+//
 // NOTE for the pitch, not this file: Chrome's SpeechRecognition streams audio to Google's
 // servers. Voice INPUT needs network; coaching and voice output stay local. Say it that way.
 // Owned by P3 (docs/07).
 
 /** Refuse to fire the same keyword twice inside this window (interim + final overlap). */
 export const KEYWORD_REFIRE_MS = 1500;
+/** An interim result unchanged for this long is the sentence (WebKit never sends the final). */
+export const INTERIM_SETTLE_MS = 1200;
 /** Layer 2 only ever drops near-verbatim readbacks, never short answers. */
 const ECHO_MIN_WORDS = 4;
 const ECHO_COVERAGE = 0.8;
@@ -88,6 +95,14 @@ export type SpeechRecognitionLike = {
   onresult: ((e: RecognitionEventLike) => void) | null;
   onend: (() => void) | null;
   onerror: ((e: { error?: string }) => void) | null;
+  /** The remaining recognizer events, wired only for diagnostics (VoiceInOptions.onEvent). */
+  onstart?: (() => void) | null;
+  onaudiostart?: (() => void) | null;
+  onaudioend?: (() => void) | null;
+  onsoundstart?: (() => void) | null;
+  onspeechstart?: (() => void) | null;
+  onspeechend?: (() => void) | null;
+  onnomatch?: (() => void) | null;
   start(): void;
   stop(): void;
 };
@@ -105,6 +120,8 @@ export type VoiceInOptions = {
   onKeyword: (k: string) => void;
   /** Final transcripts, for the event log as kind 'user' (they enrich the handoff report). */
   onTranscript: (t: string) => void;
+  /** What is being heard while the person still speaks, for the screen only; never logged, never routed here. */
+  onInterim?: (t: string) => void;
   /** Layer 1: true while the app itself is speaking (plus the quiet tail). */
   suppress: () => boolean;
   /** Layer 2: the app's recent lines, from the queue's recentlySpoken(). */
@@ -115,6 +132,12 @@ export type VoiceInOptions = {
   onError?: (code: string) => void;
   /** Keyword matcher; defaults to spotKeyword. The session passes the protocol's stemmed, typo-tolerant one. */
   spot?: (transcript: string, keywords: readonly string[]) => string | null;
+  /**
+   * Diagnostics only: every recognizer event by name ('start', 'audiostart', 'result',
+   * 'error', 'end', ...), plus 'suppressed' and 'echo' for results the two gates dropped.
+   * Never routes anything; a phone trace is the only consumer (web/trace.ts).
+   */
+  onEvent?: (name: string, detail?: string) => void;
 };
 
 export interface VoiceIn {
@@ -130,6 +153,17 @@ type VoiceInDeps = {
   /** Returns a cancel function. Injected so restart backoff is testable without timers. */
   schedule?: (fn: () => void, ms: number) => () => void;
 };
+
+/** Where the last three words of `text` begin, so a phrase split across a refresh is still seen whole. */
+function tailStart(text: string, words = 3): number {
+  let idx = text.length;
+  for (let n = 0; n < words; n++) {
+    const sp = text.lastIndexOf(' ', idx - 1);
+    if (sp < 0) return 0;
+    idx = sp;
+  }
+  return idx + 1;
+}
 
 function defaultFactory(): (() => SpeechRecognitionLike) | null {
   if (typeof window === 'undefined') return null;
@@ -164,29 +198,83 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
     if (!factory || !opts) return;
     const o = opts;
     const r = factory();
+    const ev = o.onEvent;
     r.continuous = true;
     r.interimResults = true;
     r.lang = 'en-US';
     r.maxAlternatives = 1;
+    if (ev) {
+      r.onstart = () => ev('start');
+      r.onaudiostart = () => ev('audiostart');
+      r.onaudioend = () => ev('audioend');
+      r.onsoundstart = () => ev('soundstart');
+      r.onspeechstart = () => ev('speechstart');
+      r.onspeechend = () => ev('speechend');
+      r.onnomatch = () => ev('nomatch');
+    }
+    // The transcript each result index last showed, so a refresh of a growing transcript is
+    // told apart from a new sentence; and the interim waiting to become the sentence.
+    const prevByIndex = new Map<number, string>();
+    let settle: { cancel: () => void; text: string } | null = null;
+    let settledText: string | null = null;
+    const flushSettle = (): void => {
+      if (!settle) return;
+      const { text } = settle;
+      settle = null;
+      settledText = text;
+      o.onTranscript(text);
+    };
+    const armSettle = (text: string): void => {
+      settle?.cancel();
+      const cancel = schedule(() => {
+        if (settle?.text === text) flushSettle();
+      }, INTERIM_SETTLE_MS);
+      settle = { cancel, text };
+    };
     r.onresult = (e) => {
       backoffMs = 250; // hearing anything at all means the engine is healthy again
-      if (o.suppress()) return; // layer 1: the app is talking, or just was
+      if (o.suppress()) {
+        ev?.('suppressed', e.results[e.resultIndex]?.[0]?.transcript ?? '');
+        return; // layer 1: the app is talking, or just was
+      }
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const result = e.results[i];
-        const raw = result[0]?.transcript ?? '';
-        if (raw.trim().length === 0) continue;
-        if (isEchoOf(raw, o.echoText?.() ?? [])) continue; // layer 2: our own line, read back
-        if (result.isFinal) o.onTranscript(raw.trim());
-        // Interim results are spotted too — routing must not wait for the final — and the
-        // refire window keeps the final from firing the same keyword again.
-        const keyword = (o.spot ?? spotKeyword)(raw, o.keywords());
-        if (keyword !== null && now() - (firedAt.get(keyword) ?? Number.NEGATIVE_INFINITY) > KEYWORD_REFIRE_MS) {
+        const text = (result[0]?.transcript ?? '').trim();
+        if (text.length === 0) continue;
+        ev?.(result.isFinal ? 'final' : 'interim', text);
+        if (isEchoOf(text, o.echoText?.() ?? [])) {
+          ev?.('echo', text);
+          continue; // layer 2: our own line, read back
+        }
+        if (result.isFinal) {
+          settle?.cancel();
+          settle = null;
+          if (settledText !== text) o.onTranscript(text); // the settle already logged this one
+          settledText = null;
+        } else {
+          o.onInterim?.(text);
+          armSettle(text);
+        }
+        // Interim results are spotted too: routing must not wait for a final that WebKit never
+        // sends. A keyword fires once per occurrence: when the transcript only grew, the words
+        // already there are looked at again only where a phrase could straddle the join.
+        const prev = prevByIndex.get(i) ?? '';
+        if (result.isFinal) prevByIndex.delete(i);
+        else prevByIndex.set(i, text);
+        const grew = prev.length > 0 && text.startsWith(prev);
+        const from = grew ? tailStart(prev) : 0;
+        const spot = o.spot ?? spotKeyword;
+        const keyword = spot(text.slice(from), o.keywords());
+        if (keyword === null) continue;
+        if (grew && spot(prev.slice(from), o.keywords()) === keyword) continue; // was already there
+        if (now() - (firedAt.get(keyword) ?? Number.NEGATIVE_INFINITY) > KEYWORD_REFIRE_MS) {
           firedAt.set(keyword, now());
           o.onKeyword(keyword);
         }
       }
     };
     r.onerror = (e) => {
+      ev?.('error', e.error ?? 'unknown');
       o.onError?.(e.error ?? 'unknown');
       // Permission is gone for the session: stop retrying and let the buttons carry it.
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
@@ -197,6 +285,8 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
       // restarts with backoff.
     };
     r.onend = () => {
+      ev?.('end');
+      flushSettle(); // a sentence still settling is not lost with the session
       // Chrome ends continuous sessions on its own schedule; treat every end as a restart
       // request while we are supposed to be listening.
       if (!running) {
@@ -214,9 +304,11 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
     };
     rec = r;
     try {
+      ev?.('starting');
       r.start();
-    } catch {
+    } catch (err) {
       // start() throws if a previous instance is still winding down; the backoff retries.
+      ev?.('start-threw', String(err));
     }
   }
 

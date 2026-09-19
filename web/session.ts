@@ -148,6 +148,8 @@ export type SessionDeps = {
   vibrate?: (ms: number) => void;
   /** Defaults to the voice module's scripted call-taker. */
   dispatcher?: DispatcherFactory;
+  /** Diagnostics only (web/trace.ts): every recognizer event, by name. Never routes. */
+  micTrace?: (name: string, detail?: string) => void;
 };
 
 export const MACHINE_LABEL: Record<string, string> = {
@@ -439,6 +441,7 @@ export function createSession(deps: SessionDeps): Session {
     voice.listen({
       keywords: () => engine.keywords(),
       spot: matchKeyword,
+      onEvent: deps.micTrace,
       onKeyword: (k) => {
         lastKeyword = k;
         lastKeywordAt = now();
@@ -452,6 +455,12 @@ export function createSession(deps: SessionDeps): Session {
         lastHeardAt = now();
         pendingTranscript = { text, t: now() };
         log.append({ t: now(), kind: 'user', detail: text });
+        notify();
+      },
+      // What the mic hears while the person still speaks, shown on the chip and nowhere else.
+      onInterim: (text) => {
+        lastHeard = text;
+        lastHeardAt = now();
         notify();
       },
       onStatus: (s) => {
