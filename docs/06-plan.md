@@ -5,7 +5,7 @@ Four-person mapping (A=P1 Eyes, B=P2 Brain, C=P3 Mouth, D=P4 Face and ship), fil
 
 ## M0 (by hour 2) - skeleton with eyes
 Vite+React+TS scaffolded, deployed on localhost HTTPS. Camera renders. PoseLandmarker running with landmarks drawn. Debug waveform chart of shoulder-y live on screen. WebSpeech says a test line on a button.
-DONE = you can watch the waveform wiggle when someone does compressions on a pillow.
+DONE = you can watch the waveform wiggle when someone does compressions on a pillow
 
 ## M1 (by hour 6) - THE closed loop
 Peak detection, rate, compressionActive, recoilRatio. Engine executes cardiac machine end to end with buttons. Coaching rules fire with cooldowns. Metronome. Voice priority queue.
