@@ -138,15 +138,28 @@ describe('the keyword listener', () => {
     expect(s.heardKeywords).toEqual(['not breathing', 'not breathing']);
   });
 
-  it('ignores everything while the app is speaking (layer 1)', () => {
-    const s = setup();
+  it('while the app speaks, holds back only a keyword the app itself just said (layer 1)', () => {
+    const s = setup({ echoText: () => ["Say things like: he's not breathing, she's choking, he got shot."] });
     s.setSuppressed(true);
-    s.rec().hear("he's not breathing");
+    s.rec().hear("he's not breathing"); // could be our own prompt coming back through the mic
     expect(s.heardKeywords).toEqual([]);
     expect(s.transcripts).toEqual([]);
+    s.rec().hear('ambulance here'); // nothing the app said: a person talking over the coach
+    expect(s.heardKeywords).toEqual(['ambulance here']);
     s.setSuppressed(false);
-    s.rec().hear("he's not breathing");
-    expect(s.heardKeywords).toEqual(['not breathing']);
+    s.rec().hear("he's not breathing"); // the app is quiet now, so the same words are the person's
+    expect(s.heardKeywords).toEqual(['ambulance here', 'not breathing']);
+  });
+
+  it('shows what it hears while the app speaks but logs nothing from that stretch', () => {
+    const interim: string[] = [];
+    const s = setup({ onInterim: (t) => interim.push(t) });
+    s.setSuppressed(true);
+    s.rec().hear('my dad fell over', false);
+    s.tick(INTERIM_SETTLE_MS + 1);
+    s.runPending();
+    expect(interim).toEqual(['my dad fell over']);
+    expect(s.transcripts).toEqual([]);
   });
 
   it('drops a late echo of the app’s own line (layer 2), keyword and all', () => {

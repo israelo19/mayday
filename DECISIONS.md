@@ -489,3 +489,13 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   `/__trace` sink in vite.config.ts, `micTrace` on the session) posts every recognizer event, mic
   status, transcript, speaking state and JS error from a phone to the dev server log, because a
   phone has no console the laptop can read.
+- **Sat 07:55 (Ricky, `review`, from the first `?trace=1` run on the iPhone)** The trace
+  confirmed the WebKit diagnosis on the device (interim-only, cumulative transcripts; the
+  settle logged "Choking" 1.2 s after the last interim and the chip showed words live) and
+  exposed the bigger loss: the app spoke for 37 of the run's 45 seconds, and the time gate
+  dropped everything said meanwhile. On a phone the person talks over the coach; that is the
+  normal case. The gate is now keyword-level: while the app speaks and for the 700 ms tail,
+  only a keyword the app itself just said is held back (its own words are the only echo the
+  mic can hear), the sentence is shown on the chip but not logged (an echo of our prompt must
+  never become a "sounds like" suggestion), and any other keyword routes. A held-back keyword
+  is judged again once the app is quiet. docs/09 and docs/10 say so; `in.test.ts` holds it.

@@ -6,8 +6,11 @@
 // The M2 gate lives here: a keyword spoken by a HUMAN routes, and the same words spoken by
 // the app's own speaker do not. Two independent echo layers, because on a phone propped by
 // a patient the mic will certainly hear the app:
-//   1. time gate  - results are ignored while the app speaks and for a tail after (the
-//      caller's suppress() closure, wired to the queue's isSpeaking/quietForMs).
+//   1. time gate  - while the app speaks and for a tail after (the caller's suppress()
+//      closure, wired to the queue's isSpeaking/quietForMs), a keyword the app itself just
+//      said is held back and nothing from that stretch is logged; a keyword the app did not
+//      say still routes, because the app's own words are the only echo the mic can hear, and
+//      a person talking over the coach is the normal case on a phone.
 //   2. text gate  - a transcript that reads back one of the app's own recent lines nearly
 //      verbatim is an echo the time gate missed (recognition results can arrive seconds
 //      late). Short fragments never trip it: a human answering "not breathing" right after
@@ -231,12 +234,12 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
       }, INTERIM_SETTLE_MS);
       settle = { cancel, text };
     };
+    const spot = o.spot ?? spotKeyword;
+    /** The app said this keyword in one of its recent lines, so hearing it now may be our own voice. */
+    const saidByApp = (keyword: string): boolean => (o.echoText?.() ?? []).some((line) => spot(line, [keyword]) === keyword);
     r.onresult = (e) => {
       backoffMs = 250; // hearing anything at all means the engine is healthy again
-      if (o.suppress()) {
-        ev?.('suppressed', e.results[e.resultIndex]?.[0]?.transcript ?? '');
-        return; // layer 1: the app is talking, or just was
-      }
+      const muted = o.suppress(); // layer 1: the app is talking, or just was
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const result = e.results[i];
         const text = (result[0]?.transcript ?? '').trim();
@@ -246,7 +249,11 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
           ev?.('echo', text);
           continue; // layer 2: our own line, read back
         }
-        if (result.isFinal) {
+        if (muted) {
+          // Shown, so the person sees they are heard, but never logged: an echo of our own
+          // prompt must not become a "sounds like" suggestion.
+          o.onInterim?.(text);
+        } else if (result.isFinal) {
           settle?.cancel();
           settle = null;
           if (settledText !== text) o.onTranscript(text); // the settle already logged this one
@@ -259,14 +266,17 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
         // sends. A keyword fires once per occurrence: when the transcript only grew, the words
         // already there are looked at again only where a phrase could straddle the join.
         const prev = prevByIndex.get(i) ?? '';
-        if (result.isFinal) prevByIndex.delete(i);
-        else prevByIndex.set(i, text);
         const grew = prev.length > 0 && text.startsWith(prev);
         const from = grew ? tailStart(prev) : 0;
-        const spot = o.spot ?? spotKeyword;
         const keyword = spot(text.slice(from), o.keywords());
-        if (keyword === null) continue;
-        if (grew && spot(prev.slice(from), o.keywords()) === keyword) continue; // was already there
+        const already = keyword !== null && grew && spot(prev.slice(from), o.keywords()) === keyword;
+        if (keyword !== null && !already && muted && saidByApp(keyword)) {
+          ev?.('suppressed', keyword);
+          continue; // judged again once the app is quiet; the baseline stays where it was
+        }
+        if (result.isFinal) prevByIndex.delete(i);
+        else prevByIndex.set(i, text);
+        if (keyword === null || already) continue;
         if (now() - (firedAt.get(keyword) ?? Number.NEGATIVE_INFINITY) > KEYWORD_REFIRE_MS) {
           firedAt.set(keyword, now());
           o.onKeyword(keyword);
