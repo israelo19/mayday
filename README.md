@@ -121,6 +121,23 @@ an iPhone rear camera at 28 to 31 fps on Sat 01:50, and working on Android as we
 
 Tests for the pure signal code: `npm test`.
 
+## M2 check (the session spine)
+
+Open the app, or `?fake=1` on a laptop with no camera. Tap "I NEED HELP".
+
+1. The chip at the top reads "Listening". Say "he's not breathing", or tap the button. The
+   card switches to CPR and the first line is spoken and shown. "Gunshot" and "Choking" route
+   the same way.
+2. Every spoken answer has a button under the card. NEXT always moves. "Ambulance is here"
+   ends the machine and opens the handoff.
+3. In compressions the metronome runs and the pill shows the live rate. Stop pushing for three
+   seconds: "Don't stop." Cover the lens: the blind line, the beat continues.
+4. In bleeding pressure, lift both hands: "Don't let go!" within about two seconds.
+5. CALL 911 opens the simulated dispatcher under a red label; the SITREP lines answer it.
+6. The handoff shows the read-aloud block, the paramedic headline, the timeline and a QR.
+
+`window.mayday.log.entries()` in the console lists what was heard and said.
+
 ## Layout
 
 ```
