@@ -7,3 +7,4 @@ npm-debug.log*
 # copied from node_modules/@mediapipe/tasks-vision/wasm by scripts/prepare-assets.mjs
 public/wasm
 # vite-plugin-mkcert keeps certs in ~/.vite-plugin-mkcert, nothing here
+.claude/launch.json
