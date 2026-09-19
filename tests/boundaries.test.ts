@@ -14,7 +14,8 @@ const REFLEX_PATH = ['src/perception', 'src/protocol', 'src/voice', 'src/sitrep'
 const NETWORK_ALLOWED = ['src/voice/providers'];
 
 function exempt(file: string): boolean {
-  return NETWORK_ALLOWED.some((prefix) => file.startsWith(prefix));
+  const normalized = file.split('\\').join('/');
+  return NETWORK_ALLOWED.some((prefix) => normalized.startsWith(prefix));
 }
 
 function sourceFiles(dir: string): string[] {
