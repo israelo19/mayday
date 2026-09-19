@@ -37,7 +37,12 @@
 .live-banner.big { font-size: 22px; }
 
 .live-card { background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; }
-.live-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.live-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; width: 100%; background: transparent; border: 0; padding: 0; color: inherit; min-height: 0; text-align: left; cursor: pointer; }
+.live-card-right { display: flex; align-items: center; gap: 10px; }
+.live-card-toggle { font-size: 12px; color: var(--ink-2); }
+.live-card.slim { padding: 10px 14px; }
+.live-card.slim .live-card-head { margin-bottom: 4px; }
+.live-line.small { font-size: clamp(17px, 4.6vw, 22px); font-weight: 600; }
 .live-machine { font-size: 13px; font-weight: 700; color: var(--mint); }
 .live-steps { display: flex; gap: 5px; }
 .live-steps i { width: 8px; height: 8px; border-radius: 50%; background: #3a444d; display: block; }
@@ -100,3 +105,9 @@
   .live-card .gd-stage { height: 18vh; }
   .live-card .gd-trace { display: none; }
 }
+
+.live-suggest { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 17px; }
+.live-suggest b { color: var(--ink); }
+.live-suggest-actions { display: flex; gap: 6px; }
+.live-suggest-actions button { min-height: 40px; padding: 6px 14px; border-radius: 10px; font-weight: 700; background: rgba(255, 255, 255, 0.12); border: 1px solid var(--line); color: var(--ink); }
+.live-suggest-actions button:first-child { background: var(--mint); color: #04110d; border-color: var(--mint); }
