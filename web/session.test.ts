@@ -12,11 +12,15 @@ function fakeVoice() {
   const spoken: string[] = [];
   const metronome: (number | 'stop')[] = [];
   const dispatcherLines: string[] = [];
+  const order: string[] = [];
   let listenOpts: (Omit<VoiceInOptions, 'suppress' | 'echoText'> & { onStatus?: (s: VoiceInStatus) => void }) | null = null;
   const voice = {
     out: {
-      unlock: async () => {},
+      unlock: async () => {
+        order.push('unlock');
+      },
       enqueue: (e: CoachingEvent) => {
+        order.push('speak');
         enqueued.push(e);
         spoken.push(e.text);
       },
@@ -46,12 +50,13 @@ function fakeVoice() {
     },
     stats: () => ({ all: { count: 0, p50: null, p95: null, worst: null }, byKind: {} }),
     listen: (o: Omit<VoiceInOptions, 'suppress' | 'echoText'>) => {
+      order.push('listen');
       listenOpts = o;
       o.onStatus?.('listening');
     },
     stopListening: () => {},
   } as unknown as Voice;
-  return { voice, enqueued, metronome, dispatcherLines, mic: () => listenOpts };
+  return { voice, enqueued, metronome, dispatcherLines, order, mic: () => listenOpts };
 }
 
 function rig(): { s: Session; v: ReturnType<typeof fakeVoice>; p: ReturnType<typeof createFakePerception>; tick: (ms: number) => void; clock: { t: number } } {
@@ -94,6 +99,10 @@ describe('session', () => {
     expect(snap.twins.map((t) => t.to)).toEqual(['cardiac.scene_check', 'bleeding.scene_safety', 'choking.confirm']);
     expect(v.enqueued[0].text).toContain("Tell me what's happening");
     expect(v.mic()).not.toBeNull();
+    // Mic permission has to start inside this tap, before we talk: iOS drops SpeechRecognition
+    // that races speechSynthesis, and the prompt then waits until the next card is tapped.
+    expect(v.order.indexOf('listen')).toBeGreaterThanOrEqual(0);
+    expect(v.order.indexOf('listen')).toBeLessThan(v.order.indexOf('speak'));
   });
 
   it('routes a spoken keyword into the matching machine and speaks its lines', () => {

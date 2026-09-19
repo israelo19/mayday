@@ -106,13 +106,15 @@ export class WebSpeechProvider implements SpeakerProvider {
   /**
    * One inaudible utterance from inside the tap, so iOS treats speech as user-initiated for
    * the rest of the session. One tap, never again (docs/07 P3 task 2).
+   * speak() runs before any await: waiting for voiceschanged first left the gesture, and
+   * Safari then blocked audio until the next tap (the looking card).
    */
   async unlock(): Promise<void> {
     if (!WebSpeechProvider.available()) return;
-    await this.ready();
     const u = new SpeechSynthesisUtterance(' ');
     u.volume = 0;
     speechSynthesis.speak(u);
+    await this.ready();
   }
 
   async speak(text: string, opts?: SpeakOptions): Promise<void> {
@@ -394,9 +396,12 @@ export function createVoiceOut(opts: VoiceOutOptions): VoiceOutFull {
   };
 
   return {
-    async unlock(): Promise<void> {
-      await metronome?.unlock?.();
-      await provider.unlock?.();
+    unlock(): Promise<void> {
+      // Kick resume and the silent utterance in this turn, then wait. Awaiting metronome
+      // first delayed speechSynthesis.speak until after the tap, which iOS treats as blocked.
+      const metro = metronome?.unlock?.() ?? Promise.resolve();
+      const prov = provider.unlock?.() ?? Promise.resolve();
+      return Promise.all([metro, prov]).then(() => {});
     },
 
     enqueue(e: CoachingEvent): void {

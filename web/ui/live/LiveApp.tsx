@@ -3,7 +3,7 @@
 // read from the session snapshot; nothing here decides what to say. Owned by P4 (docs/07);
 // first cut by P1 on the `listen` branch so the voice -> engine -> screen loop is demoable.
 import { useEffect, useMemo, useState } from 'react';
-import { createPerception, type Perception } from '../../../src/perception';
+import { createPerception, primeMediaPermissions, type Perception } from '../../../src/perception';
 import { createFakePerception, isFakeRequested, type FakePerceptionHandle } from '../../../src/perception/fake';
 import { canonicalLines, createSession, WATCHING_STATES, type Eyes } from '../../session';
 import type { LiveSource } from '../guide';
@@ -78,6 +78,9 @@ export function LiveApp() {
         onStart={() => {
           requestFullscreen();
           requestWakeLock();
+          // Combined camera+mic prompt in this tap. CameraView's getUserMedia is video-only
+          // and runs after paint, which is why iOS asked for the microphone on the next card.
+          void primeMediaPermissions();
           session.start();
           warmSpeaker(speaker, canonicalLines());
         }}

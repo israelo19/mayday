@@ -586,9 +586,12 @@ export function createSession(deps: SessionDeps): Session {
       attachEngine();
       unsubscribePerception?.();
       unsubscribePerception = perception.subscribe(onFacts);
+      // Mic before we talk: SpeechRecognition.start must be in this tap, and on iOS it loses
+      // the permission sheet if speechSynthesis is already going (the prompt then waits until
+      // the next tap, which was the looking card).
+      listen();
       engine.tick(now());
       engine.start('triage');
-      listen();
       cancelTick?.();
       cancelTick = interval(tick, TICK_MS);
       notify();

@@ -12,6 +12,23 @@ export type CameraHandle = {
   stop(): void;
 };
 
+/**
+ * Call from inside the I NEED HELP tap, before React paints the live screen. CameraView's
+ * getUserMedia is video-only and runs in useEffect (outside the gesture), so iOS would
+ * otherwise prompt for the microphone only after the first card is tapped. One combined
+ * prompt here grants both; the tracks stop so CameraView and SpeechRecognition can reopen
+ * them without a second sheet.
+ */
+export async function primeMediaPermissions(): Promise<void> {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+    stream.getTracks().forEach((t) => t.stop());
+  } catch {
+    // Permission denied or no devices: the live screen already has camera-off and voice-off paths.
+  }
+}
+
 async function waitForMetadata(video: HTMLVideoElement): Promise<void> {
   if (video.readyState >= 1) return;
   await new Promise<void>((resolve, reject) => {

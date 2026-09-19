@@ -467,3 +467,11 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   "I have not stopped for more than ten seconds" (and, with the fake rescuer still oscillating,
   "I started CPR") in `scene_check`: `cprStartedAt` is the compressions state entry, and the
   pause line only speaks after that.
+- **Sat 07:10 (Ricky, `review`)** The microphone prompt was appearing after the looking card, not
+  on I NEED HELP. CameraView's getUserMedia is video-only and runs in useEffect (after the
+  tap). SpeechRecognition.start raced the triage prompt in the same turn, so iOS dropped it
+  and the next tap (the looking card) was what finally asked. The launch tap now calls
+  `primeMediaPermissions()` (one getUserMedia for audio and video, tracks released so the
+  live camera can reopen them), `unlock()` speaks the silent utterance before waiting for
+  voices, and `listen()` runs before `engine.start()`.
+
