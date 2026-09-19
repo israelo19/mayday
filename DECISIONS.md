@@ -205,3 +205,31 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   `web` split (Sat 04:30) stays: it was about ownership and a clean engine, not about the
   shell. Capacitor is the route if a native shell is ever wanted: the page ships inside the
   app, so no server, certificate or account, at the cost of Xcode and Android Studio builds.
+- **Sat 05:40 (P4, touching P3's providers with their seam)** ElevenLabs reaches the phone
+  through Vite itself. `src/voice/providers/devproxy.mjs` now exports `createKeyProxy()`, and
+  `vite.config.ts` mounts it at `/api/proxy` on the dev and preview servers whenever
+  `.env.local` holds `ELEVENLABS_API_KEY`. The reason is mixed content: an https page on the
+  phone may not call an http port on the laptop, so the separate proxy process could only
+  ever serve laptop Chrome. Same origin also means the browser code needs no dev-only
+  `baseUrl`, so `ElevenLabsProvider`'s default of `/api/proxy` is what runs everywhere, and
+  the DigitalOcean Function takes over the path unchanged (docs/04 TODO 1). The proxy exposes
+  exactly two routes, TTS and the dispatcher session, not the API.
+- **Sat 05:40 (P4)** `?flag=` accepts a comma list. One phone URL has to flip the ElevenLabs
+  voice and the ElevenLabs dispatcher together for the judged run; typing two URLs on a
+  phone under stage lights is how a demo dies. Defaults stay OFF and nothing persists.
+- **Sat 05:40 (P3 task 7 done by P4)** The live dispatcher is ElevenLabs Agents over a raw
+  WebSocket, no SDK: the `@elevenlabs/client` package would be a fourth library exception and
+  the protocol is a dozen JSON event names. The agent id stays server-side: the proxy trades
+  it for a signed session URL, the same way the key never leaves the proxy. The agent was
+  created by script (`scripts/create-dispatcher-agent.mjs`) rather than in the dashboard so
+  its prompt, voice and PCM16/16 kHz formats are in the repo; English agents must use
+  `eleven_flash_v2`, the API rejects v2.5. Its opening line arrives as audio without an
+  `agent_response` event, so the session route returns the configured text for the panel.
+  Fallback to the scripted dispatcher happens on every miss, including a refused mic: a
+  call-taker who cannot hear is worse than the script.
+- **Sat 05:40 (P4)** Voices are code, not config (`src/voice/providers/voices.ts`): Brian for
+  the coach, Sarah for the dispatcher, both ElevenLabs premade voices present in every
+  account, so every laptop and the deploy sound the same. The coach step line is now spoken
+  on entry in `App.tsx` even on mock data, because otherwise the only audible ElevenLabs
+  moment on the phone was the SITREP read-aloud; session.ts replaces that effect with the
+  queue.

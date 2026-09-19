@@ -24,11 +24,15 @@ export type AudioPlayer = {
     decoded: unknown,
     o: { rate: number; onStart: () => void },
   ): { done: Promise<void>; stop(): void };
+  /** Called from inside a user gesture so later, fetch-triggered playback is not muted. */
+  unlock?(): Promise<void>;
 };
 
 export type ElevenLabsOptions = {
   /** The coach voice. Pick ONE warm authoritative voice in the dashboard (docs/04). */
   voiceId: string;
+  /** Shown by the debug panel; defaults to the id, which is what tests assert on. */
+  voiceName?: string;
   /** Optional second voice for the simulated dispatcher; without it those lines fall back. */
   dispatcherVoiceId?: string;
   /** The key proxy base. Same-origin in production so nothing here knows about keys. */
@@ -59,6 +63,9 @@ function webAudioPlayer(): AudioPlayer {
   let ctx: AudioContext | null = null;
   const ensure = () => (ctx ??= new AudioContext());
   return {
+    async unlock(): Promise<void> {
+      await ensure().resume();
+    },
     async decode(bytes: ArrayBuffer): Promise<unknown> {
       // slice(): decodeAudioData detaches its input on some engines; the cache keeps ours.
       return ensure().decodeAudioData(bytes.slice(0));
@@ -91,8 +98,8 @@ function webAudioPlayer(): AudioPlayer {
 
 export class ElevenLabsProvider implements SpeakerProvider {
   readonly name = 'elevenlabs';
-  private readonly o: Required<Omit<ElevenLabsOptions, 'dispatcherVoiceId' | 'fetchFn' | 'player'>> &
-    Pick<ElevenLabsOptions, 'dispatcherVoiceId'>;
+  private readonly o: Required<Omit<ElevenLabsOptions, 'dispatcherVoiceId' | 'voiceName' | 'fetchFn' | 'player'>> &
+    Pick<ElevenLabsOptions, 'dispatcherVoiceId' | 'voiceName'>;
   private readonly fetchFn: typeof fetch;
   private readonly player: AudioPlayer;
   /** (voice, model, text) -> decoded audio. The whole protocol fits here comfortably. */
@@ -114,6 +121,13 @@ export class ElevenLabsProvider implements SpeakerProvider {
 
   cachedLineCount(): number {
     return this.cache.size;
+  }
+
+  /** What the debug panel shows: this voice while lines are landing, the fallback's once not. */
+  currentVoiceName(): string | null {
+    if (this.healthy()) return `ElevenLabs ${this.o.voiceName ?? this.o.voiceId}`;
+    const fallback = this.o.fallback as SpeakerProvider & { currentVoiceName?(): string | null };
+    return fallback.currentVoiceName?.() ?? fallback.name;
   }
 
   private key(voiceId: string, text: string): string {
@@ -217,6 +231,6 @@ export class ElevenLabsProvider implements SpeakerProvider {
   }
 
   async unlock(): Promise<void> {
-    await this.o.fallback.unlock?.();
+    await Promise.all([this.player.unlock?.(), this.o.fallback.unlock?.()]);
   }
 }

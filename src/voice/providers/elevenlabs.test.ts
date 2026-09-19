@@ -167,4 +167,14 @@ describe('ElevenLabsProvider', () => {
     expect(stops()).toBe(1);
     expect(fallback.cancelled).toBe(1);
   });
+
+  it('names the ElevenLabs voice while healthy and the fallback once it has given up', async () => {
+    const { provider } = build(okAudio);
+    expect(provider.currentVoiceName()).toBe('ElevenLabs coachvoice');
+
+    const dead = build(() => 'hang');
+    for (let i = 0; i < 3; i++) await dead.provider.speak(`line ${i}`);
+    expect(dead.provider.healthy()).toBe(false);
+    expect(dead.provider.currentVoiceName()).toBe('fallback');
+  });
 });
