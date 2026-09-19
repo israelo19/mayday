@@ -7,7 +7,7 @@ import { Metronome } from './voice/metronome';
 import { DebugScreen } from './ui/DebugScreen';
 
 export default function App() {
-  const perception = useMemo(() => createPerception({ emaAlpha: 0.3 }), []);
+  const perception = useMemo(() => createPerception(), []);
   const speaker = useMemo(() => new WebSpeechProvider(1.05), []);
   const metronome = useMemo(() => new Metronome(), []);
   return <DebugScreen perception={perception} speaker={speaker} metronome={metronome} />;

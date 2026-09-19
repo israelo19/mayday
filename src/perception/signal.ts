@@ -1,17 +1,25 @@
-// Pure signal helpers, docs/03. No DOM, no MediaPipe: unit-testable and replayable.
-// Owned by P1 (docs/07). Peak detection, rate and recoil are M1 and go in this file.
+// Pure signal helpers, docs/03. No DOM, no MediaPipe: unit-tested in signal.test.ts and
+// replayable from recorded clips. Owned by P1 (docs/07).
+//
+// The keystone signal is s(t) = average shoulder y of the rescuer in normalized image
+// coordinates. Pushing down makes it larger. Everything the engine coaches on
+// (compressionRate, compressionActive, recoilRatio) is derived from peaks in s(t).
 
 /** MediaPipe pose landmark indices we use. */
 export const LEFT_SHOULDER = 11;
 export const RIGHT_SHOULDER = 12;
 
 export type Sample = { t: number; y: number };
+export type Extreme = { t: number; y: number };
 
 type LandmarkLike = { x: number; y: number; visibility: number };
 
-/** s(t): average shoulder y in normalized image coords. Pushing down makes it larger. */
 export function shoulderMidY(lm: readonly LandmarkLike[]): number {
   return (lm[LEFT_SHOULDER].y + lm[RIGHT_SHOULDER].y) / 2;
+}
+
+export function shoulderMidX(lm: readonly LandmarkLike[]): number {
+  return (lm[LEFT_SHOULDER].x + lm[RIGHT_SHOULDER].x) / 2;
 }
 
 /** Confidence for the signal: min visibility across the landmarks we use. */
@@ -24,6 +32,13 @@ export function shoulderSpan(lm: readonly LandmarkLike[]): number {
   const a = lm[LEFT_SHOULDER];
   const b = lm[RIGHT_SHOULDER];
   return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+export function median(values: readonly number[]): number {
+  if (values.length === 0) return NaN;
+  const s = [...values].sort((a, b) => a - b);
+  const mid = s.length >> 1;
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
 /** Exponential moving average. alpha ~0.3 per docs/03. */
@@ -72,4 +87,293 @@ export class TimeSeries {
   clear(): void {
     this.buf = [];
   }
+}
+
+// ---------------------------------------------------------------------------------------
+// Tuning (exposed as debug sliders, docs/03)
+
+export type Tuning = {
+  /** EMA smoothing factor. Higher follows the raw signal more closely. */
+  emaAlpha: number;
+  /** Minimum excursion (normalized image units) for a peak or trough to count. */
+  prominence: number;
+  /** Minimum time between two peaks. 250 ms is the ~240/min physical ceiling. */
+  refractoryMs: number;
+};
+
+export const DEFAULT_TUNING: Tuning = { emaAlpha: 0.3, prominence: 0.008, refractoryMs: 250 };
+
+export const TUNING_RANGES: Record<keyof Tuning, { min: number; max: number; step: number }> = {
+  emaAlpha: { min: 0.1, max: 0.6, step: 0.05 },
+  prominence: { min: 0.002, max: 0.03, step: 0.001 },
+  refractoryMs: { min: 150, max: 500, step: 10 },
+};
+
+export function clampTuning(t: Partial<Tuning>): Tuning {
+  const out = { ...DEFAULT_TUNING };
+  for (const key of Object.keys(TUNING_RANGES) as (keyof Tuning)[]) {
+    const v = t[key];
+    if (typeof v !== 'number' || !Number.isFinite(v)) continue;
+    const r = TUNING_RANGES[key];
+    out[key] = Math.min(r.max, Math.max(r.min, v));
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------------------
+// Online peak detection
+
+/**
+ * Streaming peak/trough detector with hysteresis. A peak is confirmed once the signal has
+ * fallen `prominence` below the running maximum; a trough once it has risen `prominence`
+ * above the running minimum. A confirmed peak closer than `refractoryMs` to the previous
+ * one is discarded. Confirmation lags the true extreme by however long the signal takes
+ * to move `prominence`, typically one or two frames at compression speed.
+ */
+export class PeakDetector {
+  private phase: 'init' | 'up' | 'down' = 'init';
+  private hi: Extreme | null = null;
+  private lo: Extreme | null = null;
+  private peaks: Extreme[] = [];
+  private troughs: Extreme[] = [];
+  private lastPeakT = -Infinity;
+
+  constructor(
+    public prominence: number,
+    public refractoryMs: number,
+    private readonly keepMs = 30_000,
+  ) {}
+
+  /** Returns what, if anything, was confirmed on this sample. */
+  push(t: number, y: number): 'peak' | 'trough' | null {
+    if (!this.hi || !this.lo) {
+      this.hi = { t, y };
+      this.lo = { t, y };
+      return null;
+    }
+    let event: 'peak' | 'trough' | null = null;
+    if (this.phase === 'init') {
+      if (y > this.hi.y) this.hi = { t, y };
+      if (y < this.lo.y) this.lo = { t, y };
+      if (y - this.lo.y >= this.prominence) {
+        this.phase = 'up';
+        this.hi = { t, y };
+      } else if (this.hi.y - y >= this.prominence) {
+        this.phase = 'down';
+        this.lo = { t, y };
+      }
+    } else if (this.phase === 'up') {
+      if (y > this.hi.y) {
+        this.hi = { t, y };
+      } else if (this.hi.y - y >= this.prominence) {
+        if (this.hi.t - this.lastPeakT >= this.refractoryMs) {
+          this.peaks.push(this.hi);
+          this.lastPeakT = this.hi.t;
+          event = 'peak';
+        }
+        this.phase = 'down';
+        this.lo = { t, y };
+      }
+    } else {
+      if (y < this.lo.y) {
+        this.lo = { t, y };
+      } else if (y - this.lo.y >= this.prominence) {
+        this.troughs.push(this.lo);
+        event = 'trough';
+        this.phase = 'up';
+        this.hi = { t, y };
+      }
+    }
+    this.prune(t);
+    return event;
+  }
+
+  peakTimes(): readonly number[] {
+    return this.peaks.map((p) => p.t);
+  }
+
+  peakList(): readonly Extreme[] {
+    return this.peaks;
+  }
+
+  troughList(): readonly Extreme[] {
+    return this.troughs;
+  }
+
+  reset(): void {
+    this.phase = 'init';
+    this.hi = null;
+    this.lo = null;
+    this.peaks = [];
+    this.troughs = [];
+    this.lastPeakT = -Infinity;
+  }
+
+  private prune(now: number): void {
+    const cutoff = now - this.keepMs;
+    while (this.peaks.length && this.peaks[0].t < cutoff) this.peaks.shift();
+    while (this.troughs.length && this.troughs[0].t < cutoff) this.troughs.shift();
+  }
+}
+
+// ---------------------------------------------------------------------------------------
+// Derived metrics (docs/03 steps 4 and 5)
+
+export const RATE_WINDOW_MS = 10_000;
+export const RATE_MIN_PEAKS = 5;
+export const RATE_MAX = 160;
+export const ACTIVE_WINDOW_MS = 2_000;
+export const ACTIVE_MIN_PEAKS = 2;
+
+function recentTimes(peakTimes: readonly number[], now: number, windowMs: number): number[] {
+  const from = now - windowMs;
+  return peakTimes.filter((t) => t >= from && t <= now);
+}
+
+/**
+ * Compressions per minute from the median of the last five intervals between peaks.
+ * Null until five peaks exist in the trailing 10 s. Capped at 160 (docs/03 sane range).
+ * The median reacts within about five pushes, which is what makes a live correction
+ * feel immediate; the plain count over 10 s is exposed separately for comparison.
+ */
+export function rateFromPeaks(peakTimes: readonly number[], now: number): number | null {
+  const recent = recentTimes(peakTimes, now, RATE_WINDOW_MS);
+  if (recent.length < RATE_MIN_PEAKS) return null;
+  const last = recent.slice(-6);
+  const gaps: number[] = [];
+  for (let i = 1; i < last.length; i++) gaps.push(last[i] - last[i - 1]);
+  const med = median(gaps);
+  if (!Number.isFinite(med) || med <= 0) return null;
+  return Math.min(RATE_MAX, Math.round(60_000 / med));
+}
+
+/** docs/03 literal definition: peaks in the trailing 10 s times six. */
+export function rateByCount(peakTimes: readonly number[], now: number): number | null {
+  const n = recentTimes(peakTimes, now, RATE_WINDOW_MS).length;
+  return n < RATE_MIN_PEAKS ? null : Math.min(RATE_MAX, n * 6);
+}
+
+/** Oscillation detected: at least two peaks in the trailing 2 s. */
+export function isActive(peakTimes: readonly number[], now: number): boolean {
+  return recentTimes(peakTimes, now, ACTIVE_WINDOW_MS).length >= ACTIVE_MIN_PEAKS;
+}
+
+/**
+ * Recoil proxy per compression: how far the chest came back up after the push, relative
+ * to how far it went down. (peak - troughAfter) / (peak - troughBefore), clamped 0..1.
+ * A proxy for full chest recoil; never a depth claim (docs/03).
+ */
+export function recoilRatios(peaks: readonly Extreme[], troughs: readonly Extreme[]): { t: number; ratio: number }[] {
+  const out: { t: number; ratio: number }[] = [];
+  let j = 0;
+  for (const p of peaks) {
+    while (j < troughs.length && troughs[j].t < p.t) j++;
+    const before = troughs[j - 1];
+    const after = troughs[j];
+    if (!before || !after) continue;
+    const down = p.y - before.y;
+    if (down <= 0) continue;
+    const up = p.y - after.y;
+    out.push({ t: p.t, ratio: Math.max(0, Math.min(1, up / down)) });
+  }
+  return out;
+}
+
+/** Mean recoil over the last five complete cycles inside the rate window, else null. */
+export function meanRecoil(peaks: readonly Extreme[], troughs: readonly Extreme[], now: number): number | null {
+  const from = now - RATE_WINDOW_MS;
+  const ratios = recoilRatios(peaks, troughs)
+    .filter((r) => r.t >= from)
+    .slice(-5);
+  if (ratios.length === 0) return null;
+  const sum = ratios.reduce((acc, r) => acc + r.ratio, 0);
+  return Math.round((sum / ratios.length) * 100) / 100;
+}
+
+// ---------------------------------------------------------------------------------------
+// Confidence gate (docs/03 step 6, principle 4: fail loud, never wrong)
+
+/**
+ * Turns a noisy per-frame confidence into a stable "blind" decision. Below threshold for
+ * more than blindAfterMs -> blind: every derived metric is nulled and the low confidence
+ * is emitted so the engine can announce it. Above threshold for a sustained recoverAfterMs
+ * -> sighted again (and the low timer clears). While not blind the emitted confidence never
+ * dips below the threshold, so a single bad frame cannot flap the engine into blind mode.
+ */
+export class ConfidenceGate {
+  private lowSince: number | null = null;
+  private goodSince: number | null = null;
+  private blindNow = false;
+
+  constructor(
+    public readonly threshold = 0.5,
+    public readonly blindAfterMs = 1000,
+    public readonly recoverAfterMs = 300,
+  ) {}
+
+  update(confidence: number, now: number): { emitted: number; blind: boolean } {
+    if (confidence < this.threshold) {
+      this.goodSince = null;
+      this.lowSince ??= now;
+      if (now - this.lowSince >= this.blindAfterMs) this.blindNow = true;
+    } else {
+      this.goodSince ??= now;
+      // A single good frame in a bad stretch does not reset the low timer; recovery has
+      // to be sustained, otherwise flicker around the threshold could delay blind mode forever.
+      if (now - this.goodSince >= this.recoverAfterMs) {
+        this.lowSince = null;
+        this.blindNow = false;
+      }
+    }
+    const emitted = this.blindNow ? confidence : Math.max(confidence, this.threshold);
+    return { emitted, blind: this.blindNow };
+  }
+
+  isBlind(): boolean {
+    return this.blindNow;
+  }
+
+  reset(): void {
+    this.lowSince = null;
+    this.goodSince = null;
+    this.blindNow = false;
+  }
+}
+
+// ---------------------------------------------------------------------------------------
+// Camera guidance (docs/03). Strings are guidance about the phone, never medical advice.
+
+export type GuidanceInput = {
+  now: number;
+  /** Last time the shoulders were confidently visible, null if never. */
+  shouldersSeenAt: number | null;
+  /** Normalized shoulder span on the latest frame with a pose, else null. */
+  span: number | null;
+  /** Mean frame luminance 0..255, null if not sampled. */
+  luma: number | null;
+};
+
+export const GUIDANCE = {
+  dark: "It's too dark. Turn on a light.",
+  unseen: "I can't see you. Prop the phone so I can see your chest and shoulders.",
+  closer: 'Move the phone closer.',
+  back: 'Move the phone back a little.',
+} as const;
+
+export const NO_POSE_MS = 3000;
+export const SPAN_TOO_SMALL = 0.08;
+export const SPAN_TOO_LARGE = 0.5;
+export const LUMA_DARK = 40;
+
+export function cameraGuidance(i: GuidanceInput): string | null {
+  const unseenFor = i.shouldersSeenAt === null ? Infinity : i.now - i.shouldersSeenAt;
+  if (unseenFor > NO_POSE_MS) {
+    if (i.luma !== null && i.luma < LUMA_DARK) return GUIDANCE.dark;
+    return GUIDANCE.unseen;
+  }
+  if (i.span !== null) {
+    if (i.span < SPAN_TOO_SMALL) return GUIDANCE.closer;
+    if (i.span > SPAN_TOO_LARGE) return GUIDANCE.back;
+  }
+  return null;
 }

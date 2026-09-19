@@ -1,15 +1,36 @@
-// Camera wrapper, docs/03. Rear camera on phones, whatever exists on a laptop.
-// Frames never leave the <video> element; nothing here records or uploads. Owned by P1.
+// Video sources, docs/03. The live camera (rear on phones, whatever exists on a laptop) or a
+// recorded clip for the replay harness. Frames never leave the <video> element; nothing here
+// records or uploads. Owned by P1.
 
 export type Facing = 'environment' | 'user' | 'unknown';
 
 export type CameraHandle = {
-  stream: MediaStream;
+  kind: 'camera' | 'replay';
   facing: Facing;
   width: number;
   height: number;
   stop(): void;
 };
+
+async function waitForMetadata(video: HTMLVideoElement): Promise<void> {
+  if (video.readyState >= 1) return;
+  await new Promise<void>((resolve, reject) => {
+    const onLoaded = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error('The video source could not be loaded.'));
+    };
+    const cleanup = () => {
+      video.removeEventListener('loadedmetadata', onLoaded);
+      video.removeEventListener('error', onError);
+    };
+    video.addEventListener('loadedmetadata', onLoaded, { once: true });
+    video.addEventListener('error', onError, { once: true });
+  });
+}
 
 export async function openCamera(
   video: HTMLVideoElement,
@@ -41,24 +62,46 @@ export async function openCamera(
   const settings = track?.getSettings() ?? {};
   const facing: Facing = settings.facingMode === 'user' ? 'user' : settings.facingMode === 'environment' ? 'environment' : 'unknown';
 
+  video.removeAttribute('src');
+  video.loop = false;
   video.srcObject = stream;
   video.muted = true;
   video.playsInline = true;
   video.setAttribute('playsinline', '');
-  await new Promise<void>((resolve) => {
-    if (video.readyState >= 1) resolve();
-    else video.addEventListener('loadedmetadata', () => resolve(), { once: true });
-  });
+  await waitForMetadata(video);
   await video.play();
 
   return {
-    stream,
+    kind: 'camera',
     facing,
     width: video.videoWidth,
     height: video.videoHeight,
     stop: () => {
       stream.getTracks().forEach((t) => t.stop());
       video.srcObject = null;
+    },
+  };
+}
+
+/** Replay harness: a recorded clip runs through the exact same pipeline as the camera. */
+export async function openReplay(video: HTMLVideoElement, url: string): Promise<CameraHandle> {
+  video.srcObject = null;
+  video.src = url;
+  video.loop = true;
+  video.muted = true;
+  video.playsInline = true;
+  video.setAttribute('playsinline', '');
+  await waitForMetadata(video);
+  await video.play();
+  return {
+    kind: 'replay',
+    facing: 'unknown',
+    width: video.videoWidth,
+    height: video.videoHeight,
+    stop: () => {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
     },
   };
 }

@@ -51,13 +51,15 @@ engine emits it, the voice queue plays it, nobody else shapes it.
 ```ts
 // ---- P1 provides, P4 consumes : src/perception/index.ts (P2's fake.ts implements the same interface)
 export interface Perception {
-  start(video: HTMLVideoElement, overlay?: HTMLCanvasElement): Promise<void>;
+  start(video: HTMLVideoElement, overlay?: HTMLCanvasElement, opts?: { replayUrl?: string }): Promise<void>;
   stop(): void;
   subscribe(cb: (f: PerceptionFacts) => void): () => void;   // returns unsubscribe
-  getCameraGuidance(): string | null;                          // null when the view is good
+  getCameraGuidance(): string | null;                          // null when the view is good; speak at most once per 10 s
   setMode(mode: 'pose' | 'pose+hands'): void;                  // hands only in bleeding states (perf)
   lockRoi(): void;                                             // orchestrator calls on bleeding.pressure entry
   unlockRoi(): void;
+  roi(): { state: 'idle' | 'locking' | 'locked' | 'failed'; cx: number; cy: number; r: number; handsOn: boolean | null; handsOffMs: number | null; lockingMs: number };
+                                                               // 'failed' after 10 s -> orchestrator announces voice-only for this state
   captureFrame(maxPx?: number): string | null;                 // JPEG base64; only src/ai may consume it, flagged
   debug: {
     series(windowMs: number): readonly { t: number; y: number }[];

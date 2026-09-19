@@ -1,48 +1,55 @@
-// Camera preview with the pose overlay canvas on top. The perception module owns the
-// frame loop and draws the overlay; this component only provides the elements. Owned by P1.
-import { useEffect, useRef } from 'react';
+// Camera preview with the perception overlay on top. Perception owns the frame loop and
+// draws the overlay; this component provides the elements, keeps the box at the video's
+// real aspect ratio (portrait on phones), and hosts HUD children that are never mirrored.
+// Owned by P1. P4 embeds this in the COACH screen with a smaller maxHeight.
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Perception } from '../perception';
 
 type Props = {
   perception: Perception;
   /** Mirror only for a front camera (docs/03). */
   mirror: boolean;
+  /** Replay harness: run this clip instead of the camera. */
+  replayUrl?: string;
+  /** Cap the preview height; the video is cover-cropped and the overlay crops with it. */
+  maxHeight?: string;
   onError?: (err: unknown) => void;
+  children?: ReactNode;
 };
 
-export function CameraView({ perception, mirror, onError }: Props) {
+export function CameraView({ perception, mirror, replayUrl, maxHeight = '48vh', onError, children }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [aspect, setAspect] = useState(4 / 3);
 
   useEffect(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
     let active = true;
-    perception.start(video, canvas).catch((err: unknown) => {
+    const onMeta = () => {
+      if (video.videoWidth > 0 && video.videoHeight > 0) setAspect(video.videoWidth / video.videoHeight);
+    };
+    video.addEventListener('loadedmetadata', onMeta);
+    video.addEventListener('resize', onMeta);
+    perception.start(video, canvas, replayUrl ? { replayUrl } : undefined).catch((err: unknown) => {
       if (active) onError?.(err);
     });
     return () => {
       active = false;
+      video.removeEventListener('loadedmetadata', onMeta);
+      video.removeEventListener('resize', onMeta);
       perception.stop();
     };
-  }, [perception, onError]);
+  }, [perception, replayUrl, onError]);
 
-  const layer = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' } as const;
   return (
-    <div
-      style={{
-        position: 'relative',
-        width: '100%',
-        aspectRatio: '4 / 3',
-        background: '#000',
-        borderRadius: 12,
-        overflow: 'hidden',
-        transform: mirror ? 'scaleX(-1)' : undefined,
-      }}
-    >
-      <video ref={videoRef} muted playsInline autoPlay style={layer} />
-      <canvas ref={canvasRef} style={layer} />
+    <div className="cam" style={{ aspectRatio: String(aspect), maxHeight }}>
+      <div className="cam-media" style={{ transform: mirror ? 'scaleX(-1)' : undefined }}>
+        <video ref={videoRef} muted playsInline autoPlay />
+        <canvas ref={canvasRef} />
+      </div>
+      <div className="cam-hud">{children}</div>
     </div>
   );
 }
