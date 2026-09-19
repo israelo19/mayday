@@ -68,3 +68,13 @@ a real camera.
 ```
 
 Decisions the docs did not settle are logged in `DECISIONS.md`.
+
+## Deploy
+
+Target is DigitalOcean App Platform, spec in `.do/app.yaml` (static site, `npm run build` ->
+`dist/`, SPA catch-all to `index.html`). Import it with `doctl apps create --spec .do/app.yaml`
+or point App Platform's "create from GitHub repo" flow at the same file. The app is a PWA
+(`vite-plugin-pwa`): the shell precaches, MediaPipe's models and WASM runtime cache on first
+successful fetch, so a reload with wifi off works once the session has loaded at least once.
+The `/api/proxy` function (key proxy for ElevenLabs/Gemini, docs/04 TODO #1) is added as an M4
+integration once those keys are ready.

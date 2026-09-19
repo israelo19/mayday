@@ -61,3 +61,27 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   (`eyes`/`brain`/`mouth`/`face`) instead of docs/07's "main only" so four people editing
   disjoint paths stop stepping on each other's half-finished commits; merge to `main` when a
   milestone gate goes green, not on every commit.
+- **Sat 02:20 (P4)** `vite-plugin-pwa` added (task 7, second pre-approved no-new-libraries
+  exception alongside `qrcode`). Precache is app-shell only (`**/*.{js,css,html,svg}`); the
+  MediaPipe WASM runtime and models are runtime-cached (`CacheFirst`) on first successful fetch
+  instead, because `public/wasm` ships three WASM variants at ~11-12 MB each (~35 MB) and a
+  browser only ever loads one — precaching all of them would triple first-load size for bytes
+  most sessions never touch. `public/icon.svg` is a placeholder (red cross on black, on-brand
+  colors) standing in for a real app icon; swap before Devpost screenshots.
+- **Sat 02:20 (P4)** `npm run build` fails on this machine independent of anything in this repo:
+  `vite@8`'s rolldown bundler can't find its native binding for this platform
+  (`Cannot find native binding ... @rolldown/binding-win32-x64-msvc`). Confirmed pre-existing by
+  stashing all changes and re-running against the unmodified `main` tree. The error's own
+  suggested fix (delete `node_modules` + `package-lock.json`, reinstall) touches the whole
+  team's lockfile, so it's flagged here rather than done unilaterally — whoever hits this next
+  should try that fix and commit the resulting lockfile deliberately, not as a side effect of an
+  unrelated change. `npm run typecheck` is unaffected and passes.
+- **Sat 02:35 (P4)** Four screens (docs/05: LAUNCH, COACH, SITREP, HANDOFF) scaffolded in
+  `src/ui/*Screen.tsx`, wired in `App.tsx` with hardcoded mock data (`src/ui/mockDemoData.ts`)
+  standing in for `session.ts`/the real engine, which don't exist yet (P2). `App.tsx` now gates
+  the M0 debug view behind `?debug=1` instead of rendering it unconditionally (task 3), so the
+  four screens are what a fresh load shows. Fullscreen + Screen Wake Lock requested on the
+  LAUNCH tap (a real user gesture); `navigator.vibrate` fires on CALL 911. All of this is
+  throwaway wiring at the `session.ts` boundary only — expect to swap `mockDemoData` for real
+  `EngineOutput`/`Sitrep`/`HandoffReport` once P2 ships, the screen components themselves
+  shouldn't need to change shape much.

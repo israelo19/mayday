@@ -1,0 +1,16 @@
+# DigitalOcean App Platform spec, docs/07 P4 task 7 / docs/04 TODO #1.
+# Import with `doctl apps create --spec .do/app.yaml`, or point App Platform's
+# "create from GitHub repo" flow at this file. Static site only for now; the
+# /api/proxy serverless function (key proxy, docs/04 TODO #1) is added as an M4
+# integration once ElevenLabs/Gemini keys are ready to wire in.
+name: mayday
+static_sites:
+  - name: web
+    github:
+      repo: israelo19/mayday
+      branch: main
+      deploy_on_push: true
+    build_command: npm run build
+    output_dir: dist
+    # SPA: unknown paths fall back to index.html instead of a static 404.
+    catchall_document: index.html
