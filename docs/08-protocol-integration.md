@@ -57,6 +57,18 @@ to filter before calling in.
 `dedupeKey` inside that window. The engine already applies its own cooldown, so the queue's job
 is only to coalesce what is already queued.
 
+## One rule my tests enforce on your files
+
+`tests/boundaries.test.ts` fails the build if a network call appears in `src/perception`,
+`src/protocol`, `src/sitrep` or `src/voice`. That is docs/07 task 9, and it is what keeps the
+wifi-off demo honest.
+
+P3: there is exactly one exemption, `src/voice/providers/`. Put `ElevenLabsProvider` and the
+ElevenLabs dispatcher agent there and the test leaves you alone. The voice queue in
+`src/voice/out.ts` must not import from that directory; `setProvider()` injects the upgrade, so
+the default stays local. If a network call lands anywhere else on the path, the failure message
+names the file and where it belongs.
+
 ## Two open questions
 
 1. **P3: narration must not be dropped.** State-entry lines are enqueued at `narration`

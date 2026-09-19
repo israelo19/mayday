@@ -7,6 +7,16 @@ import { describe, expect, it } from 'vitest';
 
 const REFLEX_PATH = ['src/perception', 'src/protocol', 'src/voice', 'src/sitrep'];
 
+// One exemption, and only one. A speaker provider may stream audio from the network because
+// the default provider is local and the upgrade falls back to it within 800ms (docs/04).
+// P3: ElevenLabsProvider and the ElevenLabs dispatcher agent belong under this path. Anywhere
+// else on the reflex path, a network call means the app stops working with the wifi off.
+const NETWORK_ALLOWED = ['src/voice/providers'];
+
+function exempt(file: string): boolean {
+  return NETWORK_ALLOWED.some((prefix) => file.startsWith(prefix));
+}
+
 function sourceFiles(dir: string): string[] {
   if (!exists(dir)) return [];
   return readdirSync(dir).flatMap((name) => {
@@ -39,9 +49,19 @@ describe('the reflex path stays local', () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
-  it('makes no network calls', () => {
-    const offenders = files.filter((f) => /\bfetch\s*\(|XMLHttpRequest|WebSocket|EventSource/.test(code(f)));
-    expect(offenders).toEqual([]);
+  it('makes no network calls outside a speaker provider', () => {
+    const offenders = files
+      .filter((f) => !exempt(f))
+      .filter((f) => /\bfetch\s*\(|XMLHttpRequest|WebSocket|EventSource/.test(code(f)));
+    expect(offenders, `move networked speaker providers under ${NETWORK_ALLOWED[0]}/`).toEqual([]);
+  });
+
+  it('keeps the voice queue itself free of the networked provider', () => {
+    // setProvider() injects the upgrade, so the queue never imports it and the default stays
+    // local. This is the seam in docs/07, asserted rather than remembered.
+    const queue = 'src/voice/out.ts';
+    if (!exists(queue)) return;
+    expect(/from\s+['"][^'"]*providers/.test(code(queue))).toBe(false);
   });
 
   it('never imports the episodic AI module', () => {

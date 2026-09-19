@@ -91,3 +91,8 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   landed.
 - **Sat 02:00** Machine diagrams are generated from the data by `npm run diagrams`, and a test
   fails when the committed `docs/protocol-diagrams.md` drifts from it.
+- **Sat 02:05** The no-network grep test from docs/07 task 9 would have failed P3's own M4
+  work, because docs/04 plans ElevenLabs streaming TTS inside `src/voice`. One exemption now
+  exists, `src/voice/providers/`, on the grounds that the default speaker is local and the
+  upgrade falls back to it. The voice queue may not import from that directory, so the local
+  default cannot quietly become a networked one.
