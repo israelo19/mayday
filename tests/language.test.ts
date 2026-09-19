@@ -51,6 +51,21 @@ describe('matchKeyword', () => {
     expect(matchKeyword('I am scared and I do not know what to do', ['not breathing'])).toBeNull();
   });
 
+  it('does not treat a negated word as the affirmative keyword', () => {
+    // "it's not safe" must not walk someone toward a gunshot; "he's not coughing"
+    // must not route a silent choking patient to "let him cough".
+    expect(matchKeyword("it's not safe", ['safe', "it's safe", "i'm safe"])).toBeNull();
+    expect(matchKeyword("he's not coughing", ['coughing', "can't cough", 'he can cough'])).toBeNull();
+    expect(matchKeyword('I am not safe', ['safe', "i'm safe"])).toBeNull();
+  });
+
+  it('still hears the affirmative, and a keyword that is itself a negation', () => {
+    expect(matchKeyword('safe', ['safe', "it's safe"])).toBe('safe');
+    expect(matchKeyword('he is coughing', ['coughing', "can't cough"])).toBe('coughing');
+    expect(matchKeyword("he's not breathing", ['not breathing', 'no'])).toBe('not breathing');
+    expect(matchKeyword('cannot cough', ['coughing', "can't cough", 'cannot cough'])).toBe('cannot cough');
+  });
+
   it('tokenizes without apostrophes so both spellings meet', () => {
     expect(tokens("can't breathe")).toEqual(['cant', 'breath']);
     expect(tokens('cant breathe')).toEqual(['cant', 'breath']);

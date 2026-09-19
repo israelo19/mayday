@@ -455,3 +455,15 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   is one, so docs/05's zero-navigation launch still holds. The eyes chip reads "Looking at the
   scene" or "Someone in view" in triage instead of "Watching you", and "Saw: a person lying
   still" while the camera's own suggestion is up.
+- **Sat 06:58 (Ricky, `review`)** Three bugs the eyes commit left on the table. (1) `CAMERA_SAW_LINE`
+  was correction-priority, so the voice queue played "I can see you pushing" *before* the
+  remaining "Push hard and fast" line; it is narration now, after the state's own lines, and
+  the chip still shows what the camera did. (2) `matchKeyword` treated "it's not safe" as
+  `safe` and "he's not coughing" as `coughing` because a short keyword is a substring of its
+  negation. A keyword that does not itself start with no/not/never/can't/don't is skipped
+  when that word sits immediately before it; "not breathing" and "can't cough" are unchanged.
+  (3) Idle-before-start was reported as `eyes.status: 'off'`, so the new camera-first triage
+  look flashed the question card for one paint. Idle is `starting`. SITREP also claimed
+  "I have not stopped for more than ten seconds" (and, with the fake rescuer still oscillating,
+  "I started CPR") in `scene_check`: `cprStartedAt` is the compressions state entry, and the
+  pause line only speaks after that.

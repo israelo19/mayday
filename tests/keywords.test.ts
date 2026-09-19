@@ -47,6 +47,28 @@ describe('every state resolves its own keywords', () => {
   }
 });
 
+describe('negation on the machines a judge will actually talk to', () => {
+  it('bleeding scene_safety does not treat "not safe" as safe', () => {
+    const keywords = machines
+      .find((m) => m.id === 'bleeding')!
+      .states.find((s) => s.id === 'scene_safety')!
+      .transitions.flatMap((t) => (t.on.kind === 'keyword' ? [t.on.keyword] : []));
+    expect(matchKeyword("it's not safe", keywords)).toBeNull();
+    expect(matchKeyword('I am not safe yet', keywords)).toBeNull();
+    expect(matchKeyword("I'm safe", keywords)).toBe("i'm safe");
+  });
+
+  it('choking confirm does not treat "not coughing" as coughing', () => {
+    const keywords = machines
+      .find((m) => m.id === 'choking')!
+      .states.find((s) => s.id === 'confirm')!
+      .transitions.flatMap((t) => (t.on.kind === 'keyword' ? [t.on.keyword] : []));
+    expect(matchKeyword("he's not coughing", keywords)).toBeNull();
+    expect(matchKeyword('he is coughing', keywords)).toBe('coughing');
+    expect(matchKeyword("he can't cough", keywords)).toBe("can't cough");
+  });
+});
+
 describe('the dangerous collisions in the cardiac branch', () => {
   const keywords = machines
     .find((m) => m.id === 'cardiac')!

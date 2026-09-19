@@ -65,10 +65,8 @@ function readAloud(
   );
   lines.push(emergency);
   if (began !== null) lines.push(`This started ${formatDuration(now - began)} ago.`);
-  if (machine === 'cardiac') {
-    if (metrics.cprStartedAt !== null) {
-      lines.push(`I started CPR ${formatDuration(now - metrics.cprStartedAt)} ago.`);
-    }
+  if (machine === 'cardiac' && metrics.cprStartedAt !== null) {
+    lines.push(`I started CPR ${formatDuration(now - metrics.cprStartedAt)} ago.`);
     if (metrics.averageRate !== null) lines.push(`Compressions are averaging ${metrics.averageRate} a minute.`);
     lines.push(
       metrics.longestPauseMs > 10000

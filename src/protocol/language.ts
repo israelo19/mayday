@@ -5,7 +5,9 @@
 //   - recognizer-error tolerance, one letter of difference between two long words;
 //   - apostrophes ignored ("hes not breathing", "cant breathe");
 //   - word-bounded phrase matching, longest phrase first, so 'no' never wins over
-//     'no response' and 'shot' never fires inside 'shotgun'.
+//     'no response' and 'shot' never fires inside 'shotgun';
+//   - a keyword that is not itself a negation is skipped when the word before it is
+//     no/not/never/can't/don't, so "it's not safe" does not mean safe.
 // Pure and tested in tests/language.test.ts. Owned by P2 (docs/07); built on `polish`.
 
 /** Words the trailing-s rule must leave alone: singular words that end in s. */
@@ -81,14 +83,29 @@ export function sameWord(a: string, b: string): boolean {
   return distance(a, b) <= 1;
 }
 
+/**
+ * Words that flip the next keyword. Apostrophes are already gone by the time we see tokens,
+ * so "can't" and "don't" arrive as "cant" / "dont". A keyword that itself starts with one
+ * of these ("not breathing", "can't cough") is not flipped: the negation is the keyword.
+ */
+const NEGATION = new Set(['no', 'not', 'never', 'cant', 'cannot', 'dont', 'isnt', 'aint']);
+
 /** True when `phrase` occurs in `text` as consecutive whole words (both already tokenized). */
 export function containsTokens(text: readonly string[], phrase: readonly string[]): boolean {
   if (phrase.length === 0 || phrase.length > text.length) return false;
   outer: for (let i = 0; i + phrase.length <= text.length; i++) {
     for (let j = 0; j < phrase.length; j++) if (!sameWord(text[i + j], phrase[j])) continue outer;
+    if (negatedAt(text, i, phrase)) continue;
     return true;
   }
   return false;
+}
+
+function negatedAt(text: readonly string[], start: number, phrase: readonly string[]): boolean {
+  if (start === 0) return false;
+  const prev = text[start - 1];
+  if (!NEGATION.has(prev)) return false;
+  return !sameWord(phrase[0], prev);
 }
 
 /**
