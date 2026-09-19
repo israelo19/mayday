@@ -45,21 +45,31 @@ export class WebSpeechProvider implements SpeakerProvider {
 
   speak(text: string): Promise<void> {
     if (!WebSpeechProvider.available()) return Promise.resolve();
-    this.cancel();
+    // Only interrupt when something is actually playing: on iOS Safari a cancel() followed
+    // immediately by speak() can leave the new utterance silent with no end/error event.
+    if (speechSynthesis.speaking || speechSynthesis.pending) this.cancel();
     return new Promise((resolve) => {
       const u = new SpeechSynthesisUtterance(text);
       u.lang = 'en-US';
       u.rate = this.rate;
       if (this.voice) u.voice = this.voice;
+      let settled = false;
       const done = () => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(watchdog);
         if (this.current === u) this.current = null;
         resolve();
       };
+      // Watchdog: some engines (iOS Safari in particular) occasionally never fire end or
+      // error. A promise that never settles would freeze a coaching queue, so resolve after
+      // the line's plausible duration instead. Seen on the demo iPhone during M0 (P1).
+      const watchdog = window.setTimeout(done, Math.max(4000, text.length * 90 + 1500));
       u.onend = done;
       u.onerror = done;
       this.current = u;
-      // Chrome can get stuck in a paused state after a cancel(); resume() is harmless otherwise.
-      speechSynthesis.resume();
+      // Chrome can get stuck paused after a cancel(); resume only when it is.
+      if (speechSynthesis.paused) speechSynthesis.resume();
       speechSynthesis.speak(u);
     });
   }

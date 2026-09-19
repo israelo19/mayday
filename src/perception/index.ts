@@ -1,23 +1,55 @@
 // Perception module, docs/03. Runs entirely on-device. Emits PerceptionFacts (measurements,
 // never advice) and knows nothing about protocols. Frames live in the <video> element and
-// are discarded after each detection; only derived numbers persist. Owned by P1 (docs/07).
+// are discarded after each detection; only derived numbers persist. No network calls, ever
+// (scripts/check-ai-boundaries.mjs enforces it). Owned by P1 (docs/07).
 //
-// M0: camera + pose landmarks + smoothed shoulder-y signal + confidence.
-// M1 (P1): peak detection, compressionRate, compressionActive, recoilRatio, confidence gate.
-// M2 (P1): getCameraGuidance. M3 (P1): hands, ROI, setMode/lockRoi. M4 hook: captureFrame.
-import { DrawingUtils, PoseLandmarker, type NormalizedLandmark, type PoseLandmarkerResult } from '@mediapipe/tasks-vision';
+// Pipeline per frame:
+//   video frame -> PoseLandmarker -> shoulders -> EMA -> PeakDetector -> rate / active / recoil
+//                                 -> confidence -> ConfidenceGate -> blind (metrics nulled)
+//   in 'pose+hands' mode:  -> HandLandmarker -> palm centres -> RoiTracker -> handsOn / handsOffMs
+import type { HandLandmarker, NormalizedLandmark, PoseLandmarker } from '@mediapipe/tasks-vision';
 import type { PerceptionFacts } from '../types';
-import { openCamera, type CameraHandle, type Facing } from './camera';
+import { openCamera, openReplay, type CameraHandle, type Facing } from './camera';
+import { ChokingGestureDetector, RoiTracker, loadHandLandmarker, toHands, type Hand, type Roi } from './hands';
+import { LumaSampler } from './luma';
+import { drawHands, drawPose, drawRoi } from './overlay';
 import { loadPoseLandmarker, type Delegate } from './pose';
-import { Ema, LEFT_SHOULDER, RIGHT_SHOULDER, TimeSeries, shoulderConfidence, shoulderMidY, type Sample } from './signal';
+import {
+  ConfidenceGate,
+  DEFAULT_TUNING,
+  Ema,
+  PeakDetector,
+  TimeSeries,
+  cameraGuidance,
+  clampTuning,
+  isActive,
+  meanRecoil,
+  rateByCount,
+  rateFromPeaks,
+  shoulderConfidence,
+  shoulderMidX,
+  shoulderMidY,
+  shoulderSpan,
+  type Sample,
+  type Tuning,
+} from './signal';
+
+export type { Hand, Roi, RoiState } from './hands';
+export type { Facing } from './camera';
+export type { Sample, Tuning } from './signal';
+export { DEFAULT_TUNING, TUNING_RANGES, GUIDANCE } from './signal';
 
 export type PerceptionStatus = 'idle' | 'loading-model' | 'starting-camera' | 'running' | 'stopped' | 'error';
 export type PerceptionMode = 'pose' | 'pose+hands';
+export type StartOptions = {
+  /** Run a recorded clip instead of the camera (replay harness). */
+  replayUrl?: string;
+};
 
 export interface PerceptionDebug {
   /** Smoothed shoulder-y samples in the trailing windowMs. */
   series(windowMs: number): readonly Sample[];
-  /** Detected compression peak timestamps (M1). */
+  /** Confirmed compression peak timestamps (same clock as series). */
   peaks(): readonly number[];
   fps(): number;
   status(): PerceptionStatus;
@@ -26,21 +58,38 @@ export interface PerceptionDebug {
   facing(): Facing;
   delegate(): Delegate | null;
   frameSize(): { width: number; height: number } | null;
+  source(): 'camera' | 'replay' | null;
+  mode(): PerceptionMode;
+  handsReady(): boolean;
+  blind(): boolean;
+  /** Instantaneous shoulder confidence before the gate. */
+  confidenceRaw(): number;
+  /** docs/03's literal 10 s count x 6, for comparing against the median-interval rate. */
+  rateByCount(): number | null;
+  luma(): number | null;
+  hands(): readonly Hand[];
+  chokingGesture(): boolean;
+  tuning(): Tuning;
+  setTuning(t: Partial<Tuning>): void;
+  lastFacts(): PerceptionFacts | null;
 }
 
-/** The seam between P1 and P3 (docs/07). FakePerception implements the same interface. */
+/** The seam between P1 and P4 (docs/07). P2's FakePerception implements the same interface. */
 export interface Perception {
-  start(video: HTMLVideoElement, overlay?: HTMLCanvasElement): Promise<void>;
+  start(video: HTMLVideoElement, overlay?: HTMLCanvasElement, opts?: StartOptions): Promise<void>;
   stop(): void;
   /** Returns an unsubscribe function. Called once per processed frame. */
   subscribe(cb: (f: PerceptionFacts) => void): () => void;
-  /** "Move the phone closer", "I can't see the patient", or null when the view is good. */
+  /** "Move the phone closer", "I can't see you", or null when the view is good. Never medical. */
   getCameraGuidance(): string | null;
   /** Hands are only tracked in bleeding states, for performance. */
   setMode(mode: PerceptionMode): void;
+  /** Start watching for the hands to settle on the wound (bleeding.pressure entry). */
   lockRoi(): void;
   unlockRoi(): void;
-  /** One JPEG frame as base64 for the flagged vision describer. Only src/ai may consume it. */
+  /** Region state for the orchestrator ('failed' -> announce verbal-only) and for drawing. */
+  roi(): Roi;
+  /** One JPEG frame as base64 (no data-URL prefix) for the flagged vision describer. Only src/ai may consume it. */
   captureFrame(maxPx?: number): string | null;
   readonly debug: PerceptionDebug;
 }
@@ -50,18 +99,20 @@ type VideoWithRvfc = HTMLVideoElement & {
   cancelVideoFrameCallback?: (handle: number) => void;
 };
 
-export function createPerception(opts: { emaAlpha?: number } = {}): Perception {
-  return new PerceptionImpl(opts.emaAlpha ?? 0.3);
+export function createPerception(opts: { tuning?: Partial<Tuning> } = {}): Perception {
+  return new PerceptionImpl(clampTuning({ ...DEFAULT_TUNING, ...opts.tuning }));
 }
 
 class PerceptionImpl implements Perception {
   private video: VideoWithRvfc | null = null;
   private overlay: HTMLCanvasElement | null = null;
   private ctx2d: CanvasRenderingContext2D | null = null;
-  private drawer: DrawingUtils | null = null;
-  private camera: CameraHandle | null = null;
-  private landmarkerPromise: ReturnType<typeof loadPoseLandmarker> | null = null;
-  private landmarker: PoseLandmarker | null = null;
+  private source: CameraHandle | null = null;
+
+  private poseLoad: ReturnType<typeof loadPoseLandmarker> | null = null;
+  private pose: PoseLandmarker | null = null;
+  private handsLoad: ReturnType<typeof loadHandLandmarker> | null = null;
+  private handsModel: HandLandmarker | null = null;
   private delegateUsed: Delegate | null = null;
 
   private generation = 0; // bumps on every start/stop so a superseded start() aborts cleanly
@@ -70,54 +121,93 @@ class PerceptionImpl implements Perception {
   private frameHandle = 0;
   private lastVideoTime = -1;
   private lastTs = 0;
+  private frameIndex = 0;
+  private frameTimes: number[] = [];
 
   private statusValue: PerceptionStatus = 'idle';
   private errorValue: string | null = null;
-  private rawY: number | null = null;
-  private readonly ema: Ema;
-  private readonly series = new TimeSeries(30_000);
-  private readonly subs = new Set<(f: PerceptionFacts) => void>();
-  private frameTimes: number[] = [];
+  private modeValue: PerceptionMode = 'pose';
 
-  constructor(alpha: number) {
-    this.ema = new Ema(alpha);
+  private tuningValue: Tuning;
+  private ema: Ema;
+  private detector: PeakDetector;
+  private readonly series = new TimeSeries(30_000);
+  private readonly gate = new ConfidenceGate();
+  private readonly luma = new LumaSampler();
+  private readonly roiTracker = new RoiTracker();
+  private readonly choking = new ChokingGestureDetector();
+  private readonly subs = new Set<(f: PerceptionFacts) => void>();
+
+  private lastPose: readonly NormalizedLandmark[] | null = null;
+  private lastHands: Hand[] = [];
+  private lastRoi: Roi;
+  private rawY: number | null = null;
+  private rawConfidence = 0;
+  private blindNow = false;
+  private shouldersSeenAt: number | null = null;
+  private span: number | null = null;
+  private chokingNow = false;
+  private guidance: string | null = null;
+  private facts: PerceptionFacts | null = null;
+
+  constructor(tuning: Tuning) {
+    this.tuningValue = tuning;
+    this.ema = new Ema(tuning.emaAlpha);
+    this.detector = new PeakDetector(tuning.prominence, tuning.refractoryMs);
+    this.lastRoi = this.roiTracker.snapshot();
   }
 
   readonly debug: PerceptionDebug = {
     series: (windowMs) => this.series.window(windowMs),
-    peaks: () => [],
+    peaks: () => this.detector.peakTimes(),
     fps: () => this.frameTimes.length,
     status: () => this.statusValue,
     error: () => this.errorValue,
     raw: () => this.rawY,
-    facing: () => this.camera?.facing ?? 'unknown',
+    facing: () => this.source?.facing ?? 'unknown',
     delegate: () => this.delegateUsed,
-    frameSize: () => (this.camera ? { width: this.camera.width, height: this.camera.height } : null),
+    frameSize: () => (this.source ? { width: this.source.width, height: this.source.height } : null),
+    source: () => this.source?.kind ?? null,
+    mode: () => this.modeValue,
+    handsReady: () => this.handsModel !== null,
+    blind: () => this.blindNow,
+    confidenceRaw: () => this.rawConfidence,
+    rateByCount: () => (this.blindNow ? null : rateByCount(this.detector.peakTimes(), performance.now())),
+    luma: () => this.luma.current(),
+    hands: () => this.lastHands,
+    chokingGesture: () => this.chokingNow,
+    tuning: () => this.tuningValue,
+    setTuning: (t) => this.applyTuning(t),
+    lastFacts: () => this.facts,
   };
 
-  async start(video: HTMLVideoElement, overlay?: HTMLCanvasElement): Promise<void> {
+  // ---- lifecycle -------------------------------------------------------------------
+
+  async start(video: HTMLVideoElement, overlay?: HTMLCanvasElement, opts: StartOptions = {}): Promise<void> {
     const gen = ++this.generation;
     this.teardown();
     this.video = video;
     this.overlay = overlay ?? null;
     this.ctx2d = null;
-    this.drawer = null;
     this.errorValue = null;
+    this.resetSignal();
     try {
       this.statusValue = 'loading-model';
-      this.landmarkerPromise ??= loadPoseLandmarker();
-      const { landmarker, delegate } = await this.landmarkerPromise;
+      this.poseLoad ??= loadPoseLandmarker();
+      const { landmarker, delegate } = await this.poseLoad;
       if (gen !== this.generation) return; // superseded by stop() or another start()
-      this.landmarker = landmarker;
+      this.pose = landmarker;
       this.delegateUsed = delegate;
+      if (this.modeValue === 'pose+hands') await this.ensureHands();
+      if (gen !== this.generation) return;
 
       this.statusValue = 'starting-camera';
-      const camera = await openCamera(video);
+      const source = opts.replayUrl ? await openReplay(video, opts.replayUrl) : await openCamera(video);
       if (gen !== this.generation) {
-        camera.stop();
+        source.stop();
         return;
       }
-      this.camera = camera;
+      this.source = source;
       this.running = true;
       this.lastVideoTime = -1;
       this.statusValue = 'running';
@@ -144,23 +234,84 @@ class PerceptionImpl implements Perception {
   }
 
   getCameraGuidance(): string | null {
-    return null; // M2, P1: docs/03 "Camera guidance"
+    return this.guidance;
   }
 
-  setMode(_mode: PerceptionMode): void {
-    // M3, P1: start/stop the HandLandmarker
+  setMode(mode: PerceptionMode): void {
+    if (mode === this.modeValue) return;
+    this.modeValue = mode;
+    if (mode === 'pose+hands') {
+      void this.ensureHands().catch((err: unknown) => {
+        console.warn('[perception] hand model unavailable, staying in pose mode', err);
+        this.modeValue = 'pose';
+      });
+    } else {
+      this.lastHands = [];
+      this.roiTracker.unlock();
+      this.lastRoi = this.roiTracker.snapshot();
+    }
   }
 
   lockRoi(): void {
-    // M3, P1
+    if (this.modeValue !== 'pose+hands') this.setMode('pose+hands');
+    this.roiTracker.lock(performance.now());
+    this.lastRoi = this.roiTracker.snapshot();
   }
 
   unlockRoi(): void {
-    // M3, P1
+    this.roiTracker.unlock();
+    this.lastRoi = this.roiTracker.snapshot();
   }
 
-  captureFrame(_maxPx?: number): string | null {
-    return null; // M4 hook, P1. Feature-flagged consumer lives in src/ai.
+  roi(): Roi {
+    return this.lastRoi;
+  }
+
+  captureFrame(maxPx = 640): string | null {
+    const video = this.video;
+    if (!video || video.readyState < 2 || video.videoWidth === 0) return null;
+    const scale = Math.min(1, maxPx / Math.max(video.videoWidth, video.videoHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+    return dataUrl.slice(dataUrl.indexOf(',') + 1);
+  }
+
+  // ---- internals -------------------------------------------------------------------
+
+  private applyTuning(t: Partial<Tuning>): void {
+    this.tuningValue = clampTuning({ ...this.tuningValue, ...t });
+    this.ema.alpha = this.tuningValue.emaAlpha;
+    this.detector.prominence = this.tuningValue.prominence;
+    this.detector.refractoryMs = this.tuningValue.refractoryMs;
+  }
+
+  private resetSignal(): void {
+    this.ema.reset();
+    this.detector.reset();
+    this.series.clear();
+    this.gate.reset();
+    this.blindNow = false;
+    this.shouldersSeenAt = null;
+    this.span = null;
+    this.rawY = null;
+    this.rawConfidence = 0;
+    this.lastPose = null;
+    this.lastHands = [];
+    this.guidance = null;
+    this.frameIndex = 0;
+    this.frameTimes = [];
+  }
+
+  private async ensureHands(): Promise<void> {
+    if (this.handsModel) return;
+    this.handsLoad ??= loadHandLandmarker();
+    const { landmarker } = await this.handsLoad;
+    this.handsModel = landmarker;
   }
 
   private teardown(): void {
@@ -170,8 +321,8 @@ class PerceptionImpl implements Perception {
       else cancelAnimationFrame(this.frameHandle);
     }
     this.frameHandle = 0;
-    this.camera?.stop();
-    this.camera = null;
+    this.source?.stop();
+    this.source = null;
     if (this.overlay && this.ctx2d) this.ctx2d.clearRect(0, 0, this.overlay.width, this.overlay.height);
   }
 
@@ -189,8 +340,8 @@ class PerceptionImpl implements Perception {
 
   private onFrame(): void {
     const video = this.video;
-    const landmarker = this.landmarker;
-    if (!this.running || !video || !landmarker) return;
+    const pose = this.pose;
+    if (!this.running || !video || !pose) return;
     if (video.readyState >= 2 && video.currentTime !== this.lastVideoTime) {
       this.lastVideoTime = video.currentTime;
       const now = performance.now();
@@ -198,44 +349,88 @@ class PerceptionImpl implements Perception {
       let ts = Math.round(now);
       if (ts <= this.lastTs) ts = this.lastTs + 1;
       this.lastTs = ts;
+      this.frameIndex++;
+      this.frameTimes.push(now);
+      while (this.frameTimes.length > 0 && this.frameTimes[0] < now - 1000) this.frameTimes.shift();
+
+      const withHands = this.modeValue === 'pose+hands' && this.handsModel !== null;
+      // With both models running, the pose runs on every other frame to keep the hands
+      // responsive: the bleeding loop cares about hands, the confidence gate can wait a frame.
+      const runPose = !withHands || this.frameIndex % 2 === 0;
       try {
-        landmarker.detectForVideo(video, ts, (result) => this.handleResult(result, now));
+        if (runPose) pose.detectForVideo(video, ts, (result) => this.onPose(result.landmarks[0], now));
+        if (withHands && this.handsModel) {
+          this.onHands(toHands(this.handsModel.detectForVideo(video, ts)), now);
+        }
       } catch (err) {
-        console.warn('[perception] detectForVideo failed', err);
+        console.warn('[perception] detection failed on a frame', err);
       }
+      this.luma.sample(video, now);
+      this.guidance = cameraGuidance({ now, shouldersSeenAt: this.shouldersSeenAt, span: this.span, luma: this.luma.current() });
+      this.draw();
+      this.emit(now);
     }
     this.scheduleFrame();
   }
 
-  private handleResult(result: PoseLandmarkerResult, now: number): void {
-    this.frameTimes.push(now);
-    while (this.frameTimes.length > 0 && this.frameTimes[0] < now - 1000) this.frameTimes.shift();
+  private onPose(lm: NormalizedLandmark[] | undefined, now: number): void {
+    this.lastPose = lm ?? null;
+    const confidence = lm ? shoulderConfidence(lm) : 0;
+    this.rawConfidence = confidence;
+    const { blind } = this.gate.update(confidence, now);
+    if (blind && !this.blindNow) {
+      // Entering blind mode: forget the running extreme so a stale half-cycle cannot
+      // produce a phantom peak when sight returns.
+      this.detector.reset();
+      this.ema.reset();
+    }
+    this.blindNow = blind;
 
-    const lm: NormalizedLandmark[] | undefined = result.landmarks[0];
-    let confidence = 0;
-    if (lm) {
-      confidence = shoulderConfidence(lm);
+    if (lm && confidence >= this.gate.threshold) {
+      this.shouldersSeenAt = now;
+      this.span = shoulderSpan(lm);
       const y = shoulderMidY(lm);
       this.rawY = y;
-      this.series.push(now, this.ema.push(y));
+      if (!blind) {
+        const s = this.ema.push(y);
+        this.series.push(now, s);
+        this.detector.push(now, s);
+      }
     } else {
       this.rawY = null;
+      if (!lm) this.span = null;
     }
-    this.draw(lm);
+  }
 
+  private onHands(hands: Hand[], now: number): void {
+    this.lastHands = hands;
+    this.lastRoi = this.roiTracker.update(hands, now);
+    const lm = this.lastPose;
+    const neck =
+      lm && this.rawConfidence >= this.gate.threshold
+        ? { x: shoulderMidX(lm), y: shoulderMidY(lm) - 0.45 * shoulderSpan(lm), span: shoulderSpan(lm) }
+        : null;
+    this.chokingNow = this.choking.update(hands, neck, now);
+  }
+
+  private emit(now: number): void {
+    const peaks = this.detector.peakTimes();
+    const blind = this.blindNow;
+    const locked = this.modeValue === 'pose+hands' && this.lastRoi.state === 'locked';
     const facts: PerceptionFacts = {
       t: Date.now(),
-      poseConfidence: confidence,
-      compressionRate: null, // M1
-      compressionActive: false, // M1
-      recoilRatio: null, // M1
-      handsOnRegion: null, // M3
-      handsOffMs: null, // M3
+      poseConfidence: blind ? this.rawConfidence : Math.max(this.rawConfidence, this.gate.threshold),
+      compressionRate: blind ? null : rateFromPeaks(peaks, now),
+      compressionActive: blind ? false : isActive(peaks, now),
+      recoilRatio: blind ? null : meanRecoil(this.detector.peakList(), this.detector.troughList(), now),
+      handsOnRegion: locked ? this.lastRoi.handsOn : null,
+      handsOffMs: locked ? this.lastRoi.handsOffMs : null,
     };
+    this.facts = facts;
     for (const cb of this.subs) cb(facts);
   }
 
-  private draw(lm: NormalizedLandmark[] | undefined): void {
+  private draw(): void {
     const canvas = this.overlay;
     const video = this.video;
     if (!canvas || !video) return;
@@ -245,29 +440,13 @@ class PerceptionImpl implements Perception {
     }
     const ctx = (this.ctx2d ??= canvas.getContext('2d'));
     if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!lm) return;
-
-    const drawer = (this.drawer ??= new DrawingUtils(ctx));
-    drawer.drawConnectors(lm, PoseLandmarker.POSE_CONNECTIONS, { color: 'rgba(255,255,255,0.55)', lineWidth: 2 });
-    drawer.drawLandmarks(lm, { color: '#ffffff', fillColor: '#ffffff', radius: 2, lineWidth: 1 });
-
-    // The signal source: both shoulders and their midpoint, in red.
     const w = canvas.width;
     const h = canvas.height;
-    ctx.strokeStyle = '#ff3b30';
-    ctx.lineWidth = 3;
-    for (const i of [LEFT_SHOULDER, RIGHT_SHOULDER]) {
-      const p = lm[i];
-      ctx.beginPath();
-      ctx.arc(p.x * w, p.y * h, 9, 0, Math.PI * 2);
-      ctx.stroke();
+    ctx.clearRect(0, 0, w, h);
+    if (this.lastPose) drawPose(ctx, this.lastPose, w, h, this.blindNow);
+    if (this.modeValue === 'pose+hands') {
+      drawRoi(ctx, this.lastRoi, w, h);
+      drawHands(ctx, this.lastHands, w, h, this.lastRoi);
     }
-    const mx = ((lm[LEFT_SHOULDER].x + lm[RIGHT_SHOULDER].x) / 2) * w;
-    const my = shoulderMidY(lm) * h;
-    ctx.fillStyle = '#ff3b30';
-    ctx.beginPath();
-    ctx.arc(mx, my, 6, 0, Math.PI * 2);
-    ctx.fill();
   }
 }

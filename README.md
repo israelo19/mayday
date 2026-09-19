@@ -34,7 +34,10 @@ npm run dev        # https://localhost:5173 and https://<your-LAN-ip>:5173
 - The MediaPipe model files are committed in `public/models`. `scripts/prepare-assets.mjs`
   only downloads them if they are missing. Nothing is fetched from a CDN at runtime.
 
-Other scripts: `npm run typecheck`, `npm run build` (output in `dist/`), `npm run preview`.
+Other scripts: `npm run typecheck`, `npm test` (vitest), `npm run build` (output in `dist/`),
+`npm run preview`. Open `http://localhost:5173/?guide=1` (any of the dev modes) for the step
+guide gallery: every protocol picture, a simulated bystander to watch the guide react, and a
+coach-screen preview. No camera needed.
 
 ## M0 demo check
 
@@ -47,9 +50,25 @@ Other scripts: `npm run typecheck`, `npm run build` (output in `dist/`), `npm ru
    while the skeleton is being drawn. Tap **Test voice**: a line is spoken through Web Speech.
 4. Turn wifi off and repeat step 3. Everything keeps working.
 
-DONE means: the waveform wiggles, confidence is on screen, the metronome ticks. M1 (peak
-detection, rate, coaching rules, protocol engine) starts only after a human confirms this on
-a real camera.
+DONE means: the waveform wiggles, confidence is on screen, the metronome ticks. Confirmed on
+an iPhone rear camera at 28 to 31 fps on Sat 01:50.
+
+## M1 check (perception side)
+
+1. Start the beat and do compressions on a pillow with your shoulders in frame. Within five
+   pushes the big number appears and dots mark each counted push on the trace.
+2. Match the beat: the number sits between 100 and 120 and reads mint. Go slow on purpose:
+   it turns amber and drops within a few pushes. Stop: "pushing" becomes "still" within 2 s.
+3. Cover the lens: the red "Can't see your shoulders" banner appears within about a second,
+   the number disappears, and the trace says no signal. Uncover: it recovers within a second.
+4. Walk away or step too close: an amber banner asks you to move the phone.
+5. Open "Hands and the wound region", tap "Track hands", press both hands on a cushion, tap
+   "Lock on the hands", hold still 1.5 s. A circle locks on. Lift your hands: the circle turns
+   red and the counter climbs. Put them back: mint again.
+6. "Tune the detector" changes smoothing, minimum push size and minimum gap live; values
+   persist on the phone. "Replay a clip" runs a recorded video through the same pipeline.
+
+Tests for the pure signal code: `npm test`.
 
 ## Layout
 
@@ -61,6 +80,7 @@ a real camera.
   /ai            episodic cloud calls, all stubbed behind interfaces (docs/04)
   /sitrep        event log, SITREP builder, handoff report
   /ui            screens and overlays (docs/05)
+  /ui/guide      step guides: one picture per protocol line, gallery at ?guide=1 (docs/05)
 /docs            context documents; docs/07 is the four-person work split
 /public/models   MediaPipe .task model files (committed)
 /public/wasm     MediaPipe WASM runtime (generated, gitignored)
@@ -78,3 +98,10 @@ or point App Platform's "create from GitHub repo" flow at the same file. The app
 successful fetch, so a reload with wifi off works once the session has loaded at least once.
 The `/api/proxy` function (key proxy for ElevenLabs/Gemini, docs/04 TODO #1) is added as an M4
 integration once those keys are ready.
+
+## Team
+
+- [Emmanuel Adedeji](https://www.linkedin.com/in/e-adedeji/)
+- [Bryce Biyeba](https://www.linkedin.com/in/bryce-biyeba/)
+- [Ricky Chen](https://www.linkedin.com/in/ricky-ch3n/)
+- [Israel Ogwu](https://www.linkedin.com/in/israelogwu/)
