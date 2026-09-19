@@ -13,11 +13,13 @@ type Props = {
   replayUrl?: string;
   /** Cap the preview height; the video is cover-cropped and the overlay crops with it. */
   maxHeight?: string;
+  /** Fill the parent (the live screen): ignore the aspect ratio, cover-crop to the box. */
+  fill?: boolean;
   onError?: (err: unknown) => void;
   children?: ReactNode;
 };
 
-export function CameraView({ perception, mirror, replayUrl, maxHeight = '48vh', onError, children }: Props) {
+export function CameraView({ perception, mirror, replayUrl, maxHeight = '48vh', fill = false, onError, children }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [aspect, setAspect] = useState(4 / 3);
@@ -44,7 +46,7 @@ export function CameraView({ perception, mirror, replayUrl, maxHeight = '48vh', 
   }, [perception, replayUrl, onError]);
 
   return (
-    <div className="cam" style={{ aspectRatio: String(aspect), maxHeight }}>
+    <div className="cam" style={fill ? { position: 'absolute', inset: 0, height: '100%' } : { aspectRatio: String(aspect), maxHeight }}>
       <div className="cam-media" style={{ transform: mirror ? 'scaleX(-1)' : undefined }}>
         <video ref={videoRef} muted playsInline autoPlay />
         <canvas ref={canvasRef} />
