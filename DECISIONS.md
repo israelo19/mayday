@@ -61,3 +61,29 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   (`eyes`/`brain`/`mouth`/`face`) instead of docs/07's "main only" so four people editing
   disjoint paths stop stepping on each other's half-finished commits; merge to `main` when a
   milestone gate goes green, not on every commit.
+- **Sat 02:40 (P1)** Compression rate is the median of the last five intervals between
+  confirmed peaks, reported once five peaks exist in the trailing 10 s, capped at 160. docs/03
+  says "peaks in 10 s x 6"; that count lags a change of pace by up to 10 s, the median reacts
+  within five pushes, which is what makes a live correction feel immediate. Both numbers show
+  on the eyes screen so the team can compare on real clips.
+- **Sat 02:40 (P1)** Peaks come from a streaming hysteresis detector: a peak is confirmed once
+  the smoothed signal has fallen `prominence` (0.008) below its running maximum, a trough once
+  it has risen the same amount; peaks within 250 ms of the previous one are discarded. Same
+  thresholds as docs/03, no lookahead, so the rate exists as the push happens.
+- **Sat 02:40 (P1)** Blind gate: confidence below 0.5 for 1 s nulls every derived metric and
+  emits the low value; recovery needs 300 ms of sustained good frames, so flicker around the
+  threshold cannot delay blind mode. While sighted the emitted confidence never dips below 0.5.
+- **Sat 02:40 (P1)** Camera guidance says "I can't see you", not "the patient": the pose the
+  app needs is the rescuer's shoulders (a duffel has no pose). Guidance also covers darkness
+  (mean frame luminance under 40 of 255) and distance from the shoulder span.
+- **Sat 02:40 (P1)** Wound region: palm centres (wrist plus finger bases) rather than fingertip
+  averages, ROI radius 1.5 x hand span with a 0.08 floor, hands undetected for 700 ms count as
+  off (a hand lifted out of frame is also off the wound), no lock within 10 s -> `failed` and
+  the orchestrator announces voice-only. The hand model runs only in `pose+hands` mode and the
+  pose model drops to every other frame there.
+- **Sat 02:40 (P1)** Replay harness: `?replay=<url>` or a file picked on the eyes screen plays a
+  clip through the identical pipeline. Fixture clips are not committed yet; the team records
+  them on the demo phone (M1 task 3).
+- **Sat 02:40 (P1)** WebSpeechProvider gained a watchdog (P3 to keep or replace): on the demo
+  iPhone an utterance sometimes never fires end/error, which left the M0 button stuck on
+  "Speaking". Speech is also started synchronously inside the tap, which iOS requires.
