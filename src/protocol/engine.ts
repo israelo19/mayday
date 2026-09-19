@@ -191,6 +191,9 @@ class ProtocolEngine implements Engine {
     );
     if (!transition) return false;
     this.go(transition.to);
+    // Logged after the move so the entry lands under the new state, where the session can
+    // say out loud that the camera, not a tap, is what advanced.
+    this.log('system', `camera: ${transition.label.toLowerCase()}`, { type: 'fact_transition', label: transition.label });
     return true;
   }
 

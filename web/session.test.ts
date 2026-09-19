@@ -151,6 +151,47 @@ describe('session', () => {
     expect(v.enqueued.some((e) => e.dedupeKey === 'rate-low')).toBe(true);
     expect(s.snapshot().coaching?.dedupeKey).toBe('rate-low');
     expect(s.snapshot().facts?.compressionRate).toBe(80);
+    // The correction leaves the screen the moment its rule stops holding, not on a timer.
+    p.setControls({ rate: 110 });
+    for (let i = 0; i < 5; i++) {
+      t += 100;
+      p.emitAt(t);
+    }
+    tick(100);
+    expect(s.snapshot().coaching).toBeNull();
+  });
+
+  it('says so when the camera, not a tap, moved the machine on', () => {
+    const { s, v, p, tick } = rig();
+    s.start();
+    s.say('not breathing');
+    for (let i = 0; i < 3; i++) s.advance(); // position
+    expect(s.snapshot().stateKey).toBe('cardiac.position');
+    p.setControls({ compressing: true });
+    p.emitAt(T0 + 100);
+    tick(100);
+    expect(s.snapshot().stateKey).toBe('cardiac.compressions');
+    expect(v.enqueued.some((e) => e.dedupeKey === 'camera-saw')).toBe(true);
+    expect(s.snapshot().eyes.saw).toBe('Started compressions');
+    // It is about the camera, so it is never the card's correction.
+    expect(s.snapshot().coaching).toBeNull();
+    expect(s.log.entries().some((e) => e.data?.type === 'fact_transition')).toBe(true);
+  });
+
+  it('reports what the camera is doing for the eyes chip', () => {
+    const { s, p, tick } = rig();
+    s.start();
+    expect(s.snapshot().eyes.status).toBe('off');
+    void p.start(null as unknown as HTMLVideoElement);
+    p.emitAt(T0);
+    tick(100);
+    expect(s.snapshot().eyes.status).toBe('watching');
+    expect(s.snapshot().eyes.rescuer).toBe(true);
+    p.setControls({ cameraCovered: true });
+    p.emitAt(T0 + 200);
+    tick(100);
+    expect(s.snapshot().eyes.status).toBe('blind');
+    p.stop();
   });
 
   it('tracks hands only in the bleeding pressure states and announces when they never settle', () => {

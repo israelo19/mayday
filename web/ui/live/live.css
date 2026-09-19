@@ -32,6 +32,16 @@
 .live-chip-hit { border-color: var(--mint); color: var(--mint); }
 @keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(127, 227, 198, 0.6); } 100% { box-shadow: 0 0 0 10px rgba(127, 227, 198, 0); } }
 
+/* The eyes line: what the camera is doing, always one row, never medical. */
+.live-eyes { align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px 6px 10px; font-size: 13px; font-weight: 600; color: var(--ink-2); max-width: 100%; }
+.live-eyes .live-eye { flex: none; }
+.live-eyes-on { color: var(--mint); border-color: rgba(127, 227, 198, 0.45); }
+.live-eyes-hit { color: #04110d; background: var(--mint); border-color: var(--mint); }
+.live-eyes-hit .live-eyes-fps { color: rgba(4, 17, 13, 0.7); }
+.live-eyes-off { color: var(--red); border-color: rgba(255, 69, 58, 0.5); }
+.live-eyes-fps { font-weight: 500; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.live-suggest-text .live-eye { vertical-align: -3px; margin-right: 6px; }
+
 .live-metric { align-self: flex-start; background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 16px; padding: 10px 14px; min-width: 110px; }
 .live-metric-value { font-size: 36px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .live-metric.ok .live-metric-value { color: var(--mint); }
@@ -83,7 +93,7 @@
 .live-dispatch-replies { display: flex; flex-direction: column; gap: 6px; max-height: 32vh; overflow: auto; }
 .live-reply { text-align: left; background: rgba(255, 255, 255, 0.08); border: 1px solid var(--line); color: var(--ink); border-radius: 10px; min-height: 42px; padding: 8px 12px; font-size: 14px; }
 
-.live-handoff { position: absolute; inset: 0; overflow: auto; padding: calc(70px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 18px; }
+.live-handoff { position: absolute; inset: 0; overflow: auto; padding: calc(20px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 18px; }
 .live-handoff h1 { margin: 0; font-size: 30px; }
 .live-handoff h2 { margin: 0 0 8px; font-size: 14px; color: var(--ink-2); font-weight: 600; }
 .live-handoff-sub { margin: -10px 0 0; color: var(--ink-2); }

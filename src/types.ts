@@ -63,7 +63,9 @@ export type EventData =
       poseConfidence: number;
       blind: boolean;
     }
-  | { type: 'coach'; priority: CoachingPriority; dedupeKey?: string };
+  | { type: 'coach'; priority: CoachingPriority; dedupeKey?: string }
+  /** The camera moved the machine: a `fact` transition fired. `label` is the transition's button text. */
+  | { type: 'fact_transition'; label: string };
 
 export type EventLogEntry = {
   t: number;

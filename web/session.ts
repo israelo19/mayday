@@ -13,7 +13,7 @@
 // Zero network calls. Owned by P4 (docs/07); built by P1 on the `listen` branch.
 import type { CoachingEvent, GeoFix, HandoffReport, PerceptionFacts, Sitrep, State } from '../src/types';
 import type { DispatcherSim } from '../src/ai/dispatcher';
-import type { Perception } from '../src/perception';
+import type { Perception, RoiState } from '../src/perception';
 import { GUIDANCE } from '../src/perception';
 import type { Voice, VoiceInStatus } from '../src/voice';
 import { CONFIRM_WORDS, createEngine, machines, matchKeyword, REJECT_WORDS, routeKeyword, SCENE_HINTS, STALE_FACTS_MS, suggestRoute, TRIAGE_ROUTES, type Engine, type TriageRoute } from '../src/protocol';
@@ -36,6 +36,25 @@ export type DispatcherFactory = (
 
 /** A button that does exactly what saying its keyword does (docs/05: every voice path has a twin). */
 export type ButtonTwin = { label: string; keyword: string; to: string };
+
+/**
+ * What the camera is doing right now, for the screen: `error` is a refused or missing camera,
+ * `blind` is a running camera that cannot see a rescuer (docs/03 confidence gate).
+ */
+export type EyesStatus = 'off' | 'starting' | 'watching' | 'blind' | 'error';
+export type Eyes = {
+  status: EyesStatus;
+  /** Frames processed in the last second; 0 until the loop runs. */
+  fps: number;
+  /** A rescuer's shoulders are being measured. */
+  rescuer: boolean;
+  /** Wound-region tracking state while a bleeding state has it on, else null. */
+  hands: RoiState | null;
+  /** The last thing the camera did on its own (a `fact` transition), shown briefly. */
+  saw: string | null;
+  /** Why the camera is off, when it is. */
+  error: string | null;
+};
 
 export type SessionSnapshot = {
   phase: SessionPhase;
@@ -62,6 +81,7 @@ export type SessionSnapshot = {
   /** The latest critical or correction for this state, cleared on state change or after a while. */
   coaching: CoachingEvent | null;
   blind: boolean;
+  eyes: Eyes;
   /** Camera guidance the session is currently showing (spoken only in watching states). */
   guidance: string | null;
   listening: VoiceInStatus;
@@ -154,9 +174,12 @@ const COACHING_SHOWN_MS = 8_000;
 const SCENE_HINT_RETRY_MS = 30_000;
 const HEARD_SHOWN_MS = 4_000;
 const SUGGESTION_TTL_MS = 20_000;
+const CAMERA_SAW_SHOWN_MS = 5_000;
 
 /** Not medical: this is about the camera, spoken once per state when the hands never settle. */
 export const ROI_FAILED_LINE = "I can't find your hands on the wound. I'll keep coaching by voice.";
+/** Not medical: the camera moved the machine, and the bystander should know it was watching. */
+export const CAMERA_SAW_LINE = 'I can see you pushing.';
 
 export function createSession(deps: SessionDeps): Session {
   const { perception, voice } = deps;
@@ -203,6 +226,7 @@ export function createSession(deps: SessionDeps): Session {
   let geo: GeoFix | null = null;
   let geoRequested = false;
   let roiAnnouncedFor: string | null = null;
+  let cameraSaw: { label: string; at: number } | null = null;
   // A call911 state entered while the simulated call is already open is skipped on the next
   // tick: telling someone on the line to call is noise, and the state's own lines go stale
   // unplayed when the engine moves on (docs/09). Not medical: it is about the phone.
@@ -273,19 +297,28 @@ export function createSession(deps: SessionDeps): Session {
   function onCoach(event: CoachingEvent): void {
     voice.out.enqueue(event);
     const current = engine.currentState()?.state.id;
-    if (event.priority !== 'narration' && event.stateId === current && !event.dedupeKey?.startsWith('answer:')) {
+    if (event.priority !== 'narration' && event.stateId === current && !event.dedupeKey?.startsWith('answer:') && event.dedupeKey !== 'camera-saw') {
       coaching = event;
       coachingAt = now();
     }
     notify();
   }
 
+  /** The camera advanced the machine on its own. Say so; the label is the button it stood in for. */
+  function onCameraTransition(label: string): void {
+    const t = now();
+    cameraSaw = { label, at: t };
+    voice.out.enqueue({ priority: 'correction', text: CAMERA_SAW_LINE, stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'camera-saw', cooldownMs: 10_000, t });
+  }
+
   function attachEngine(): void {
     unsubscribeEngine?.();
     unsubscribeEngine = engine.subscribe((out) => {
       if (out.type === 'coach') onCoach(out.event);
-      else if (out.type === 'log') log.append(out.entry);
-      else onStateEnter(out.machineId, out.stateId, out.metronome);
+      else if (out.type === 'log') {
+        log.append(out.entry);
+        if (out.entry.data?.type === 'fact_transition') onCameraTransition(out.entry.data.label);
+      } else onStateEnter(out.machineId, out.stateId, out.metronome);
     });
   }
 
@@ -295,6 +328,18 @@ export function createSession(deps: SessionDeps): Session {
     facts = f;
     voice.out.noteFacts(f);
     engine.onFacts(f);
+    clearResolvedCoaching(f);
+  }
+
+  /**
+   * A correction stays on screen while its rule still holds and leaves the moment it stops:
+   * "Don't let go" next to a mint "pressure held" was the screen contradicting itself.
+   */
+  function clearResolvedCoaching(f: PerceptionFacts): void {
+    if (!coaching?.dedupeKey) return;
+    const rule = engine.currentState()?.state.coachingRules?.find((r) => r.id === coaching?.dedupeKey);
+    if (!rule) return;
+    if (!rule.when(f, { blind: blindNow(), inStateMs: now() - stateEnteredAt })) coaching = null;
   }
 
   // ---- the clock -------------------------------------------------------------------------
@@ -461,6 +506,26 @@ export function createSession(deps: SessionDeps): Session {
     return now() - facts.t > STALE_FACTS_MS || facts.poseConfidence < 0.5;
   }
 
+  function eyesNow(): Eyes {
+    const status = perception.debug.status();
+    const t = now();
+    const running = status === 'running';
+    const rescuer = running && !!facts && t - facts.t <= STALE_FACTS_MS && facts.poseConfidence >= 0.5;
+    return {
+      status:
+        status === 'error' ? 'error'
+        : status === 'loading-model' || status === 'starting-camera' ? 'starting'
+        : !running ? 'off'
+        : blindNow() || !facts ? 'blind'
+        : 'watching',
+      fps: running ? perception.debug.fps() : 0,
+      rescuer,
+      hands: handsMode ? perception.roi().state : null,
+      saw: cameraSaw && t - cameraSaw.at <= CAMERA_SAW_SHOWN_MS ? cameraSaw.label : null,
+      error: status === 'error' ? perception.debug.error() : null,
+    };
+  }
+
   function build(): SessionSnapshot {
     const cur = engine.currentState();
     const state = cur?.state ?? null;
@@ -484,6 +549,7 @@ export function createSession(deps: SessionDeps): Session {
       facts,
       coaching,
       blind: blindNow(),
+      eyes: eyesNow(),
       guidance,
       listening,
       listenError,
@@ -557,6 +623,7 @@ export function createSession(deps: SessionDeps): Session {
       dispatcherLines = [];
       geoRequested = false;
       roiAnnouncedFor = null;
+      cameraSaw = null;
       skipCallPrompt = false;
       session.start();
     },

@@ -422,3 +422,22 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   behind the audio clock it skips the missed beats instead of bursting them. The beat belongs
   to a screen someone is looking at; the wake lock keeps that screen on during coaching.
   `src/voice/metronome.test.ts` drives the class on a fake audio clock.
+- **Sat 06:50 (Ricky, `review`)** The camera's work was invisible outside four states, so the
+  live screen now says what the eyes are doing. `SessionSnapshot.eyes` (status, fps, rescuer in
+  view, wound-region state, the last thing the camera did) feeds an eyes chip under the mic
+  chip; a camera that is refused or missing gets a red "Camera off. Coaching by voice and
+  buttons." banner in every phase (principle 4 covered triage only by accident before: a denied
+  camera was a black screen). The engine logs a `fact_transition` when a `fact` trigger moves
+  the machine, and the session speaks `CAMERA_SAW_LINE` ("I can see you pushing.") at
+  correction priority, dedupe `camera-saw`; it is about the camera, never the card's
+  correction. The compression trace finally gets the bystander's real shoulder series and
+  peaks (docs/05's wiring, never passed before); `?fake=1` samples are shifted from `Date.now()`
+  to `performance.now()` in LiveApp only. Camera-sourced suggestions carry an eye icon.
+- **Sat 06:50 (Ricky, `review`)** A correction leaves the card the moment its rule stops
+  holding (`clearResolvedCoaching` re-evaluates the rule's `when` on every fact), not after an
+  8 s timer: "Don't let go!" next to a mint "pressure held" was the screen contradicting
+  itself. The top column (chips, metric, dispatcher panel) is not drawn over the handoff, which
+  it used to cover. The handoff timeline turns state ids into step titles ("CPR: Hand position")
+  and keeps recognizer errors and dispatcher plumbing in the log but off the paramedic's screen.
+  The launch screen names the app, says the camera is about to watch, and labels the demo's
+  simulated 911 call.
