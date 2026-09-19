@@ -85,3 +85,10 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   throwaway wiring at the `session.ts` boundary only — expect to swap `mockDemoData` for real
   `EngineOutput`/`Sitrep`/`HandoffReport` once P2 ships, the screen components themselves
   shouldn't need to change shape much.
+- **Sat 02:50 (P4)** Root cause of the Sat 02:20 build failure found: this machine's Node was
+  20.16.0, below what `vite@8`/`rolldown` require (`^20.19.0 || >=22.12.0`) — npm silently skips
+  an optional native binding when the package's `engines` check fails, rather than erroring, so
+  it looked like a lockfile problem. Upgraded Node to 24.19.0 LTS and reinstalled; the refreshed
+  `package-lock.json` now carries `libc` metadata for optional platform binaries that the older
+  npm didn't write. `npm run dev` and `npm run build` both work now. Anyone still on Node <20.19
+  will hit the same failure regardless of this lockfile.
