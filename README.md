@@ -19,12 +19,20 @@ else.
 
 ## Run it (dev, HTTPS)
 
-Camera access needs a secure context, so dev runs over HTTPS. Chrome is the demo browser.
+Needs Node 20.19+ or 22.12+ -- `vite@8`/rolldown silently skip installing their native binary
+on older Node instead of erroring, which looks like a broken install (see `DECISIONS.md`,
+Sat 02:50). Camera access needs a secure context, so dev runs over HTTPS. Chrome is the demo
+browser.
 
 ```sh
 npm install        # also copies the MediaPipe WASM runtime into public/wasm
 npm run dev        # https://localhost:5173 and https://<your-LAN-ip>:5173
 ```
+
+A plain load is the real app: LAUNCH -> CALL PREP -> COACH -> SITREP -> HANDOFF (docs/05),
+running on mock data until `src/session.ts` and P2's engine wire it up for real (see
+`DECISIONS.md`). `?debug=1` gets the M0 sensor/debug view instead -- that's what the M0 and M1
+checks below are walking.
 
 - Dev serves a self-signed certificate (`@vitejs/plugin-basic-ssl`). No setup, no sudo.
   The browser shows a warning once per device: Advanced, proceed. Camera works after that.
@@ -45,7 +53,7 @@ coach-screen preview. No camera needed.
 
 ## M0 demo check
 
-1. Open the app. The footer reads `status: running`, fps is above 10, the pose skeleton is
+1. Open `?debug=1`. The footer reads `status: running`, fps is above 10, the pose skeleton is
    drawn on the camera preview with both shoulders circled in red.
 2. Point the camera at a teammate doing chest compressions on a pillow, chest facing the
    camera, phone propped about 1.5 m away. The waveform oscillates with visible peaks, about
@@ -55,9 +63,9 @@ coach-screen preview. No camera needed.
 4. Turn wifi off and repeat step 3. Everything keeps working.
 
 DONE means: the waveform wiggles, confidence is on screen, the metronome ticks. Confirmed on
-an iPhone rear camera at 28 to 31 fps on Sat 01:50.
+an iPhone rear camera at 28 to 31 fps on Sat 01:50, and working on Android as well.
 
-## M1 check (perception side)
+## M1 check (perception side, `?debug=1`)
 
 1. Start the beat and do compressions on a pillow with your shoulders in frame. Within five
    pushes the big number appears and dots mark each counted push on the trace.
@@ -92,6 +100,16 @@ Tests for the pure signal code: `npm test`.
 ```
 
 Decisions the docs did not settle are logged in `DECISIONS.md`.
+
+## Deploy
+
+Target is DigitalOcean App Platform, spec in `.do/app.yaml` (static site, `npm run build` ->
+`dist/`, SPA catch-all to `index.html`). Import it with `doctl apps create --spec .do/app.yaml`
+or point App Platform's "create from GitHub repo" flow at the same file. The app is a PWA
+(`vite-plugin-pwa`): the shell precaches, MediaPipe's models and WASM runtime cache on first
+successful fetch, so a reload with wifi off works once the session has loaded at least once.
+The `/api/proxy` function (key proxy for ElevenLabs/Gemini, docs/04 TODO #1) is added as an M4
+integration once those keys are ready.
 
 ## Team
 
