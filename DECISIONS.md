@@ -499,3 +499,24 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   mic can hear), the sentence is shown on the chip but not logged (an echo of our prompt must
   never become a "sounds like" suggestion), and any other keyword routes. A held-back keyword
   is judged again once the app is quiet. docs/09 and docs/10 say so; `in.test.ts` holds it.
+- **Sat 08:40 (Ricky, `scene-assessment` worktree)** The scene layer, docs/11 tiers 1 and 2,
+  built as one seam per principle. On-device: `SceneTracker` (`src/perception/scene.ts`) boxes
+  every pose, reads lying or upright from the torso angle, and counts stillness by following
+  box centres across frames; the overlay draws a dashed box and a word per person, and the
+  facts carry `scene`. Cloud, episodic: `src/ai/assess.ts` sends one 640 px frame with a
+  closed-vocabulary question and parses the answer into `SceneAssessment` (label, one
+  sentence, the patient's box, awake/breathing/pain cues, materials); anything outside the set
+  is `unclear`, a sentence that coaches is dropped, a box is read on the 0 to 1000 scale, or in
+  pixels for Qwen2.5-VL. The session sends a frame 1.2 s into triage while facts are fresh,
+  once more after 6 s if the answer was unclear, never a third time; the label earns the same
+  Yes/No suggestion a heard phrase does, spoken from `ASSESSMENT_HINTS` in phrases.ts, and the
+  engine never moves on it. The model's sentence is shown, never spoken. A camera question the
+  person says no to waits the docs/03 30 s before either camera source asks about that route
+  again. The proxy gained `POST /vision/assess` on Featherless (OpenAI-compatible chat
+  completions, the image as a data URL part); development default `Qwen/Qwen2.5-VL-7B-Instruct`
+  (small, warm, answers with boxes), `Qwen/Qwen3-VL-8B-Instruct` or `google/gemma-3-27b-it` for
+  the judged run via `FEATHERLESS_VISION_MODEL`. Gemini would be one more adapter in the same
+  route. Behind `?flag=sceneAssess`; `?fake=1` gets a canned assessor driven by a "model says"
+  control. The prompt lives in TypeScript so `scripts/assess-frame.mjs` runs the app's exact
+  question on a photo. Cards, buttons and NEXT are untouched: the model proposes, the human
+  disposes, and the tap path is the same as before for anyone who prefers it.

@@ -11,6 +11,7 @@ describe('parseFlags', () => {
       dispatcherSim: false,
       visionDescribe: false,
       narrationFlavor: false,
+      sceneAssess: false,
     });
   });
 

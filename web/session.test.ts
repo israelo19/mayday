@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createFakePerception } from '../src/perception/fake';
-import { createSession, ROI_FAILED_LINE, type Session } from './session';
+import { createSession, ROI_FAILED_LINE, type Session, type SessionDeps } from './session';
 import type { Voice, VoiceInOptions, VoiceInStatus } from '../src/voice';
 import type { CoachingEvent } from '../src/types';
 
@@ -59,7 +59,7 @@ function fakeVoice() {
   return { voice, enqueued, metronome, dispatcherLines, order, mic: () => listenOpts };
 }
 
-function rig(): { s: Session; v: ReturnType<typeof fakeVoice>; p: ReturnType<typeof createFakePerception>; tick: (ms: number) => void; clock: { t: number } } {
+function rig(extra: Partial<SessionDeps> = {}): { s: Session; v: ReturnType<typeof fakeVoice>; p: ReturnType<typeof createFakePerception>; tick: (ms: number) => void; clock: { t: number } } {
   const clock = { t: T0 };
   const v = fakeVoice();
   const p = createFakePerception();
@@ -76,6 +76,7 @@ function rig(): { s: Session; v: ReturnType<typeof fakeVoice>; p: ReturnType<typ
     },
     geolocate: async () => ({ lat: 39.3299, lon: -76.6205 }),
     vibrate: () => {},
+    ...extra,
   });
   const tick = (ms: number) => {
     for (let i = 0; i < ms / 100; i++) {
@@ -336,5 +337,120 @@ describe('session', () => {
     v.mic()!.onTranscript('there is a pool of red stuff coming out of his leg and it is soaking his pants');
     tick(100);
     expect(s.snapshot().suggestion).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The scene model (docs/04 item 7, docs/11): one frame, a closed label, a question. Never a route.
+// ---------------------------------------------------------------------------
+import type { SceneAssessor } from '../src/ai/assess';
+import type { SceneAssessment, SceneLabel } from '../src/types';
+
+function fakeAssessor() {
+  const calls: number[] = [];
+  let resolve: ((a: SceneAssessment | null) => void) | null = null;
+  const assessor: SceneAssessor = {
+    assess: () =>
+      new Promise((r) => {
+        calls.push(calls.length + 1);
+        resolve = r;
+      }),
+  };
+  const answer = async (label: SceneLabel | null) => {
+    resolve?.(
+      label === null
+        ? null
+        : {
+            label,
+            confidence: 'high',
+            scene: 'a man lying on the floor',
+            patient: { x: 0.2, y: 0.5, w: 0.6, h: 0.3 },
+            cues: { awake: 'no', breathing: 'unclear', pain: 'unclear', bleedingVisible: label === 'bleeding' ? 'yes' : 'no' },
+            materials: [],
+            model: 'test',
+            latencyMs: 10,
+          },
+    );
+    await new Promise((r) => setTimeout(r, 0));
+  };
+  return { assessor, calls, answer };
+}
+
+describe('scene assessment', () => {
+  it('sends one frame once the camera has settled in triage and asks about the label', async () => {
+    const a = fakeAssessor();
+    const { s, v, p, tick } = rig({ assessor: a.assessor });
+    s.start();
+    void p.start(null as unknown as HTMLVideoElement);
+    p.emitAt(T0);
+    tick(500);
+    expect(a.calls).toHaveLength(0);
+    tick(1000);
+    expect(a.calls).toHaveLength(1);
+    expect(s.snapshot().assessing).toBe(true);
+    expect(s.log.entries().some((e) => e.detail === 'camera: one frame sent to the scene model')).toBe(true);
+    await a.answer('bleeding');
+    expect(s.snapshot().assessing).toBe(false);
+    expect(s.snapshot().assessment?.label).toBe('bleeding');
+    expect(s.snapshot().suggestion).toMatchObject({ source: 'camera', label: 'Shot or bleeding', keyword: 'bleeding' });
+    expect(v.enqueued.some((e) => e.text === 'It looks like someone is bleeding badly. Say yes, or tap.')).toBe(true);
+    expect(s.snapshot().stateKey).toBe('triage.listening'); // nothing moved on the model alone
+    s.confirmSuggestion();
+    expect(s.snapshot().stateKey).toBe('bleeding.scene_safety');
+    p.stop();
+  });
+
+  it('asks nothing on unclear, tries once more later, and never a third time', async () => {
+    const a = fakeAssessor();
+    const { s, p, tick, clock } = rig({ assessor: a.assessor });
+    s.start();
+    void p.start(null as unknown as HTMLVideoElement);
+    p.emitAt(T0);
+    tick(1500);
+    await a.answer('unclear');
+    expect(s.snapshot().suggestion).toBeNull();
+    // Facts keep arriving, as they do from a running camera; a stale fact would hold the frame back.
+    const run = (ms: number) => {
+      for (let i = 0; i < ms / 500; i++) {
+        p.emitAt(clock.t);
+        tick(500);
+      }
+    };
+    run(3000);
+    expect(a.calls).toHaveLength(1); // too soon
+    run(3500);
+    expect(a.calls).toHaveLength(2);
+    await a.answer(null); // model unavailable: nothing happens
+    run(10_000);
+    expect(a.calls).toHaveLength(2);
+    p.stop();
+  });
+
+  it('does not ask again about a route the person just said no to, from either camera source', async () => {
+    const a = fakeAssessor();
+    const { s, p, tick, clock } = rig({ assessor: a.assessor });
+    s.start();
+    void p.start(null as unknown as HTMLVideoElement);
+    p.emitAt(T0);
+    tick(1500);
+    await a.answer('collapsed');
+    expect(s.snapshot().suggestion?.label).toBe('Collapsed');
+    s.rejectSuggestion();
+    p.setControls({ personDown: true });
+    p.emitAt(clock.t);
+    tick(500);
+    expect(s.snapshot().suggestion).toBeNull();
+    p.stop();
+  });
+
+  it('does nothing without an assessor', () => {
+    const { s, p, tick } = rig();
+    s.start();
+    void p.start(null as unknown as HTMLVideoElement);
+    p.emitAt(T0);
+    tick(3000);
+    expect(s.snapshot().assessing).toBe(false);
+    expect(s.snapshot().assessment).toBeNull();
+    p.stop();
   });
 });

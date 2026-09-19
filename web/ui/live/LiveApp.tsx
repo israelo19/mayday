@@ -9,7 +9,8 @@ import { canonicalLines, createSession, WATCHING_STATES, type Eyes } from '../..
 import type { LiveSource } from '../guide';
 import { reverseGeocode } from '../../geocode';
 import { createVoice } from '../../../src/voice';
-import { createDispatcher, createSpeaker, warmSpeaker } from '../../providers';
+import { createAssessor, createDispatcher, createSpeaker, warmSpeaker } from '../../providers';
+import type { Box, SceneAssessment } from '../../../src/types';
 import { CameraView } from '../CameraView';
 import { LaunchScreen } from '../LaunchScreen';
 import { StepGuide, guideFor } from '../guide';
@@ -40,9 +41,14 @@ export function LiveApp() {
   const perception = useMemo<Perception>(() => (fake ? createFakePerception() : createPerception()), [fake]);
   const speaker = useMemo(createSpeaker, []);
   const voice = useMemo(() => createVoice({ provider: speaker }), [speaker]);
+  // The scene model, behind its flag; the fake rescuer's controls drive the stub (docs/04 item 7).
+  const assessor = useMemo(
+    () => createAssessor(fake ? { pick: () => (perception as FakePerceptionHandle).controls.scene } : null),
+    [perception, fake],
+  );
   const session = useMemo(
-    () => createSession({ perception, voice, dispatcher: createDispatcher, reverseGeocode, micTrace: traceRequested() ? micTrace : undefined }),
-    [perception, voice],
+    () => createSession({ perception, voice, dispatcher: createDispatcher, reverseGeocode, micTrace: traceRequested() ? micTrace : undefined, assessor }),
+    [perception, voice, assessor],
   );
   const snap = useSession(session);
   const platform = useMemo(readPlatform, []);
@@ -50,7 +56,7 @@ export function LiveApp() {
   // the eyes get a look at the scene first (hints.ts). A tap on the look card ends it early.
   const [revealed, setRevealed] = useState(false);
   useEffect(() => setRevealed(false), [snap.stateKey]);
-  const looking = isLooking({ phase: snap.phase, eyesStatus: snap.eyes.status, suggestion: snap.suggestion !== null, revealed, sinceMs: Date.now() - snap.stateEnteredAt });
+  const looking = isLooking({ phase: snap.phase, eyesStatus: snap.eyes.status, suggestion: snap.suggestion !== null, revealed, assessing: snap.assessing, sinceMs: Date.now() - snap.stateEnteredAt });
   // The bystander's own shoulder signal under the compression picture (docs/05 wiring). The real
   // module stamps samples with performance.now(); the fake one with Date.now(), so shift those.
   const live = useMemo<LiveSource>(() => {
@@ -97,6 +103,9 @@ export function LiveApp() {
     <div className="live">
       <div className="live-camera">
         <CameraView perception={perception} mirror={perception.debug.facing() === 'user'} fill />
+        {snap.phase === 'triage' && snap.assessment?.patient && (
+          <SceneHud box={snap.assessment.patient} label={snap.assessment.label} frame={perception.debug.frameSize()} mirror={perception.debug.facing() === 'user'} />
+        )}
       </div>
       {snap.phase === 'handoff' && <div className="live-dim" />}
 
@@ -114,7 +123,7 @@ export function LiveApp() {
               {snap.callActive && <span className="live-sim">Simulated dispatcher</span>}
             </div>
           </div>
-          <EyesChip eyes={snap.eyes} triage={snap.phase === 'triage'} cameraSuggestion={snap.suggestion?.source === 'camera'} />
+          <EyesChip eyes={snap.eyes} triage={snap.phase === 'triage'} assessing={snap.assessing} saw={snap.suggestion?.source === 'camera' ? (snap.assessment && snap.suggestion.heard.startsWith('camera: ') && snap.suggestion.heard.length > 44 ? snap.suggestion.label.toLowerCase() : snap.suggestion.heard.replace(/^camera: /, '')) : null} />
           <Metric snap={snap} />
           {snap.callActive && (
             <DispatcherPanel status={snap.dispatcherStatus} lines={snap.dispatcherLines} sitrep={snap.sitrep} onReply={(t) => session.replyToDispatcher(t)} onHangUp={() => session.hangUp()} />
@@ -128,6 +137,9 @@ export function LiveApp() {
         <div className="live-bottom">
           {/* Principle 4: a camera that is off is said, in every phase, not left as a black screen. */}
           {snap.eyes.status === 'error' && <div className="live-banner red">Camera off. Coaching by voice and buttons.</div>}
+          {snap.phase === 'triage' && snap.assessment && (snap.assessment.scene !== '' || snap.assessment.label !== 'unclear') && (
+            <SceneBanner assessment={snap.assessment} />
+          )}
           {snap.suggestion && (
             <div className="live-banner amber live-suggest">
               <span className="live-suggest-text">
@@ -158,7 +170,7 @@ export function LiveApp() {
             <button type="button" className="live-look" onClick={() => setRevealed(true)}>
               <EyeIcon />
               <span>
-                <b>Looking at the scene.</b> Say what happened, or tap to choose.
+                <b>Looking at the scene.</b> {snap.assessing ? 'One picture is with the model.' : 'Say what happened, or tap to choose.'}
               </span>
             </button>
           ) : (
@@ -225,12 +237,56 @@ function EyeIcon() {
   );
 }
 
+/** The scene model's answer, as the camera's own words on the screen; never spoken, never an instruction. */
+function SceneBanner({ assessment }: { assessment: SceneAssessment }) {
+  const cues = [
+    ['awake', assessment.cues.awake],
+    ['breathing', assessment.cues.breathing],
+    ['pain', assessment.cues.pain],
+  ]
+    .filter(([, v]) => v !== 'unclear')
+    .map(([k, v]) => `${k}: ${v}`);
+  return (
+    <div className="live-banner live-scene">
+      <EyeIcon />
+      <span>
+        <b>Camera:</b> {assessment.scene || `looks like ${assessment.label}`}
+        {cues.length > 0 && <span className="live-cues">{cues.join(' · ')}</span>}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The scene model's box for the person in trouble, drawn over the cover-cropped camera with
+ * the same crop (slice), so it lands where the video shows the person.
+ */
+function SceneHud({ box, label, frame, mirror }: { box: Box; label: string; frame: { width: number; height: number } | null; mirror: boolean }) {
+  if (!frame) return null;
+  const x = (mirror ? 1 - box.x - box.w : box.x) * frame.width;
+  const y = box.y * frame.height;
+  const font = Math.max(12, Math.round(Math.min(frame.width, frame.height) / 30));
+  const tagH = font * 1.6;
+  const tagY = Math.max(0, y - tagH);
+  const text = `patient · ${label}`;
+  return (
+    <svg className="live-hud" viewBox={`0 0 ${frame.width} ${frame.height}`} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <rect className="live-hud-box" x={x} y={y} width={box.w * frame.width} height={box.h * frame.height} rx={8} />
+      <rect className="live-hud-tag" x={x} y={tagY} width={text.length * font * 0.62 + font} height={tagH} rx={6} />
+      <text x={x + font * 0.5} y={tagY + font * 1.15} style={{ fontSize: font }}>
+        {text}
+      </text>
+    </svg>
+  );
+}
+
 /** What the camera is doing, in five words: the eyes are the product, so they get a line of their own. */
-function EyesChip({ eyes, triage, cameraSuggestion }: { eyes: Eyes; triage: boolean; cameraSuggestion: boolean }) {
+function EyesChip({ eyes, triage, assessing, saw }: { eyes: Eyes; triage: boolean; assessing: boolean; saw: string | null }) {
   // In triage the camera looks at the scene for the patient; while coaching it measures the helper.
   const label =
     eyes.saw ? `Saw: ${eyes.saw.toLowerCase()}`
-    : cameraSuggestion ? 'Saw: a person lying still'
+    : saw ? `Saw: ${saw}`
+    : assessing ? 'Assessing the scene'
     : eyes.status === 'error' ? 'Camera off'
     : eyes.status === 'starting' ? 'Starting camera'
     : eyes.status === 'off' ? 'Camera off'
@@ -241,7 +297,7 @@ function EyesChip({ eyes, triage, cameraSuggestion }: { eyes: Eyes; triage: bool
     : eyes.status === 'blind' ? 'No one in view'
     : eyes.rescuer ? 'Watching you'
     : 'Watching';
-  const tone = eyes.saw || cameraSuggestion ? 'hit' : eyes.status === 'watching' && (eyes.rescuer || eyes.hands === 'locked') ? 'on' : eyes.status === 'error' ? 'off' : '';
+  const tone = eyes.saw || saw ? 'hit' : eyes.status === 'watching' && (eyes.rescuer || eyes.hands === 'locked') ? 'on' : eyes.status === 'error' ? 'off' : '';
   return (
     <div className={`live-eyes${tone ? ` live-eyes-${tone}` : ''}`}>
       <EyeIcon />

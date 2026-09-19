@@ -7,7 +7,7 @@
 //             only ever moves on a keyword or a tap.
 // Owned by P2 (docs/07); built on `polish`. Keep entries in canonical inflection: "choking"
 // covers choke/choked/chokes through the stemmer, listing more than one would be a duplicate.
-import type { SceneHint } from '../types';
+import type { SceneHint, SceneLabel } from '../types';
 import { stemKey, tokens } from './language';
 
 export type TriageRoute = {
@@ -127,6 +127,17 @@ export const SCENE_HINTS: Readonly<Record<SceneHint, { to: string; label: string
     keyword: 'collapsed',
     confirm: 'It looks like someone has collapsed. Say yes, or tap.',
   },
+};
+
+/**
+ * What a scene model's label suggests (docs/04 item 7). Same shape and same rule as
+ * SCENE_HINTS: the keyword is one triage already accepts, the confirm line is a question about
+ * what the camera saw, and nothing moves until the human says yes or taps.
+ */
+export const ASSESSMENT_HINTS: Readonly<Record<Exclude<SceneLabel, 'unclear'>, { to: string; label: string; keyword: string; confirm: string }>> = {
+  collapsed: { to: 'cardiac.scene_check', label: 'Collapsed', keyword: 'collapsed', confirm: 'It looks like someone has collapsed. Say yes, or tap.' },
+  bleeding: { to: 'bleeding.scene_safety', label: 'Shot or bleeding', keyword: 'bleeding', confirm: 'It looks like someone is bleeding badly. Say yes, or tap.' },
+  choking: { to: 'choking.confirm', label: 'Choking', keyword: 'choking', confirm: 'It looks like someone is choking. Say yes, or tap.' },
 };
 
 /** First keyword of a route: the one a confirmed suggestion is entered by. */

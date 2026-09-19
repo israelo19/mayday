@@ -21,6 +21,15 @@ export function FakeControls({ perception }: { perception: FakePerceptionHandle 
       <button onClick={() => set({ cameraCovered: !c.cameraCovered })}>{c.cameraCovered ? 'uncover' : 'cover lens'}</button>
       <button onClick={() => set({ handsOn: c.handsOn === false ? true : false })}>{c.handsOn === false ? 'hands on' : 'lift hands'}</button>
       <button onClick={() => set({ personDown: !c.personDown })}>{c.personDown ? 'person up' : 'person down'}</button>
+      <label>
+        model says
+        <select value={c.scene} onChange={(e) => set({ scene: e.target.value as typeof c.scene })}>
+          <option value="unclear">unclear</option>
+          <option value="collapsed">collapsed</option>
+          <option value="bleeding">bleeding</option>
+          <option value="choking">choking</option>
+        </select>
+      </label>
     </div>
   );
 }
