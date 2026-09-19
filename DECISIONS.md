@@ -174,3 +174,18 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   voice: the bridge is a reflex path and may never import `src/ai`. `mobile/` has its own
   `package.json` and lockfile rather than an npm workspace so the root install stays what it
   was for the three people who never touch the phone; `npm run mobile:install` is opt-in.
+- **Sat 04:30 (P4)** `src/` is the engine, `web/` is the browser app. `src/App.tsx`, `main.tsx`,
+  `index.css` and `ui/**` moved to `web/` with `git mv` (history follows); `src/` keeps types,
+  flags, protocol, sitrep, perception, voice, ai and platform. The frontend moved rather than
+  the engine because every role branch adds files under `src/` and a moved `src/` would
+  mis-land all of them; `web/` was new, so only `App.tsx` could conflict. Vite's root stays the
+  repo root (`public/`, `dist/`, `.do/app.yaml` and the PWA globs assume it); only the script
+  tag in `index.html` changed. Imports across the seam are relative (`../../src/...`), not an
+  alias: it is fifteen lines, twelve of them `import type`, and an alias would need matching
+  entries in tsconfig, vite, vitest and metro. `web/ui/guide` sits at the same depth as
+  `src/ui/guide` did on purpose: `guides.test.ts` reads docs/02 by a relative URL. The three
+  test globs (`src`, `web`, and P2's `tests/` when it lands) all run from the repo root because
+  the boundary tests resolve paths from the CWD. `DebugScreen` now takes any `SpeakerProvider`
+  (P1's file, two lines) so the shell's speaker reaches `?debug=1` too; `App.tsx` picks
+  `ShellSpeakerProvider` when `shellInfo()` is non-null and `WebSpeechProvider` otherwise.
+  `web/session.ts` is still to be written once `p2-brain` is on main.

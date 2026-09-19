@@ -31,7 +31,7 @@ Record a full run as the sub-3-minute Devpost video Saturday night. It is the in
 
 ## Step guides (pictures for each protocol line)
 
-`src/ui/guide` draws what the current state is asking for, the way a workout app shows
+`web/ui/guide` draws what the current state is asking for, the way a workout app shows
 the movement next to the cue: a pictogram per docs/02 line, a segmented step bar that
 walks the lines in spoken order, and for `cardiac.compressions` a figure that pushes on
 the metronome tick over a scrolling rhythm trace. Browse everything at `?guide=1`, or

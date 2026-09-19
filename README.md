@@ -30,7 +30,7 @@ npm run dev        # https://localhost:5173 and https://<your-LAN-ip>:5173
 ```
 
 A plain load is the real app: LAUNCH -> CALL PREP -> COACH -> SITREP -> HANDOFF (docs/05),
-running on mock data until `src/session.ts` and P2's engine wire it up for real (see
+running on mock data until `web/session.ts` and P2's engine wire it up for real (see
 `DECISIONS.md`). `?debug=1` gets the M0 sensor/debug view instead -- that's what the M0 and M1
 checks below are walking.
 
@@ -108,9 +108,10 @@ Tests for the pure signal code: `npm test`.
   /voice         speech out (queue, metronome), speech in (keyword router) (docs/04)
   /ai            episodic cloud calls, all stubbed behind interfaces (docs/04)
   /sitrep        event log, SITREP builder, handoff report
+  /platform      the Expo Go shell bridge: wire protocol (shared with mobile/) and the page adapter
+/web             the browser app: main.tsx, App.tsx, index.css, and session.ts once the engine lands
   /ui            screens and overlays (docs/05)
   /ui/guide      step guides: one picture per protocol line, gallery at ?guide=1 (docs/05)
-  /platform      the Expo Go shell bridge: wire protocol (shared with mobile/) and the page adapter
 /mobile          Expo Go shell around the web app, own package.json (mobile/README.md)
 /docs            context documents; docs/07 is the four-person work split
 /public/models   MediaPipe .task model files (committed)

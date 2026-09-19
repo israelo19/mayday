@@ -19,6 +19,6 @@
     "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
   },
-  "include": ["src"],
-  "exclude": ["src/**/*.test.ts"]
+  "include": ["src", "web"],
+  "exclude": ["src/**/*.test.ts", "web/**/*.test.ts"]
 }

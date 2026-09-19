@@ -2,7 +2,7 @@
 // `sitrep` will come from P2's buildSitrep() (docs/07 seam); App.tsx feeds mock data for now.
 // The read-aloud button already talks to the real WebSpeechProvider (P3, exists since M0) --
 // nothing fake about that part. Owned by P4.
-import type { SpeakerProvider } from '../voice/out';
+import type { SpeakerProvider } from '../../src/voice/out';
 
 type Sitrep = {
   sayToDispatcher: { location: string; emergency: string; status: string };

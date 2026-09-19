@@ -2,7 +2,7 @@
 // The thresholds are the docs/02 coaching-rule numbers so the picture and the voice
 // agree. The engine (src/protocol, P2) stays the authority on what is said; this file
 // only decides how the picture emphasizes it. Owned by P4.
-import type { CoachingEvent, PerceptionFacts } from '../../types';
+import type { CoachingEvent, PerceptionFacts } from '../../../src/types';
 
 // =============================================================================
 // Module Overview

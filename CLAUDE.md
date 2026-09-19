@@ -44,9 +44,10 @@ One-liner for every README and pitch surface: "The minutes before the ambulance,
   /voice         speech out (queue, metronome), speech in (keyword router) (docs/04)
   /ai            episodic cloud calls, all stubbed behind interfaces (docs/04)
   /sitrep        event log, SITREP builder, handoff report
+  /platform      Expo Go shell bridge: the wire protocol shared with /mobile and the page-side adapter
+/web             the browser app: main.tsx, App.tsx, index.css, session.ts (orchestrator, P4)
   /ui            screens and overlays (docs/05)
   /ui/guide      step guides: one picture per protocol line, gallery at ?guide=1 (docs/05)
-  /platform      Expo Go shell bridge: the wire protocol shared with /mobile and the page-side adapter
 /mobile          Expo Go shell around the web app (WebView + native speech, haptics, permissions), own package.json
 /docs            these context documents; docs/07 is the four-person work split
 /public/models   MediaPipe .task model files (committed)
