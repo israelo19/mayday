@@ -1,12 +1,14 @@
 // App root, docs/05. `?guide` opens the step guide gallery (web/ui/guide), `?debug=1` the M0
 // eyes screen, `?fake=1` the live app on a pretend rescuer. Otherwise the live app: LAUNCH,
 // then the camera fills the screen and the session (web/session.ts) drives everything on it
-// from the protocol engine. The mock-data screens from the first cut stay in web/ui for P4 to
-// fold into the live layout. Owned by P4 (docs/07).
+// from the protocol engine. Flags (src/flags.ts): `elevenLabs` swaps the speaker for the
+// ElevenLabs voice through the key proxy, `dispatcherSim` makes CALL 911 a live ElevenLabs
+// agent that hears the phone mic; both keep their local stub underneath (web/providers.ts,
+// docs/09). The mock-data screens from the first cut stay in web/ui. Owned by P4 (docs/07).
 import { useMemo } from 'react';
 import { createPerception } from '../src/perception';
-import { WebSpeechProvider } from '../src/voice/out';
 import { Metronome } from '../src/voice/metronome';
+import { createSpeaker } from './providers';
 import { DebugScreen } from './ui/DebugScreen';
 import { GuideGallery } from './ui/guide';
 import { LiveApp } from './ui/live/LiveApp';
@@ -21,7 +23,7 @@ export default function App() {
 
 function EyesDebug() {
   const perception = useMemo(() => createPerception(), []);
-  const speaker = useMemo(() => new WebSpeechProvider(1.05), []);
+  const speaker = useMemo(createSpeaker, []);
   const metronome = useMemo(() => new Metronome(), []);
   return <DebugScreen perception={perception} speaker={speaker} metronome={metronome} />;
 }

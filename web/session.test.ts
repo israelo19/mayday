@@ -191,10 +191,11 @@ describe('session', () => {
     s.say('stabbed');
     s.call911();
     expect(s.snapshot().callActive).toBe(true);
-    expect(s.snapshot().dispatcherLines[0]).toContain('9 1 1');
+    expect(s.snapshot().dispatcherLines[0]).toEqual({ who: 'dispatcher', text: '9 1 1, what is the address of your emergency?' });
     s.replyToDispatcher('We are at the library.');
     expect(v.dispatcherLines).toEqual(['We are at the library.']);
-    expect(s.snapshot().dispatcherLines).toHaveLength(2);
+    expect(s.snapshot().dispatcherLines.map((l) => l.who)).toEqual(['dispatcher', 'you', 'dispatcher']);
+    expect(s.snapshot().dispatcherStatus).toBe('scripted');
     s.hangUp();
     expect(s.snapshot().callActive).toBe(false);
   });

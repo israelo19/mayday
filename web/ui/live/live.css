@@ -60,7 +60,12 @@
 .live-dispatch-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
 .live-sim-tag { color: var(--red); font-weight: 800; font-size: 13px; }
 .live-dispatch-toggle { font-size: 13px; color: var(--ink-2); }
-.live-dispatch-line { margin: 0; font-size: 17px; font-weight: 600; }
+.live-dispatch-lines { display: flex; flex-direction: column; gap: 4px; }
+.live-dispatch-line { margin: 0; font-size: 16px; font-weight: 600; }
+.live-dispatch-line b { color: var(--red); font-weight: 700; margin-right: 6px; }
+.live-dispatch-line.you { color: var(--ink-2); font-weight: 500; }
+.live-dispatch-line.you b { color: var(--ink-2); }
+.live-dispatch-line.muted { color: var(--ink-2); font-weight: 500; }
 .live-dispatch-replies { display: flex; flex-direction: column; gap: 6px; max-height: 32vh; overflow: auto; }
 .live-reply { text-align: left; background: rgba(255, 255, 255, 0.08); border: 1px solid var(--line); color: var(--ink); border-radius: 10px; min-height: 42px; padding: 8px 12px; font-size: 14px; }
 

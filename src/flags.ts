@@ -1,7 +1,8 @@
 // Feature flags for episodic AI (docs/04) and voice upgrades. Owned by P4 (docs/07).
-// All default OFF. `?flag=<name>` flips exactly one flag on for the session; nothing persists
-// across reloads. Every flagged integration must revert cleanly to its stub when this is false
-// or when the real provider fails (docs/04 TODO registry).
+// All default OFF. `?flag=<name>` flips a flag on for the session, `?flag=a,b` flips several
+// (the phone demo needs the ElevenLabs voice and the ElevenLabs dispatcher together); nothing
+// persists across reloads. Every flagged integration must revert cleanly to its stub when this
+// is false or when the real provider fails (docs/04 TODO registry).
 
 export interface Flags {
   elevenLabs: boolean;
@@ -17,13 +18,14 @@ const DEFAULTS: Flags = {
   narrationFlavor: false,
 };
 
-function readFlags(): Flags {
-  if (typeof window === 'undefined') return { ...DEFAULTS };
-  const requested = new URLSearchParams(window.location.search).get('flag');
-  if (requested && requested in DEFAULTS) {
-    return { ...DEFAULTS, [requested]: true };
+/** Flags for a query string such as `?flag=elevenLabs,dispatcherSim`; unknown names are ignored. */
+export function parseFlags(search: string): Flags {
+  const flags = { ...DEFAULTS };
+  const requested = new URLSearchParams(search).get('flag') ?? '';
+  for (const name of requested.split(',').map((n) => n.trim())) {
+    if (name in DEFAULTS) flags[name as keyof Flags] = true;
   }
-  return { ...DEFAULTS };
+  return flags;
 }
 
-export const flags: Flags = readFlags();
+export const flags: Flags = typeof window === 'undefined' ? { ...DEFAULTS } : parseFlags(window.location.search);

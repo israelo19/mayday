@@ -80,17 +80,21 @@ defeats this, the fallback is a HOLD TO TALK button — buttons are the floor re
 
 ## ElevenLabs behind the flag (docs/04 item 2, `flags.elevenLabs`)
 
+Wired in `web/App.tsx` (`createSpeaker`); this is the shape, for session.ts to keep:
+
 ```ts
 import { ElevenLabsProvider } from './voice/providers/elevenlabs';
+import { COACH_VOICE_ID, COACH_VOICE_NAME, DISPATCHER_VOICE_ID } from './voice/providers/voices';
 
 if (flags.elevenLabs) {
   const el = new ElevenLabsProvider({
-    voiceId: COACH_VOICE_ID,             // pick in the dashboard; calm, low, authoritative
-    dispatcherVoiceId: DISPATCH_VOICE_ID, // clearly different; omit and dispatcher lines
-    fallback: new WebSpeechProvider(1.05),//   use WebSpeech's second voice instead
-    // baseUrl defaults to '/api/proxy' (P4's key proxy). For laptop dev before it exists:
-    //   ELEVENLABS_API_KEY=sk_... node src/voice/providers/devproxy.mjs
-    //   baseUrl: 'http://localhost:8788'
+    voiceId: COACH_VOICE_ID,               // Brian: calm, low, authoritative
+    voiceName: COACH_VOICE_NAME,           // what the ?debug=1 voice chip shows
+    dispatcherVoiceId: DISPATCHER_VOICE_ID, // Sarah: clearly a second person on stage
+    fallback: new WebSpeechProvider(1.05), // omit dispatcherVoiceId and those lines use its second voice
+    // baseUrl defaults to '/api/proxy': the key proxy, which vite.config.ts mounts on the dev
+    // and preview servers themselves when .env.local holds ELEVENLABS_API_KEY, and which the
+    // DigitalOcean Function will own in production (docs/04 TODO 1).
   });
   voice.out.setProvider(el);
   void el.warm(allCanonicalLines); // ~1.8k credits once; replays are then free AND offline
@@ -99,11 +103,46 @@ if (flags.elevenLabs) {
 
 - The key lives in the proxy's environment only. Never `VITE_`-prefix it: Vite inlines
   `VITE_*` into the public bundle, which is the threat-model row about the demo QR.
-- Model `eleven_flash_v2_5` (lowest latency, 0.5 credits/char), `mp3_22050_32`.
+- Same origin matters on the phone: an https page cannot call an http port on the laptop
+  (mixed content), so a separate proxy process was never going to work there. The
+  standalone `node src/voice/providers/devproxy.mjs` remains for laptop console sessions.
+- Model `eleven_flash_v2_5` (lowest latency, 0.5 credits/char), `mp3_22050_32`. Measured
+  through the proxy from the laptop: ~510 ms for a 50-character line, inside the budget.
 - No audio within 800 ms -> that line speaks on WebSpeech; three misses in a row -> the
   session stops trying until a `warm()` succeeds. Pulling wifi mid-demo costs at most one
   line's gap, and warmed lines keep playing in the ElevenLabs voice with the wifi off.
+- `unlock()` now resumes the provider's own AudioContext too, so call it inside the first
+  tap (I NEED HELP): later lines start from fetch callbacks, which mobile Chrome would mute.
 - Rehearse with the flag OFF; flip it for the judged run. The cache makes that cheap.
+  `?flag=elevenLabs,dispatcherSim` flips both ElevenLabs features at once (src/flags.ts).
+
+## The live dispatcher (docs/04 item 3, `flags.dispatcherSim`)
+
+`createAgentDispatcher` in `src/voice/providers/elevenlabs-agent.ts` implements the same
+`DispatcherSim` shape as the script, with the scripted dispatcher as its `fallback`:
+
+```ts
+const scripted = createScriptedDispatcher(voice.out);
+const dispatcher = flags.dispatcherSim
+  ? createAgentDispatcher({ fallback: scripted, onStatus: panel.setStatus, onTranscript: log.user })
+  : scripted;
+const call = dispatcher.connect((line) => panel.show(line)); // under the red SIMULATED banner
+```
+
+- The browser holds no agent id. `GET /api/proxy/dispatcher/session` returns a signed
+  WebSocket URL plus the agent's configured opening line (the socket delivers that line as
+  audio only). The proxy reads `ELEVENLABS_AGENT_ID` from `.env.local`;
+  `scripts/create-dispatcher-agent.mjs` creates the agent and prints that line.
+- Audio both ways is base64 PCM16 at 16 kHz. The mic runs in an `AudioContext` pinned to
+  16 kHz with echo cancellation on, because the phone speaker is inches from it. The agent's
+  chunks are scheduled back to back on one context; an `interruption` event flushes them.
+- Falls back to the script, with the same panel callback, on: no agent configured, mic
+  refused, socket refused or dropped, no initiation metadata within 4 s. Replies typed
+  meanwhile are replayed to whichever side wins. `onStatus` reports connecting / live /
+  fallback / ended for the panel's chip.
+- The agent's prompt forbids medical instructions ("keep following the coaching you are
+  hearing"). It is a stage character; the machines stay the only authority (principle 1).
+- Voice input needs network, same honesty note as below. The scripted call works with wifi off.
 
 ## Honesty note for the pitch (P4)
 

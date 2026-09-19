@@ -12,6 +12,7 @@
 // Lives in web/ because it owns the clock, geolocation and the DOM; src/ stays the engine.
 // Zero network calls. Owned by P4 (docs/07); built by P1 on the `listen` branch.
 import type { CoachingEvent, GeoFix, HandoffReport, PerceptionFacts, Sitrep, State } from '../src/types';
+import type { DispatcherSim } from '../src/ai/dispatcher';
 import type { Perception } from '../src/perception';
 import { GUIDANCE } from '../src/perception';
 import type { Voice, VoiceInStatus } from '../src/voice';
@@ -19,6 +20,16 @@ import { createEngine, machines, STALE_FACTS_MS, type Engine } from '../src/prot
 import { buildHandoff, buildSitrep, createEventLog, handoffQrPayload, qrDataUrl, type EventLog } from '../src/sitrep';
 
 export type SessionPhase = 'idle' | 'triage' | 'coaching' | 'handoff';
+
+/** 'scripted' is the offline call-taker; the rest are the ElevenLabs agent's states (docs/04 item 3). */
+export type DispatcherStatus = 'scripted' | 'connecting' | 'live' | 'fallback' | 'ended';
+export type DispatcherLine = { who: 'dispatcher' | 'you'; text: string };
+
+/** How the session obtains its dispatcher: the scripted one from the voice module, or a flagged wrapper around it. */
+export type DispatcherFactory = (
+  scripted: DispatcherSim,
+  hooks: { onStatus: (s: Exclude<DispatcherStatus, 'scripted'>) => void; onTranscript: (t: string) => void },
+) => { dispatcher: DispatcherSim; status: DispatcherStatus };
 
 /** A button that does exactly what saying its keyword does (docs/05: every voice path has a twin). */
 export type ButtonTwin = { label: string; keyword: string; to: string };
@@ -51,7 +62,8 @@ export type SessionSnapshot = {
   lastHeardAt: number;
   lastKeyword: string | null;
   callActive: boolean;
-  dispatcherLines: readonly string[];
+  dispatcherStatus: DispatcherStatus;
+  dispatcherLines: readonly DispatcherLine[];
   sitrep: Sitrep | null;
   handoff: HandoffReport | null;
   geo: GeoFix | null;
@@ -95,6 +107,8 @@ export type SessionDeps = {
   interval?: (fn: () => void, ms: number) => () => void;
   geolocate?: () => Promise<GeoFix | null>;
   vibrate?: (ms: number) => void;
+  /** Defaults to the voice module's scripted call-taker. */
+  dispatcher?: DispatcherFactory;
 };
 
 export const MACHINE_LABEL: Record<string, string> = {
@@ -152,7 +166,9 @@ export function createSession(deps: SessionDeps): Session {
   let lastKeyword: string | null = null;
   let callActive = false;
   let call: { sayToDispatcher(t: string): void; hangup(): void } | null = null;
-  let dispatcherLines: string[] = [];
+  let dispatcherStatus: DispatcherStatus = 'scripted';
+  let dispatcherLines: DispatcherLine[] = [];
+  const dispatcherFactory: DispatcherFactory = deps.dispatcher ?? ((scripted) => ({ dispatcher: scripted, status: 'scripted' }));
   let sitrep: Sitrep | null = null;
   let handoff: HandoffReport | null = null;
   let geo: GeoFix | null = null;
@@ -370,6 +386,7 @@ export function createSession(deps: SessionDeps): Session {
       lastHeardAt,
       lastKeyword: t - lastHeardAt <= HEARD_SHOWN_MS ? lastKeyword : null,
       callActive,
+      dispatcherStatus,
       dispatcherLines,
       sitrep,
       handoff,
@@ -473,8 +490,21 @@ export function createSession(deps: SessionDeps): Session {
       callActive = true;
       dispatcherLines = [];
       log.append({ t: now(), kind: 'user', detail: 'called 911 (SIMULATED dispatcher)' });
-      call = voice.dispatcher.connect((line) => {
-        dispatcherLines = [...dispatcherLines, line];
+      const made = dispatcherFactory(voice.dispatcher, {
+        onStatus: (s) => {
+          dispatcherStatus = s;
+          log.append({ t: now(), kind: 'system', detail: `simulated dispatcher: ${s}` });
+          notify();
+        },
+        onTranscript: (text) => {
+          dispatcherLines = [...dispatcherLines, { who: 'you', text }];
+          log.append({ t: now(), kind: 'user', detail: `to dispatcher: ${text}` });
+          notify();
+        },
+      });
+      dispatcherStatus = made.status;
+      call = made.dispatcher.connect((line) => {
+        dispatcherLines = [...dispatcherLines, { who: 'dispatcher', text: line }];
         notify();
       });
       notify();
@@ -482,6 +512,7 @@ export function createSession(deps: SessionDeps): Session {
 
     replyToDispatcher(text: string): void {
       if (!call) return;
+      dispatcherLines = [...dispatcherLines, { who: 'you', text }];
       log.append({ t: now(), kind: 'user', detail: `to dispatcher: ${text}` });
       call.sayToDispatcher(text);
       notify();
@@ -491,6 +522,7 @@ export function createSession(deps: SessionDeps): Session {
       call?.hangup();
       call = null;
       callActive = false;
+      dispatcherStatus = 'ended';
       log.append({ t: now(), kind: 'user', detail: 'hung up (SIMULATED dispatcher)' });
       notify();
     },
@@ -518,6 +550,19 @@ export function createSession(deps: SessionDeps): Session {
   };
 
   return session;
+}
+
+/** Every line the machines can say, for warming a networked speaker's cache (docs/09). */
+export function canonicalLines(): string[] {
+  const lines = new Set<string>();
+  for (const m of machines) {
+    for (const st of m.states) {
+      for (const line of st.say) lines.add(line);
+      for (const r of st.coachingRules ?? []) lines.add(r.say);
+    }
+    for (const a of m.keywordResponses ?? []) lines.add(a.say);
+  }
+  return [...lines];
 }
 
 function defaultGeolocate(): Promise<GeoFix | null> {

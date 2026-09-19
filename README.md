@@ -70,6 +70,26 @@ has all but vibrate.
 Expo Go was tried and dropped: on the current SDK it refuses any project whose dev server
 is not signed in to an Expo account, on the laptop and on the phone (DECISIONS.md, Sat 05:00).
 
+### ElevenLabs on the phone
+
+Rehearse with the flags off; flip them for the judged run (docs/09). Both features keep their
+local stub underneath and fall back to it on any miss, so the wifi-off demo is unaffected.
+
+1. Put `ELEVENLABS_API_KEY=sk_...` in `.env.local`. `npm run dev` then mounts the key proxy at
+   `/api/proxy` on its own origin, and prints `ElevenLabs: key proxy at /api/proxy` under the
+   URL list. The phone reaches it over the same https URL as the page; no second port.
+2. Once per account, `node scripts/create-dispatcher-agent.mjs` creates the SIMULATED
+   dispatcher agent and prints the `ELEVENLABS_AGENT_ID=` line to add to `.env.local`.
+   Restart `npm run dev`.
+3. Scan the QR, then add the flags to the URL: `?flag=elevenLabs` for the coach voice (Brian)
+   and the scripted dispatcher in a second voice (Sarah), `?flag=dispatcherSim` for the live
+   agent that hears the phone mic, or `?flag=elevenLabs,dispatcherSim` for both.
+4. Tap I NEED HELP, then CALL 911. Allow the microphone. The panel header reads "Listening"
+   while the agent is live, and the panel shows what it heard you say. "Scripted (agent
+   unavailable)" means it fell back: no agent id, mic refused, or no session within 4 s.
+5. To hear the difference without the flow: `?debug=1&flag=elevenLabs`, the voice chip reads
+   "ElevenLabs Brian", and "Speak a test line" goes through the proxy.
+
 ## M0 demo check
 
 1. Open `?debug=1`. The footer reads `status: running`, fps is above 10, the pose skeleton is

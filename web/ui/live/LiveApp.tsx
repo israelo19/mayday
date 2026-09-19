@@ -5,8 +5,9 @@
 import { useEffect, useMemo } from 'react';
 import { createPerception, type Perception } from '../../../src/perception';
 import { createFakePerception, isFakeRequested, type FakePerceptionHandle } from '../../../src/perception/fake';
-import { createSession, WATCHING_STATES } from '../../session';
+import { canonicalLines, createSession, WATCHING_STATES } from '../../session';
 import { createVoice } from '../../../src/voice';
+import { createDispatcher, createSpeaker, warmSpeaker } from '../../providers';
 import { CameraView } from '../CameraView';
 import { LaunchScreen } from '../LaunchScreen';
 import { StepGuide, guideFor } from '../guide';
@@ -28,8 +29,9 @@ function requestFullscreen(): void {
 export function LiveApp() {
   const fake = useMemo(() => isFakeRequested(), []);
   const perception = useMemo<Perception>(() => (fake ? createFakePerception() : createPerception()), [fake]);
-  const voice = useMemo(() => createVoice(), []);
-  const session = useMemo(() => createSession({ perception, voice }), [perception, voice]);
+  const speaker = useMemo(createSpeaker, []);
+  const voice = useMemo(() => createVoice({ provider: speaker }), [speaker]);
+  const session = useMemo(() => createSession({ perception, voice, dispatcher: createDispatcher }), [perception, voice]);
   const snap = useSession(session);
 
   useEffect(() => {
@@ -45,6 +47,7 @@ export function LiveApp() {
           requestFullscreen();
           requestWakeLock();
           session.start();
+          warmSpeaker(speaker, canonicalLines());
         }}
       />
     );
@@ -69,7 +72,9 @@ export function LiveApp() {
 
       {snap.phase !== 'handoff' && <Metric snap={snap} />}
 
-      {snap.callActive && <DispatcherPanel lines={snap.dispatcherLines} sitrep={snap.sitrep} onReply={(t) => session.replyToDispatcher(t)} onHangUp={() => session.hangUp()} />}
+      {snap.callActive && (
+        <DispatcherPanel status={snap.dispatcherStatus} lines={snap.dispatcherLines} sitrep={snap.sitrep} onReply={(t) => session.replyToDispatcher(t)} onHangUp={() => session.hangUp()} />
+      )}
 
       {snap.phase === 'handoff' ? (
         <HandoffPanel snap={snap} session={session} />
