@@ -7,8 +7,12 @@
 // once the real body is visible, a cartoon of one is redundant.
 // The dispatcher indicator is ALWAYS labeled SIMULATED, including once "connected" -- CLAUDE.md
 // principle 5 / docs/05 require the sim to never read as a real 911 line at any point.
-// The mic FAB is real, not decorative: it toggles P3's `voice.listen()` and routes "next"/
-// "repeat" the same way a button tap would (docs/05 "judge-proof": voice is always optional).
+// The mic FAB is real, not decorative: it toggles P3's `voice.listen()`. "Ambulance here" and
+// "paramedics" are docs/02's actual cited transition keywords for both cardiac and bleeding
+// (compressions/pressure are ONE continuous state there, not a paginated script) -- saying
+// either one now really does jump to handoff, same as the docs describe. "Next"/"repeat" stay
+// as the always-available manual override docs/02 also calls for (line 11: "manualAdvance ...
+// always available as fallback so a demo can never wedge").
 // `step` will come from session.ts/P2's engine (CoachingEvent) once it exists; App.tsx feeds
 // mock data (web/ui/mockDemoData.ts) for now. Owned by P4.
 import { useEffect, useState } from 'react';
@@ -29,19 +33,21 @@ type Props = {
   onBranch: (b: MockBranch) => void;
 };
 
-const KEYWORDS = ['next', 'repeat'] as const;
+const KEYWORDS = ['next', 'repeat', 'ambulance here', 'paramedics'] as const;
+const HANDOFF_KEYWORDS = new Set(['ambulance here', 'paramedics']);
 
 export function CoachScreen({ perception, voice, step, dispatcherOpen, callSeconds, onCall911, onNext, onBranch }: Props) {
   const [status, setStatus] = useState<VoiceInStatus | 'idle'>('idle');
   const [heard, setHeard] = useState<string | null>(null);
 
+  function handleKeyword(k: string): void {
+    if (HANDOFF_KEYWORDS.has(k)) onBranch({ label: k, onSelect: 'handoff' });
+    else if (k === 'next') onNext();
+    else voice.out.enqueue({ priority: 'narration', text: step.line, stateId: 'mock-coach' });
+  }
+
   function startListening(): void {
-    voice.listen({
-      keywords: () => KEYWORDS,
-      onKeyword: (k) => (k === 'next' ? onNext() : voice.out.enqueue({ priority: 'narration', text: step.line, stateId: 'mock-coach' })),
-      onTranscript: setHeard,
-      onStatus: setStatus,
-    });
+    voice.listen({ keywords: () => KEYWORDS, onKeyword: handleKeyword, onTranscript: setHeard, onStatus: setStatus });
   }
 
   useEffect(() => {
@@ -56,6 +62,8 @@ export function CoachScreen({ perception, voice, step, dispatcherOpen, callSecon
     if (listening) voice.stopListening();
     else startListening();
   }
+
+  const nextLabel = step.kind === 'ring' ? 'NEXT' : step.nextLabel;
 
   return (
     <div className="coach-fullscreen">
@@ -77,11 +85,12 @@ export function CoachScreen({ perception, voice, step, dispatcherOpen, callSecon
             <span className="coach-reticle-label">{step.caption}</span>
           </>
         )}
+        {step.kind === 'pressure' && <PressureTimer stepKey={step.line} />}
 
         <div className="coach-bottom-panel">
           <button
             className="coach-voice-fab"
-            aria-label={listening ? 'Voice input on (say "next" or "repeat")' : 'Voice input off, tap to enable'}
+            aria-label={listening ? 'Voice input on (say "next", "repeat", or "ambulance here")' : 'Voice input off, tap to enable'}
             aria-pressed={listening}
             onClick={toggleMic}
             style={{ opacity: status === 'unavailable' ? 0.4 : 1 }}
@@ -90,7 +99,7 @@ export function CoachScreen({ perception, voice, step, dispatcherOpen, callSecon
             <MicIcon muted={!listening} />
           </button>
           {listening && (
-            <span className="coach-voice-heard">{heard ? `Heard: "${heard}"` : 'Listening — say "next" or "repeat"'}</span>
+            <span className="coach-voice-heard">{heard ? `Heard: "${heard}"` : 'Listening — say "ambulance here" when EMS arrives'}</span>
           )}
 
           {step.kind === 'ring' && (
@@ -115,7 +124,7 @@ export function CoachScreen({ perception, voice, step, dispatcherOpen, callSecon
           </div>
 
           <button className="coach-next-btn" onClick={onNext}>
-            {step.kind === 'diagram' ? step.nextLabel : 'NEXT'}
+            {nextLabel}
           </button>
         </div>
       </CameraView>
@@ -127,6 +136,48 @@ function formatClock(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/** Continuous-pressure timer (docs/06 M3: "continuous-pressure timer on screen"). Resets when
+ * the underlying step changes (a new pressure phase), not on every re-render. */
+function PressureTimer({ stepKey }: { stepKey: string }) {
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    setSeconds(0);
+    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [stepKey]);
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: '50%',
+        top: '38%',
+        transform: 'translate(-50%, -50%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 6,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 48,
+          fontWeight: 800,
+          color: '#fff',
+          fontVariantNumeric: 'tabular-nums',
+          textShadow: '0 2px 10px rgba(0,0,0,0.7)',
+        }}
+      >
+        {formatClock(seconds)}
+      </div>
+      <span className="eyebrow" style={{ color: 'var(--ok)' }}>
+        continuous pressure
+      </span>
+    </div>
+  );
 }
 
 function MicIcon({ muted }: { muted: boolean }) {

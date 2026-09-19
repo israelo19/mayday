@@ -12,14 +12,14 @@ import { DebugScreen } from './ui/DebugScreen';
 import { GuideGallery } from './ui/guide';
 import { LaunchScreen } from './ui/LaunchScreen';
 import { TriageScreen } from './ui/TriageScreen';
-import { BleedingStub } from './ui/BleedingStub';
 import { CallPrepScreen } from './ui/CallPrepScreen';
 import { CoachScreen } from './ui/CoachScreen';
 import { SitrepScreen } from './ui/SitrepScreen';
 import { HandoffScreen } from './ui/HandoffScreen';
-import { MOCK_COACH_STEPS, MOCK_HANDOFF, MOCK_SITREP, type MockBranch } from './ui/mockDemoData';
+import { MOCK_BLEEDING_STEPS, MOCK_CARDIAC_STEPS, MOCK_HANDOFF, MOCK_SITREP, type MockBranch } from './ui/mockDemoData';
 
-type Screen = 'launch' | 'triage' | 'bleeding' | 'callPrep' | 'coach' | 'sitrep' | 'handoff';
+type Screen = 'launch' | 'triage' | 'callPrep' | 'coach' | 'sitrep' | 'handoff';
+type Track = 'cardiac' | 'bleeding';
 
 /** Screen Wake Lock so a propped phone never sleeps mid-coaching (docs/05). Best-effort: not
  * every browser has it, and it can be refused; coaching must never depend on it. */
@@ -50,10 +50,13 @@ function MaydayApp() {
   const debug = useMemo(() => new URLSearchParams(window.location.search).has('debug'), []);
 
   const [screen, setScreen] = useState<Screen>('launch');
+  const [track, setTrack] = useState<Track>('cardiac');
   const [stepIndex, setStepIndex] = useState(0);
   const [dispatcherOpen, setDispatcherOpen] = useState(false);
   const [callSeconds, setCallSeconds] = useState(0);
   const [wantsCall, setWantsCall] = useState(false);
+
+  const steps = track === 'cardiac' ? MOCK_CARDIAC_STEPS : MOCK_BLEEDING_STEPS;
 
   useEffect(() => {
     if (!dispatcherOpen) return;
@@ -71,8 +74,17 @@ function MaydayApp() {
   }
 
   function handleTriageCardiac(): void {
+    setTrack('cardiac');
     if (wantsCall) setScreen('callPrep');
     else enterCoaching();
+  }
+
+  function handleTriageBleeding(): void {
+    // Bleeding skips CALL PREP regardless of wantsCall for now -- MOCK_SITREP.callPrep's
+    // text is cardiac-specific and a bleeding version isn't built; straight to coaching
+    // is honest, a bleeding-flavored call screen is a later pass.
+    setTrack('bleeding');
+    enterCoaching();
   }
 
   function handleCall911(): void {
@@ -82,7 +94,7 @@ function MaydayApp() {
   }
 
   function handleNext(): void {
-    if (stepIndex < MOCK_COACH_STEPS.length - 1) {
+    if (stepIndex < steps.length - 1) {
       setStepIndex((i) => i + 1);
     } else {
       setScreen('sitrep');
@@ -91,6 +103,7 @@ function MaydayApp() {
 
   function handleBranch(b: MockBranch): void {
     if (b.onSelect === 'handoff') setScreen('sitrep');
+    else if (b.onSelect === 'advance') handleNext();
     else setScreen('launch');
   }
 
@@ -113,9 +126,7 @@ function MaydayApp() {
         />
       );
     case 'triage':
-      return <TriageScreen voice={voice} onCardiac={handleTriageCardiac} onBleeding={() => setScreen('bleeding')} />;
-    case 'bleeding':
-      return <BleedingStub onCall911={handleCall911} onBack={() => setScreen('triage')} />;
+      return <TriageScreen voice={voice} onCardiac={handleTriageCardiac} onBleeding={handleTriageBleeding} />;
     case 'callPrep':
       return (
         <CallPrepScreen
@@ -130,7 +141,7 @@ function MaydayApp() {
         <CoachScreen
           perception={perception}
           voice={voice}
-          step={MOCK_COACH_STEPS[stepIndex]}
+          step={steps[stepIndex]}
           dispatcherOpen={dispatcherOpen}
           callSeconds={callSeconds}
           onCall911={handleCall911}
