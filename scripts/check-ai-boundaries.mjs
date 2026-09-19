@@ -12,7 +12,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([a-zA-Z]:)/, '$1');
-const GUARDED_DIRS = ['src/perception', 'src/protocol', 'src/voice'];
+// src/platform is the Expo Go shell bridge: a reflex path (speech, haptics), so it is guarded too.
+const GUARDED_DIRS = ['src/perception', 'src/protocol', 'src/voice', 'src/platform'];
 
 function walk(dir) {
   const out = [];
@@ -61,10 +62,10 @@ for (const dir of GUARDED_DIRS) {
 }
 
 if (violations.length > 0) {
-  console.error('AI boundary violation: perception/protocol/voice may not import src/ai at runtime.\n');
+  console.error('AI boundary violation: perception/protocol/voice/platform may not import src/ai at runtime.\n');
   for (const v of violations) console.error(`  ${v}`);
   console.error('\nUse `import type` if only a shared shape is needed (see src/ai/dispatcher.ts).');
   process.exit(1);
 }
 
-console.log('AI boundary check passed: no perception/protocol/voice file imports a value from src/ai.');
+console.log('AI boundary check passed: no perception/protocol/voice/platform file imports a value from src/ai.');
