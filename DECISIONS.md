@@ -188,3 +188,19 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   exists, `src/voice/providers/`, on the grounds that the default speaker is local and the
   upgrade falls back to it. The voice queue may not import from that directory, so the local
   default cannot quietly become a networked one.
+- **Sat 04:15 (P1, `listen`)** P2's engine, machines, SITREP and tests were merged from
+  `recovered/p2-brain`. Two seam mismatches resolved on merge: `CoachingEvent.t` is optional
+  (the engine always sets it; voice-internal lines and the guide gallery's demo events do not,
+  and the queue falls back to the newest fact it was told about), and the reflex-path boundary
+  test now skips test files and type-only imports, the same policy as `npm run lint`.
+- **Sat 04:20 (P1, `listen`)** `src/session.ts` is the orchestrator from docs/08 and docs/09,
+  with one addition each: camera guidance is spoken only in the states that watch the rescuer,
+  at most once per ten seconds, never the "I can't see you" variant (the engine's blind rule
+  owns that line); and a hands-never-settled line is spoken once per bleeding state. Neither is
+  a medical instruction. "Ambulance is here" is a standing session action (`finish()`), so a
+  state's own `ambulance here` keyword is not listed a second time as a button twin.
+- **Sat 04:30 (P1, `listen`)** The live screen is camera-first: the preview fills the viewport
+  and every control floats on it (the team's redesign direction). Step-guide pictures render
+  inside the instruction card at a fixed height. When a state has a picture, the guide caption
+  carries the engine's correction and no banner repeats it; without a picture the banner does.
+  `?fake=1` runs the whole loop on the pretend rescuer with floating controls.
