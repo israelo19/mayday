@@ -2,10 +2,14 @@
 // surface for the protocol pictures (P2/P3). `?debug=1` gets the M0 debug view. Otherwise:
 // four screens (LAUNCH -> COACH -> SITREP -> HANDOFF) driven by mock data from
 // web/ui/mockDemoData.ts until web/session.ts and P2's engine exist to drive them for real
-// (see DECISIONS.md). Owned by P4 (docs/07).
-import { useMemo, useState } from 'react';
+// (see DECISIONS.md). `?flag=elevenLabs` swaps the speaker for the ElevenLabs voice through
+// the key proxy (docs/09), WebSpeech underneath it as the fallback. Owned by P4 (docs/07).
+import { useEffect, useMemo, useState } from 'react';
+import { flags } from '../src/flags';
 import { createPerception } from '../src/perception';
-import { WebSpeechProvider } from '../src/voice/out';
+import { WebSpeechProvider, type SpeakerProvider } from '../src/voice/out';
+import { ElevenLabsProvider } from '../src/voice/providers/elevenlabs';
+import { COACH_VOICE_ID, COACH_VOICE_NAME, DISPATCHER_VOICE_ID } from '../src/voice/providers/voices';
 import { Metronome } from '../src/voice/metronome';
 import { DebugScreen } from './ui/DebugScreen';
 import { GuideGallery } from './ui/guide';
@@ -29,6 +33,18 @@ function requestFullscreen(): void {
   document.documentElement.requestFullscreen?.().catch(() => {});
 }
 
+/** WebSpeech always; ElevenLabs on top of it only behind its flag, so the default stays local. */
+function createSpeaker(): SpeakerProvider {
+  const webSpeech = new WebSpeechProvider(1.05);
+  if (!flags.elevenLabs) return webSpeech;
+  return new ElevenLabsProvider({
+    voiceId: COACH_VOICE_ID,
+    voiceName: COACH_VOICE_NAME,
+    dispatcherVoiceId: DISPATCHER_VOICE_ID,
+    fallback: webSpeech,
+  });
+}
+
 export default function App() {
   const guide = new URLSearchParams(window.location.search).get('guide');
   if (guide !== null) return <GuideGallery initialKey={guide} />;
@@ -37,7 +53,7 @@ export default function App() {
 
 function MaydayApp() {
   const perception = useMemo(() => createPerception(), []);
-  const speaker = useMemo(() => new WebSpeechProvider(1.05), []);
+  const speaker = useMemo(createSpeaker, []);
   const metronome = useMemo(() => new Metronome(), []);
   const debug = useMemo(() => new URLSearchParams(window.location.search).has('debug'), []);
 
@@ -45,11 +61,23 @@ function MaydayApp() {
   const [stepIndex, setStepIndex] = useState(0);
   const [dispatcherOpen, setDispatcherOpen] = useState(false);
 
+  // Each coach step is spoken once on entry, the way session.ts will enqueue CoachingEvents.
+  useEffect(() => {
+    if (screen !== 'coach') return;
+    speaker.cancel();
+    void speaker.speak(MOCK_COACH_STEPS[stepIndex].line);
+  }, [screen, stepIndex, speaker]);
+
   if (debug) return <DebugScreen perception={perception} speaker={speaker} metronome={metronome} />;
 
   function handleStart(): void {
     requestFullscreen();
     requestWakeLock();
+    // Audio unlocks inside the tap itself (docs/09): later lines arrive from fetches, not taps.
+    void speaker.unlock?.();
+    if (speaker instanceof ElevenLabsProvider) {
+      void speaker.warm(MOCK_COACH_STEPS.map((s) => s.line));
+    }
     setScreen('coach');
   }
 
