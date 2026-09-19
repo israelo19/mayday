@@ -111,6 +111,8 @@ export type VoiceInOptions = {
   echoText?: () => readonly string[];
   /** For the debug panel; hide voice affordances on 'unavailable'. */
   onStatus?: (s: VoiceInStatus) => void;
+  /** Keyword matcher; defaults to spotKeyword. The session passes the protocol's stemmed, typo-tolerant one. */
+  spot?: (transcript: string, keywords: readonly string[]) => string | null;
 };
 
 export interface VoiceIn {
@@ -175,7 +177,7 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
         if (result.isFinal) o.onTranscript(raw.trim());
         // Interim results are spotted too — routing must not wait for the final — and the
         // refire window keeps the final from firing the same keyword again.
-        const keyword = spotKeyword(raw, o.keywords());
+        const keyword = (o.spot ?? spotKeyword)(raw, o.keywords());
         if (keyword !== null && now() - (firedAt.get(keyword) ?? Number.NEGATIVE_INFINITY) > KEYWORD_REFIRE_MS) {
           firedAt.set(keyword, now());
           o.onKeyword(keyword);
