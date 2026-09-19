@@ -15,9 +15,10 @@
 ## MACHINE: triage (entry point for everything)
 States:
 1. `listening` say: ["Tell me what's happening. Say things like: he's not breathing, she's choking, he got shot."]
-   - keywords -> 'not breathing'|'no pulse'|'collapsed'|'heart' => cardiac.scene_check
-   - keywords -> 'shot'|'stabbed'|'bleeding'|'blood' => bleeding.scene_safety
-   - keywords -> 'choking'|'can't breathe' + hands-at-throat fact => choking.confirm (STRETCH, may be disabled)
+   - keywords -> 'not breathing'|'no pulse'|'collapsed'|'heart attack'|... => cardiac.scene_check
+   - keywords -> 'shot'|'gunshot'|'stabbed'|'bleeding'|'blood'|... => bleeding.scene_safety
+   - keywords -> 'choking'|'can't breathe'|'something stuck'|... => choking.confirm
+   - The full vocabulary per route is data in src/protocol/phrases.ts (stemmed, word bounded, one letter of slack on long words; see src/protocol/language.ts). A sentence that matches nothing is scored against cue words and the app asks "It sounds like X. Say yes, or tap."; the route is entered only on yes, by a keyword. Camera gesture detection for choking stays out of scope.
    - manualAdvance buttons on screen for all three (voice must never be the only path).
 2. Every downstream machine's FIRST OR SECOND state includes: "Call 911 now. Put it on speaker." + show CALL 911 button + start SITREP.
 

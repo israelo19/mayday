@@ -4,8 +4,7 @@
 // - Every caption is a docs/02 `say` line, verbatim. If docs/02 changes, this changes.
 // - A guide holds one step per line, in the spoken order, so the picture and the voice
 //   walk together when the coach screen advances the step as each line finishes.
-// - No guide exists for a state without a spoken line (bleeding.handoff), and no line is
-//   invented for a machine whose states docs/02 has not written yet (choking).
+// - No guide exists for a state without a spoken line (bleeding.handoff).
 import type { Guide, GuideKey } from './types';
 
 // =============================================================================
@@ -184,8 +183,76 @@ const bleeding: readonly Guide[] = [
   },
 ];
 
+const choking: readonly Guide[] = [
+  {
+    key: 'choking.confirm',
+    title: 'Can he cough?',
+    source: 'docs/02 choking.confirm (Red Cross adult choking)',
+    steps: [
+      { caption: 'Can he cough or speak? If he can cough, let him cough.', scene: 'choke_confirm', holdMs: HOLD.line },
+      { caption: "If he cannot make a sound, tell me: he can't breathe.", scene: 'choke_confirm', holdMs: HOLD.line },
+    ],
+  },
+  {
+    key: 'choking.call_911',
+    title: 'Call 911',
+    source: 'docs/02 choking.call_911',
+    steps: [
+      {
+        caption: 'Call 911 now. Put the phone on speaker and set it down where you can hear me.',
+        scene: 'call_911',
+        holdMs: HOLD.long,
+      },
+    ],
+  },
+  {
+    key: 'choking.encourage_cough',
+    title: 'Let him cough',
+    source: 'docs/02 choking.encourage_cough (Red Cross adult choking)',
+    steps: [
+      { caption: 'Good. Keep him coughing. Do not hit his back while he can cough.', scene: 'encourage_cough', holdMs: HOLD.line },
+      { caption: 'Stay with him. If he stops making sound, tell me.', scene: 'encourage_cough', holdMs: HOLD.line },
+    ],
+  },
+  {
+    key: 'choking.back_blows',
+    title: 'Back blows',
+    source: 'docs/02 choking.back_blows (Red Cross adult choking)',
+    steps: [
+      { caption: 'Stand behind him and lean him forward.', scene: 'back_blows', holdMs: HOLD.short },
+      { caption: 'Hit him five times between the shoulder blades with the heel of your hand.', scene: 'back_blows', holdMs: HOLD.long },
+    ],
+  },
+  {
+    key: 'choking.abdominal_thrusts',
+    title: 'Abdominal thrusts',
+    source: 'docs/02 choking.abdominal_thrusts (Red Cross adult choking)',
+    steps: [
+      { caption: 'Stand behind him. Make a fist just above his belly button.', scene: 'abdominal_thrusts', holdMs: HOLD.line },
+      { caption: 'Grab your fist with your other hand. Pull hard, inward and upward, five times.', scene: 'abdominal_thrusts', holdMs: HOLD.long },
+      { caption: 'If it does not come out, we go back to back blows.', scene: 'back_blows', holdMs: HOLD.line },
+    ],
+  },
+  {
+    key: 'choking.resolved',
+    title: 'It came out',
+    source: 'docs/02 choking.resolved (Red Cross adult choking)',
+    steps: [
+      { caption: 'Good. Stay with him until the ambulance arrives. Keep watching his breathing.', scene: 'choke_resolved', holdMs: HOLD.long },
+    ],
+  },
+  {
+    key: 'choking.handoff',
+    title: 'Handoff',
+    source: 'docs/02 choking.handoff',
+    steps: [
+      { caption: 'Tell the paramedics what happened and how long it took. It is on my screen.', scene: 'handoff', holdMs: HOLD.long },
+    ],
+  },
+];
+
 /** All guides, in the order the machines walk them. */
-export const GUIDES: readonly Guide[] = [...cardiac, ...bleeding];
+export const GUIDES: readonly Guide[] = [...cardiac, ...bleeding, ...choking];
 
 const byKey: ReadonlyMap<string, Guide> = new Map(GUIDES.map((g) => [g.key, g]));
 

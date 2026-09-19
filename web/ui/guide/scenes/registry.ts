@@ -5,6 +5,7 @@ import type { SceneId, SceneProps } from '../types';
 import { ClothOnWound, DontLift, FindWound, PackDeep, PackMore, PressBodyWeight, Tourniquet } from './bleeding';
 import { ArmsLocked, CheckBreathing, Compressions, HandHeel, HandStack, Kneel, RecoveryHold, SceneCheck } from './cardiac';
 import { Call911, Handoff, SceneSafety } from './common';
+import { AbdominalThrusts, BackBlows, ChokeConfirm, ChokeResolved, EncourageCough } from './choking';
 
 // =============================================================================
 // Module Overview
@@ -30,6 +31,11 @@ export const SCENES: Record<SceneId, ComponentType<SceneProps>> = {
   pack_more: PackMore,
   pack_deep: PackDeep,
   tourniquet: Tourniquet,
+  choke_confirm: ChokeConfirm,
+  encourage_cough: EncourageCough,
+  back_blows: BackBlows,
+  abdominal_thrusts: AbdominalThrusts,
+  choke_resolved: ChokeResolved,
 };
 
 /** The component that draws `id`. */

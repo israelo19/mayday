@@ -2,7 +2,7 @@
 // (docs/05 COACH, redesigned per the team's Sat 04:00 direction). Every element on screen is
 // read from the session snapshot; nothing here decides what to say. Owned by P4 (docs/07);
 // first cut by P1 on the `listen` branch so the voice -> engine -> screen loop is demoable.
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPerception, type Perception } from '../../../src/perception';
 import { createFakePerception, isFakeRequested, type FakePerceptionHandle } from '../../../src/perception/fake';
 import { canonicalLines, createSession, WATCHING_STATES } from '../../session';
@@ -65,7 +65,7 @@ export function LiveApp() {
       {snap.phase === 'handoff' && <div className="live-dim" />}
 
       <div className="live-top">
-        <ListeningChip listening={snap.listening} heard={snap.lastHeard} keyword={snap.lastKeyword} />
+        <ListeningChip listening={snap.listening} speaking={snap.speaking} heard={snap.lastHeard} keyword={snap.lastKeyword} />
         <div className="live-top-right">
           {/* Every state keeps the button; states flagged call911 in the machine data make it pulse. It opens the SIMULATED dispatcher and never dials. */}
           <button className={`live-call${snap.call911 && !snap.callActive ? ' urgent' : ''}`} onClick={() => session.call911()} disabled={snap.callActive}>
@@ -85,6 +85,21 @@ export function LiveApp() {
         <HandoffPanel snap={snap} session={session} />
       ) : (
         <div className="live-bottom">
+          {snap.suggestion && (
+            <div className="live-banner amber live-suggest">
+              <span>
+                Sounds like <b>{snap.suggestion.label.toLowerCase()}</b>?
+              </span>
+              <span className="live-suggest-actions">
+                <button type="button" onClick={() => session.confirmSuggestion()}>
+                  Yes
+                </button>
+                <button type="button" onClick={() => session.rejectSuggestion()}>
+                  No
+                </button>
+              </span>
+            </div>
+          )}
           {!snap.blind && snap.guidance && <div className="live-banner amber">{snap.guidance}</div>}
           {/* The engine's own line is the message. With a picture, the guide caption shows it; without one, the banner does. */}
           {snap.coaching && !guideFor(snap.stateKey ?? '') && (
@@ -122,11 +137,23 @@ export function LiveApp() {
   );
 }
 
-function ListeningChip({ listening, heard, keyword }: { listening: string; heard: string | null; keyword: string | null }) {
-  const label =
-    keyword ? `Heard: ${keyword}` : heard ? `“${heard}”` : listening === 'listening' ? 'Listening' : listening === 'unavailable' ? 'Voice off, use the buttons' : listening === 'restarting' ? 'Listening' : 'Mic off';
+function ListeningChip({ listening, speaking, heard, keyword }: { listening: string; speaking: boolean; heard: string | null; keyword: string | null }) {
+  const on = listening === 'listening' || listening === 'restarting';
+  // While the app talks the mic is muted for echo (docs/09), so say so: a judge who answers
+  // over the prompt would otherwise think the app ignored them.
+  const label = keyword
+    ? `Heard: ${keyword}`
+    : heard
+      ? `“${heard}”`
+      : speaking && on
+        ? 'Speaking, then listening'
+        : on
+          ? 'Listening'
+          : listening === 'unavailable'
+            ? 'Voice off, use the buttons'
+            : 'Mic off';
   return (
-    <div className={`live-chip${listening === 'listening' || listening === 'restarting' ? ' live-chip-on' : ''}${keyword ? ' live-chip-hit' : ''}`}>
+    <div className={`live-chip${on && !speaking ? ' live-chip-on' : ''}${keyword ? ' live-chip-hit' : ''}`}>
       <span className="live-dot" />
       {label}
     </div>
@@ -159,25 +186,40 @@ function Metric({ snap }: { snap: ReturnType<typeof useSession> }) {
   return null;
 }
 
+/** How long a state's card stays open on its own: time to hear every line, plus a beat. */
+const READ_MS_PER_LINE = 4500;
+const READ_MS_EXTRA = 4000;
+
 function Instruction({ snap }: { snap: ReturnType<typeof useSession> }) {
   const guide = snap.stateKey ? guideFor(snap.stateKey) : null;
   const line = snap.lines[Math.min(snap.lineIndex, Math.max(0, snap.lines.length - 1))] ?? '';
+  // The camera is the point of the app (docs/05), so once a state has been read the card shrinks
+  // to its caption and the rescuer is visible again. A correction reopens it; a tap toggles it.
+  const [pinned, setPinned] = useState<'full' | 'slim' | null>(null);
+  useEffect(() => setPinned(null), [snap.stateKey]);
+  const readMs = READ_MS_EXTRA + READ_MS_PER_LINE * snap.lines.length;
+  const autoFull = snap.phase === 'triage' || !!snap.coaching || Date.now() - snap.stateEnteredAt < readMs;
+  const full = pinned ? pinned === 'full' : autoFull;
+  const toggle = () => setPinned(full ? 'slim' : 'full');
   return (
-    <div className="live-card">
-      <div className="live-card-head">
+    <div className={`live-card${full ? '' : ' slim'}`}>
+      <button type="button" className="live-card-head" onClick={toggle} aria-expanded={full}>
         <span className="live-machine">{snap.machineLabel}</span>
-        {snap.lines.length > 1 && (
-          <span className="live-steps">
-            {snap.lines.map((_, i) => (
-              <i key={i} className={i <= snap.lineIndex ? 'on' : ''} />
-            ))}
-          </span>
-        )}
-      </div>
-      {guide ? (
+        <span className="live-card-right">
+          {snap.lines.length > 1 && (
+            <span className="live-steps">
+              {snap.lines.map((_, i) => (
+                <i key={i} className={i <= snap.lineIndex ? 'on' : ''} />
+              ))}
+            </span>
+          )}
+          {guide && <span className="live-card-toggle">{full ? 'Hide picture' : 'Show picture'}</span>}
+        </span>
+      </button>
+      {full && guide ? (
         <StepGuide guide={guide} step={snap.lineIndex} bpm={snap.metronomeBpm ?? undefined} beatOriginMs={snap.beatOriginMs} facts={snap.facts} coaching={snap.coaching} compact />
       ) : (
-        <p className="live-line">{line}</p>
+        <p className={`live-line${full ? '' : ' small'}`}>{snap.coaching && !full ? snap.coaching.text : line}</p>
       )}
     </div>
   );

@@ -310,6 +310,30 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   call-taker with the panel's status chip and the bystander transcript fed back into the
   snapshot. The ElevenLabs cache is warmed on the first tap with every canonical line from the
   machines instead of the mock steps. Nothing about the flags' defaults changed.
+- **Sat 06:20 (P1, `polish`)** Understanding is deterministic and lives in
+  `src/protocol/language.ts`: a light stemmer (choke, choked, choking are one word), one letter
+  of recognizer slack between two stems of five letters or more (never on answer words like
+  "no", "not", "shot"), apostrophes dropped, word-bounded phrase matching, longest phrase first.
+  The engine and P3's listener share it, so an interim result routes the same way a final does.
+  No model, no network: this is still keyword spotting under docs/01's threat model.
+- **Sat 06:20 (P1, `polish`)** Triage vocabulary is data in `src/protocol/phrases.ts`, one
+  block per emergency, and `triage.ts` generates its transitions from it. Keywords must be
+  distinct after stemming; the linter refuses two that are not. When nothing matches, weighted
+  cue words score the sentence and the session asks "It sounds like he is choking. Say yes, or
+  tap." The route is entered only on yes, by its first keyword, so the engine still moves on a
+  keyword or a tap and nothing free-text ever selects a protocol. Suggestions exist in triage
+  only and expire after twenty seconds. An LLM could later propose the same suggestion through
+  `src/ai` behind a flag; the confirmation step is what would make that acceptable.
+- **Sat 06:20 (P1, `polish`)** The listening chip says "Speaking, then listening" while the
+  app talks, because the mic is muted for echo then (docs/09) and a judge who answers over the
+  prompt would otherwise believe the app ignored them.
+- **Sat 06:20 (P1, `polish`)** The instruction card shrinks to its caption once a state has
+  been read (four seconds plus four and a half per line), reopens while a correction is active,
+  and toggles on tap. The camera is the product; the card was hiding the rescuer.
+- **Sat 06:20 (P1, `polish`)** Choking has pictures. docs/02 now lists the choking states
+  verbatim from `src/protocol/machines/choking.ts`, which is what lets the guide tests hold
+  every caption to the doc. Same-target keyword edges collapse to one arrow in the generated
+  diagrams so the vocabulary does not bury the structure.
 - **Sat 05:20 (Ricky, `flow`)** Repo-wide flow check. Typecheck, 204 tests, the AI boundary
   script and the production build were green before and after. Fixed: the choking machine
   never said "call 911" (docs/02 requires it in the first two states of every medical

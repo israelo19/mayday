@@ -222,4 +222,33 @@ describe('session', () => {
     // the triage prompt itself says 'choking'; what must be gone is the choking machine's entry
     expect(s.log.entries().some((e) => e.data?.type === 'state_enter' && e.data.machineId === 'choking')).toBe(false);
   });
+
+  it('asks before routing a sentence no keyword matched, and routes on yes', () => {
+    const { s, v, tick } = rig();
+    s.start();
+    v.mic()!.onTranscript("he ate something and now he's silent and holding his neck");
+    tick(100);
+    expect(s.snapshot().suggestion?.to).toBe('choking.confirm');
+    expect(v.enqueued.some((e) => e.dedupeKey === 'suggest')).toBe(true);
+    expect(s.snapshot().stateKey).toBe('triage.listening');
+    v.mic()!.onTranscript('yes');
+    tick(100);
+    expect(s.snapshot().stateKey).toBe('choking.confirm');
+    expect(s.snapshot().suggestion).toBeNull();
+  });
+
+  it('drops a suggestion on no, and never suggests outside triage', () => {
+    const { s, v, tick } = rig();
+    s.start();
+    v.mic()!.onTranscript('there is a pool of red stuff coming out of his leg and it is soaking his pants');
+    tick(100);
+    expect(s.snapshot().suggestion?.to).toBe('bleeding.scene_safety');
+    v.mic()!.onTranscript('no');
+    tick(100);
+    expect(s.snapshot().suggestion).toBeNull();
+    s.say('not breathing');
+    v.mic()!.onTranscript('there is a pool of red stuff coming out of his leg and it is soaking his pants');
+    tick(100);
+    expect(s.snapshot().suggestion).toBeNull();
+  });
 });

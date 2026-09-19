@@ -1,6 +1,7 @@
 // Structural checks on the machine data. These run as a test, so a machine that could wedge
 // the demo or ship an uncited medical line fails the build instead of the stage.
 import type { Machine, State, Transition } from '../types';
+import { stemKey } from './language';
 
 export type LintIssue = { machineId: string; stateId?: string; message: string };
 
@@ -30,11 +31,15 @@ export function lintMachines(machines: readonly Machine[]): LintIssue[] {
       }
       if (state.say.length === 0 && !state.terminal) push(state.id, 'state says nothing');
 
-      const keywords = new Set<string>();
+      const keywords = new Map<string, string>();
       for (const t of state.transitions) {
         if (t.on.kind === 'keyword') {
-          if (keywords.has(t.on.keyword)) push(state.id, `duplicate keyword '${t.on.keyword}'`);
-          keywords.add(t.on.keyword);
+          // Two keywords that stem alike ('choke', 'choking') are one keyword twice: the matcher
+          // could only ever return the longer one, so the other would never resolve to itself.
+          const key = stemKey(t.on.keyword);
+          const clash = keywords.get(key);
+          if (clash !== undefined) push(state.id, `duplicate keyword '${t.on.keyword}' (same words as '${clash}')`);
+          keywords.set(key, t.on.keyword);
         }
         if (!index.has(resolve(machine.id, t.to))) {
           push(state.id, `transition target '${t.to}' does not exist`);

@@ -7,7 +7,23 @@ export function toMermaid(machine: Machine): string {
   for (const state of machine.states) {
     const from = nodeId(machine.id, state.id);
     lines.push(`    ${from}: ${state.id}${state.metronome ? ` (${state.metronome} bpm)` : ''}`);
+    // Keyword transitions to the same target collapse into one arrow: triage lists every way a
+    // bystander might say "shot", and the diagram is about structure, not vocabulary.
+    const spokenTo = new Map<string, Transition[]>();
     for (const t of state.transitions) {
+      if (t.on.kind !== 'keyword') continue;
+      spokenTo.set(t.to, [...(spokenTo.get(t.to) ?? []), t]);
+    }
+    const drawn = new Set<string>();
+    for (const t of state.transitions) {
+      if (t.on.kind === 'keyword') {
+        if (drawn.has(t.to)) continue;
+        drawn.add(t.to);
+        const group = spokenTo.get(t.to) ?? [t];
+        const more = group.length > 1 ? ` (+${group.length - 1} more)` : '';
+        lines.push(`    ${from} --> ${nodeId(machine.id, t.to)}: ${edgeLabel(t)}${more}`);
+        continue;
+      }
       lines.push(`    ${from} --> ${nodeId(machine.id, t.to)}: ${edgeLabel(t)}`);
     }
     if (state.terminal) lines.push(`    ${from} --> [*]`);

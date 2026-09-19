@@ -16,10 +16,13 @@ import type { DispatcherSim } from '../src/ai/dispatcher';
 import type { Perception } from '../src/perception';
 import { GUIDANCE } from '../src/perception';
 import type { Voice, VoiceInStatus } from '../src/voice';
-import { createEngine, machines, STALE_FACTS_MS, type Engine } from '../src/protocol';
+import { CONFIRM_WORDS, createEngine, machines, matchKeyword, REJECT_WORDS, routeKeyword, STALE_FACTS_MS, suggestRoute, type Engine, type TriageRoute } from '../src/protocol';
 import { buildHandoff, buildSitrep, createEventLog, handoffQrPayload, qrDataUrl, type EventLog } from '../src/sitrep';
 
 export type SessionPhase = 'idle' | 'triage' | 'coaching' | 'handoff';
+
+/** A route the app thinks it heard but no keyword matched; entered only on yes, by its keyword. */
+export type RouteSuggestion = { label: string; keyword: string; to: string; heard: string };
 
 /** 'scripted' is the offline call-taker; the rest are the ElevenLabs agent's states (docs/04 item 3). */
 export type DispatcherStatus = 'scripted' | 'connecting' | 'live' | 'fallback' | 'ended';
@@ -45,6 +48,10 @@ export type SessionSnapshot = {
   lines: readonly string[];
   /** The line the voice is on, or has most recently finished. */
   lineIndex: number;
+  /** When the current state was entered (session clock), so the screen can shrink a read card. */
+  stateEnteredAt: number;
+  /** The app itself is talking; the mic is muted for echo while this is true (docs/09). */
+  speaking: boolean;
   twins: readonly ButtonTwin[];
   canAdvance: boolean;
   call911: boolean;
@@ -58,6 +65,7 @@ export type SessionSnapshot = {
   /** Camera guidance the session is currently showing (spoken only in watching states). */
   guidance: string | null;
   listening: VoiceInStatus;
+  suggestion: RouteSuggestion | null;
   lastHeard: string | null;
   lastHeardAt: number;
   lastKeyword: string | null;
@@ -84,6 +92,9 @@ export interface Session {
   heard(transcript: string): void;
   /** Jump to the current machine's terminal state, e.g. the ambulance arrived. */
   finish(): void;
+  /** "Sounds like choking. Yes?" The yes: enters the suggested route by its first keyword. */
+  confirmSuggestion(): void;
+  rejectSuggestion(): void;
   /** Open the SIMULATED dispatcher. Never a real line (CLAUDE.md principle 5). */
   call911(): void;
   replyToDispatcher(text: string): void;
@@ -137,6 +148,7 @@ const REPORT_MS = 1000;
 const GUIDANCE_COOLDOWN_MS = 10_000;
 const COACHING_SHOWN_MS = 8_000;
 const HEARD_SHOWN_MS = 4_000;
+const SUGGESTION_TTL_MS = 20_000;
 
 /** Not medical: this is about the camera, spoken once per state when the hands never settle. */
 export const ROI_FAILED_LINE = "I can't find your hands on the wound. I'll keep coaching by voice.";
@@ -164,11 +176,15 @@ export function createSession(deps: SessionDeps): Session {
   let metronomeBpm: number | null = null;
   let beatOriginMs = 0;
   let guidance: string | null = null;
+  let stateEnteredAt = 0;
   let guidanceSpokenAt = -Infinity;
   let listening: VoiceInStatus = 'stopped';
   let lastHeard: string | null = null;
   let lastHeardAt = 0;
   let lastKeyword: string | null = null;
+  let lastKeywordAt = -Infinity;
+  let pendingTranscript: { text: string; t: number } | null = null;
+  let suggestion: (RouteSuggestion & { route: TriageRoute; at: number }) | null = null;
   let callActive = false;
   let call: { sayToDispatcher(t: string): void; hangup(): void } | null = null;
   let dispatcherStatus: DispatcherStatus = 'scripted';
@@ -196,6 +212,7 @@ export function createSession(deps: SessionDeps): Session {
     const key = `${machineId}.${stateId}`;
     const state = engine.currentState()?.state;
     coaching = null;
+    stateEnteredAt = now();
     phase = machineId === 'triage' ? 'triage' : state?.terminal ? 'handoff' : 'coaching';
     if (callActive && state?.call911) skipCallPrompt = true;
 
@@ -301,8 +318,33 @@ export function createSession(deps: SessionDeps): Session {
       log.append({ t, kind: 'system', detail: 'hands never settled on the wound, coaching by voice' });
     }
     if (coaching && t - coachingAt > COACHING_SHOWN_MS) coaching = null;
+    considerTranscript(t);
+    if (suggestion && t - suggestion.at > SUGGESTION_TTL_MS) suggestion = null;
     if (t - lastReportAt >= REPORT_MS) refreshReports(false);
     notify();
+  }
+
+  /**
+   * A final transcript that fired no keyword: while a suggestion is open it can be the yes or
+   * the no; in triage it can earn a suggestion from the phrase cues. Runs one tick after the
+   * transcript so the listener's own keyword pass has already had its turn.
+   */
+  function considerTranscript(t: number): void {
+    const p = pendingTranscript;
+    if (!p) return;
+    pendingTranscript = null;
+    if (lastKeywordAt >= p.t) return; // the listener already routed this one
+    if (suggestion) {
+      if (matchKeyword(p.text, CONFIRM_WORDS)) return session.confirmSuggestion();
+      if (matchKeyword(p.text, REJECT_WORDS)) return session.rejectSuggestion();
+      return;
+    }
+    if (phase !== 'triage') return;
+    const found = suggestRoute(p.text);
+    if (!found) return;
+    suggestion = { route: found.route, at: t, label: found.route.label, keyword: routeKeyword(found.route), to: found.route.to, heard: p.text };
+    log.append({ t, kind: 'system', detail: `sounds like ${found.route.label} (score ${found.score}): "${p.text}"` });
+    voice.out.enqueue({ priority: 'correction', text: found.route.confirm, stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'suggest', cooldownMs: 3000, t });
   }
 
   function refreshReports(force: boolean): void {
@@ -323,15 +365,19 @@ export function createSession(deps: SessionDeps): Session {
     }
     voice.listen({
       keywords: () => engine.keywords(),
+      spot: matchKeyword,
       onKeyword: (k) => {
         lastKeyword = k;
+        lastKeywordAt = now();
         lastHeardAt = now();
+        suggestion = null;
         engine.onKeyword(k);
         notify();
       },
       onTranscript: (text) => {
         lastHeard = text;
         lastHeardAt = now();
+        pendingTranscript = { text, t: now() };
         log.append({ t: now(), kind: 'user', detail: text });
         notify();
       },
@@ -396,6 +442,8 @@ export function createSession(deps: SessionDeps): Session {
       stateKey: stateKey(),
       lines: state?.say ?? [],
       lineIndex: lineIndexOf(state),
+      stateEnteredAt,
+      speaking: voice.out.isSpeaking(),
       twins: twinsOf(state),
       canAdvance: !!state && !state.terminal && state.transitions.some((tr) => tr.on.kind === 'manualAdvance'),
       call911: !!state?.call911,
@@ -406,6 +454,7 @@ export function createSession(deps: SessionDeps): Session {
       blind: blindNow(),
       guidance,
       listening,
+      suggestion: suggestion ? { label: suggestion.label, keyword: suggestion.keyword, to: suggestion.to, heard: suggestion.heard } : null,
       lastHeard: t - lastHeardAt <= HEARD_SHOWN_MS ? lastHeard : null,
       lastHeardAt,
       lastKeyword: t - lastHeardAt <= HEARD_SHOWN_MS ? lastKeyword : null,
@@ -492,10 +541,34 @@ export function createSession(deps: SessionDeps): Session {
     },
 
     heard(transcript: string): void {
+      // Same path as the mic: a keyword routes at once, anything else may earn a suggestion.
       lastHeard = transcript;
       lastHeardAt = now();
       log.append({ t: now(), kind: 'user', detail: transcript });
-      engine.onKeyword(transcript);
+      const keyword = matchKeyword(transcript, engine.keywords());
+      if (keyword) {
+        lastKeyword = keyword;
+        lastKeywordAt = now();
+        suggestion = null;
+        engine.onKeyword(keyword);
+      } else {
+        pendingTranscript = { text: transcript, t: now() };
+      }
+      notify();
+    },
+
+    confirmSuggestion(): void {
+      const s = suggestion;
+      if (!s) return;
+      suggestion = null;
+      log.append({ t: now(), kind: 'user', detail: `confirmed: ${s.label}` });
+      session.say(s.keyword);
+    },
+
+    rejectSuggestion(): void {
+      if (!suggestion) return;
+      log.append({ t: now(), kind: 'user', detail: `rejected: ${suggestion.label}` });
+      suggestion = null;
       notify();
     },
 
