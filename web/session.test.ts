@@ -185,6 +185,28 @@ describe('session', () => {
     expect(s.snapshot().handoff?.headline.length).toBeGreaterThan(0);
   });
 
+  it('a person lying still in triage earns a camera suggestion; yes routes, no waits', () => {
+    const { s, v, p, tick, clock } = rig();
+    s.start();
+    p.setControls({ personDown: true });
+    p.emitAt(clock.t);
+    tick(100);
+    const snap = s.snapshot();
+    expect(snap.stateKey).toBe('triage.listening'); // nothing moved on its own
+    expect(snap.suggestion).toMatchObject({ source: 'camera', label: 'Collapsed', keyword: 'collapsed' });
+    expect(v.enqueued.map((e) => e.text)).toContain('It looks like someone has collapsed. Say yes, or tap.');
+    s.rejectSuggestion();
+    p.emitAt(clock.t);
+    tick(500);
+    expect(s.snapshot().suggestion).toBeNull(); // not asked again inside the retry window
+    tick(30_000);
+    p.emitAt(clock.t);
+    tick(100);
+    expect(s.snapshot().suggestion?.source).toBe('camera');
+    s.confirmSuggestion();
+    expect(s.snapshot().stateKey).toBe('cardiac.scene_check');
+  });
+
   it('skips a call 911 state when the simulated call is already open', () => {
     const { s, tick } = rig();
     s.start();

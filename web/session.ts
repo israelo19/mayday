@@ -16,13 +16,13 @@ import type { DispatcherSim } from '../src/ai/dispatcher';
 import type { Perception } from '../src/perception';
 import { GUIDANCE } from '../src/perception';
 import type { Voice, VoiceInStatus } from '../src/voice';
-import { CONFIRM_WORDS, createEngine, machines, matchKeyword, REJECT_WORDS, routeKeyword, STALE_FACTS_MS, suggestRoute, type Engine, type TriageRoute } from '../src/protocol';
+import { CONFIRM_WORDS, createEngine, machines, matchKeyword, REJECT_WORDS, routeKeyword, SCENE_HINTS, STALE_FACTS_MS, suggestRoute, TRIAGE_ROUTES, type Engine, type TriageRoute } from '../src/protocol';
 import { buildHandoff, buildSitrep, createEventLog, handoffQrPayload, qrDataUrl, type EventLog } from '../src/sitrep';
 
 export type SessionPhase = 'idle' | 'triage' | 'coaching' | 'handoff';
 
 /** A route the app thinks it heard but no keyword matched; entered only on yes, by its keyword. */
-export type RouteSuggestion = { label: string; keyword: string; to: string; heard: string };
+export type RouteSuggestion = { label: string; keyword: string; to: string; heard: string; source: 'voice' | 'camera' };
 
 /** 'scripted' is the offline call-taker; the rest are the ElevenLabs agent's states (docs/04 item 3). */
 export type DispatcherStatus = 'scripted' | 'connecting' | 'live' | 'fallback' | 'ended';
@@ -65,6 +65,8 @@ export type SessionSnapshot = {
   /** Camera guidance the session is currently showing (spoken only in watching states). */
   guidance: string | null;
   listening: VoiceInStatus;
+  /** The recognizer's last error code ('not-allowed', 'network', ...), so the chip can say why the mic is off. */
+  listenError: string | null;
   suggestion: RouteSuggestion | null;
   lastHeard: string | null;
   lastHeardAt: number;
@@ -99,6 +101,8 @@ export interface Session {
   call911(): void;
   replyToDispatcher(text: string): void;
   hangUp(): void;
+  /** Start listening again from inside a tap: iOS refuses recognition that did not start in a user gesture. */
+  retryListening(): void;
   readSitrepAloud(): void;
   /** Data URL of the handoff QR, or null when the encoder is unavailable. */
   qr(): Promise<string | null>;
@@ -147,6 +151,7 @@ export const TICK_MS = 100;
 const REPORT_MS = 1000;
 const GUIDANCE_COOLDOWN_MS = 10_000;
 const COACHING_SHOWN_MS = 8_000;
+const SCENE_HINT_RETRY_MS = 30_000;
 const HEARD_SHOWN_MS = 4_000;
 const SUGGESTION_TTL_MS = 20_000;
 
@@ -179,12 +184,15 @@ export function createSession(deps: SessionDeps): Session {
   let stateEnteredAt = 0;
   let guidanceSpokenAt = -Infinity;
   let listening: VoiceInStatus = 'stopped';
+  let listenError: string | null = null;
   let lastHeard: string | null = null;
   let lastHeardAt = 0;
   let lastKeyword: string | null = null;
   let lastKeywordAt = -Infinity;
   let pendingTranscript: { text: string; t: number } | null = null;
   let suggestion: (RouteSuggestion & { route: TriageRoute; at: number }) | null = null;
+  // After a camera suggestion is rejected or ignored, the camera waits this long before asking again.
+  let sceneAskedAt = -Infinity;
   let callActive = false;
   let call: { sayToDispatcher(t: string): void; hangup(): void } | null = null;
   let dispatcherStatus: DispatcherStatus = 'scripted';
@@ -320,6 +328,7 @@ export function createSession(deps: SessionDeps): Session {
     if (coaching && t - coachingAt > COACHING_SHOWN_MS) coaching = null;
     considerTranscript(t);
     if (suggestion && t - suggestion.at > SUGGESTION_TTL_MS) suggestion = null;
+    considerScene(t);
     if (t - lastReportAt >= REPORT_MS) refreshReports(false);
     notify();
   }
@@ -342,9 +351,26 @@ export function createSession(deps: SessionDeps): Session {
     if (phase !== 'triage') return;
     const found = suggestRoute(p.text);
     if (!found) return;
-    suggestion = { route: found.route, at: t, label: found.route.label, keyword: routeKeyword(found.route), to: found.route.to, heard: p.text };
+    suggestion = { route: found.route, at: t, label: found.route.label, keyword: routeKeyword(found.route), to: found.route.to, heard: p.text, source: 'voice' };
     log.append({ t, kind: 'system', detail: `sounds like ${found.route.label} (score ${found.score}): "${p.text}"` });
     voice.out.enqueue({ priority: 'correction', text: found.route.confirm, stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'suggest', cooldownMs: 3000, t });
+  }
+
+  /**
+   * The camera's one triage cue: a person lying still (docs/03 "Scene hint"). It earns the same
+   * suggestion a heard phrase does, spoken as a question; the human says yes or taps, and only
+   * then does the engine move, on a keyword triage already accepts. Asked once per half minute.
+   */
+  function considerScene(t: number): void {
+    if (phase !== 'triage' || suggestion || !facts || facts.sceneHint !== 'person_down') return;
+    if (t - facts.t > STALE_FACTS_MS || t - sceneAskedAt < SCENE_HINT_RETRY_MS) return;
+    const hint = SCENE_HINTS.person_down;
+    const route = TRIAGE_ROUTES.find((r) => r.to === hint.to);
+    if (!route) return;
+    sceneAskedAt = t;
+    suggestion = { route, at: t, label: hint.label, keyword: hint.keyword, to: hint.to, heard: 'camera: a person lying still', source: 'camera' };
+    log.append({ t, kind: 'system', detail: 'camera: a person lying still, asked whether someone collapsed' });
+    voice.out.enqueue({ priority: 'correction', text: hint.confirm, stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'suggest', cooldownMs: 3000, t });
   }
 
   function refreshReports(force: boolean): void {
@@ -383,6 +409,12 @@ export function createSession(deps: SessionDeps): Session {
       },
       onStatus: (s) => {
         listening = s;
+        if (s === 'listening') listenError = null;
+        notify();
+      },
+      onError: (code) => {
+        listenError = code;
+        log.append({ t: now(), kind: 'system', detail: `speech recognition error: ${code}` });
         notify();
       },
     });
@@ -454,7 +486,8 @@ export function createSession(deps: SessionDeps): Session {
       blind: blindNow(),
       guidance,
       listening,
-      suggestion: suggestion ? { label: suggestion.label, keyword: suggestion.keyword, to: suggestion.to, heard: suggestion.heard } : null,
+      listenError,
+      suggestion: suggestion ? { label: suggestion.label, keyword: suggestion.keyword, to: suggestion.to, heard: suggestion.heard, source: suggestion.source } : null,
       lastHeard: t - lastHeardAt <= HEARD_SHOWN_MS ? lastHeard : null,
       lastHeardAt,
       lastKeyword: t - lastHeardAt <= HEARD_SHOWN_MS ? lastKeyword : null,
@@ -622,6 +655,15 @@ export function createSession(deps: SessionDeps): Session {
       callActive = false;
       dispatcherStatus = 'ended';
       log.append({ t: now(), kind: 'user', detail: 'hung up (SIMULATED dispatcher)' });
+      notify();
+    },
+
+    retryListening(): void {
+      if (phase === 'idle') return;
+      voice.stopListening();
+      listenError = null;
+      log.append({ t: now(), kind: 'user', detail: 'retry listening (tap)' });
+      listen();
       notify();
     },
 
