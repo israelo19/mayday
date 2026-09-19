@@ -47,3 +47,12 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   to `@vitejs/plugin-basic-ssl` (self-signed, zero setup, click through the warning once per
   device); mkcert stays available behind `MAYDAY_MKCERT=1`. Camera works on either because a
   secure context is about the https scheme, not certificate trust.
+- **Sat 02:40** Step guides (`src/ui/guide`) are hand-drawn SVG pictograms keyed by
+  `machine.state`, one step per docs/02 line, captions verbatim and tested against
+  docs/02. No video, no generated media: a bundled SVG works with wifi off, scales to any
+  screen, and cannot drift from the guideline text. Choking has no guide until docs/02
+  names its states. The compression figure and the rhythm trace read one beat clock
+  (`beat.ts`), so a `beatOriginMs` from the metronome puts the picture on the sound.
+- **Sat 02:40** `vitest` added as dev tooling (the plan in docs/07 already calls for it);
+  tests live next to their module as `*.test.ts` and type-check through
+  `tsconfig.test.json` so Node types stay out of browser code. `npm test` runs them.
