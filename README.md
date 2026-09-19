@@ -114,6 +114,21 @@ how two models get compared before the judged run.
 `?fake=1&flag=sceneAssess` demos the flow with a canned model: pick what it says in the fake controls,
 then "Start over", since the frame goes out about a second into triage.
 
+### The intent router
+
+A bystander in a panic does not say "not breathing", they say "the poor man went down in the hallway
+and he is grey". The local matcher misses that and so do the phrase cues, and then the same model
+gets the sentence and the buttons that are on the screen right now (docs/04 item 8).
+
+1. Same `GEMINI_API_KEY`, same proxy, no picture: the route is `/api/proxy/intent/route`.
+2. Open the phone URL with `?flag=intentRoute`. Say something none of the buttons say. The amber
+   "Sounds like Not breathing?" bar appears, and yes or a tap enters the state.
+3. The model answers with the NUMBER of a button, never with words, so it cannot name a step the
+   state is not already offering. Anything else, or low confidence, or no answer in three seconds:
+   nothing happens and the buttons carry the demo.
+
+`?fake=1&flag=intentRoute` uses a word overlap stub, so the yes/no flow demos with no key.
+
 ## M0 demo check
 
 1. Open `?debug=1`. The footer reads `status: running`, fps is above 10, the pose skeleton is

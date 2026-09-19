@@ -25,6 +25,10 @@
 //                                    src/ai/assess.ts decides what, if anything, it means. The
 //                                    provider is Gemini when GEMINI_API_KEY is set, else
 //                                    Featherless; 404 when neither key is there.
+//   POST /intent/route               { system, user, maxTokens } -> the same model without a
+//                                    picture (docs/04 item 8): which of the moves the engine is
+//                                    offering did the bystander mean. Same reply shape, and
+//                                    src/ai/intent.ts validates the answer against its own list.
 // Nothing else is forwarded: the proxy exposes exactly what the app calls, not the API.
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
@@ -33,6 +37,7 @@ const UPSTREAM = 'https://api.elevenlabs.io';
 const TTS_PREFIX = '/v1/text-to-speech/';
 const SESSION_ROUTE = '/dispatcher/session';
 const VISION_ROUTE = '/vision/assess';
+const INTENT_ROUTE = '/intent/route';
 /**
  * The scene-model providers. Both speak OpenAI chat completions, so one request body serves
  * both and only the URL, the key and the model name differ: Gemini through its
@@ -94,11 +99,12 @@ export function resolveVisionProvider(name = readLocalEnv('VISION_PROVIDER')) {
 }
 
 /**
- * One frame and the app's question to a vision model, OpenAI chat-completions style: the
- * image rides along as a data URL content part. Returns the model's text untouched; the
- * client parses and validates it.
+ * The app's question to the model, OpenAI chat-completions style. With `image`, the frame
+ * rides along as a data URL content part and the call is the scene assessment; without one it
+ * is the intent router. Returns the model's text untouched: every judgement about whether the
+ * answer is usable belongs to src/ai, which is the side that knows what it asked for.
  */
-export async function assessWithVisionModel({ provider = DEFAULT_VISION_PROVIDER, chat, key, model, image, mime = 'image/jpeg', system, user, maxTokens = 320 }) {
+export async function askModel({ provider = DEFAULT_VISION_PROVIDER, chat, key, model, image = null, mime = 'image/jpeg', system, user, maxTokens = 320 }) {
   const endpoint = chat ?? VISION_PROVIDERS[provider]?.chat;
   if (!endpoint) throw new Error(`unknown vision provider: ${provider}`);
   const started = Date.now();
@@ -113,10 +119,12 @@ export async function assessWithVisionModel({ provider = DEFAULT_VISION_PROVIDER
         { role: 'system', content: system },
         {
           role: 'user',
-          content: [
-            { type: 'text', text: user },
-            { type: 'image_url', image_url: { url: `data:${mime};base64,${image}` } },
-          ],
+          content: image
+            ? [
+                { type: 'text', text: user },
+                { type: 'image_url', image_url: { url: `data:${mime};base64,${image}` } },
+              ]
+            : user,
         },
       ],
     }),
@@ -170,8 +178,9 @@ export function createKeyProxy({ apiKey = null, agentId = null, vision = null })
   return async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://proxy');
     try {
-      if (req.method === 'POST' && url.pathname === VISION_ROUTE) {
-        if (!vision) return sendJson(res, 404, { error: 'No scene model key configured: GEMINI_API_KEY or FEATHERLESS_API_KEY' });
+      if (req.method === 'POST' && (url.pathname === VISION_ROUTE || url.pathname === INTENT_ROUTE)) {
+        const wantsImage = url.pathname === VISION_ROUTE;
+        if (!vision) return sendJson(res, 404, { error: 'No model key configured: GEMINI_API_KEY or FEATHERLESS_API_KEY' });
         const raw = await readBody(req);
         let body;
         try {
@@ -180,18 +189,18 @@ export function createKeyProxy({ apiKey = null, agentId = null, vision = null })
           return sendJson(res, 400, { error: 'body is not JSON' });
         }
         const { image, mime, system, user, maxTokens } = body ?? {};
-        if (typeof image !== 'string' || image.length === 0 || image.length > MAX_IMAGE_CHARS) return sendJson(res, 400, { error: 'image must be a base64 string of a small JPEG' });
         if (typeof system !== 'string' || typeof user !== 'string') return sendJson(res, 400, { error: 'system and user prompts are required' });
-        const reply = await assessWithVisionModel({
+        if (wantsImage && (typeof image !== 'string' || image.length === 0 || image.length > MAX_IMAGE_CHARS)) return sendJson(res, 400, { error: 'image must be a base64 string of a small JPEG' });
+        const reply = await askModel({
           provider: vision.id,
           chat: vision.chat,
           key: vision.key,
           model: vision.model,
-          image,
+          image: wantsImage ? image : null,
           mime: mime === 'image/png' ? 'image/png' : 'image/jpeg',
           system,
           user,
-          maxTokens: typeof maxTokens === 'number' ? Math.min(600, Math.max(64, maxTokens)) : undefined,
+          maxTokens: typeof maxTokens === 'number' ? Math.min(600, Math.max(32, maxTokens)) : undefined,
         });
         return sendJson(res, 200, reply);
       }

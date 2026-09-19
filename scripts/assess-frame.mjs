@@ -12,7 +12,7 @@
 // app sends.
 import { readFileSync } from 'node:fs';
 import { ASSESS_SYSTEM, ASSESS_USER, parseAssessment } from '../src/ai/assess.ts';
-import { assessWithVisionModel, resolveVisionProvider } from '../src/voice/providers/devproxy.mjs';
+import { askModel, resolveVisionProvider } from '../src/voice/providers/devproxy.mjs';
 
 const [, , file, modelArg] = process.argv;
 if (!file) {
@@ -29,7 +29,7 @@ const image = readFileSync(file).toString('base64');
 const mime = /\.png$/i.test(file) ? 'image/png' : 'image/jpeg';
 
 console.log(`provider: ${vision.id}\nmodel: ${model}`);
-const reply = await assessWithVisionModel({ provider: vision.id, chat: vision.chat, key: vision.key, model, image, mime, system: ASSESS_SYSTEM, user: ASSESS_USER });
+const reply = await askModel({ provider: vision.id, chat: vision.chat, key: vision.key, model, image, mime, system: ASSESS_SYSTEM, user: ASSESS_USER });
 console.log(`latency: ${reply.latencyMs} ms\n--- raw ---\n${reply.text}\n--- parsed ---`);
 // The parser reads pixel boxes for Qwen2.5-VL; without the frame size those come out wrong,
 // so it is given here as unknown and the box is reported on the model's own scale.

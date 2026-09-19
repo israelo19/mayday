@@ -24,13 +24,13 @@ export function resolveVisionProvider(name?: string | null): {
   model: string;
 } | null;
 
-/** One frame and the app's question to a vision model; the raw reply text comes back. */
-export function assessWithVisionModel(o: {
+/** The app's question to the model, with a frame for the scene call and without one for the intent call. */
+export function askModel(o: {
   provider?: VisionProviderId;
   chat?: string;
   key: string;
   model: string;
-  image: string;
+  image?: string | null;
   mime?: 'image/jpeg' | 'image/png';
   system: string;
   user: string;

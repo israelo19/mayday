@@ -140,6 +140,15 @@ export const ASSESSMENT_HINTS: Readonly<Record<Exclude<SceneLabel, 'unclear'>, {
   choking: { to: 'choking.confirm', label: 'Choking', keyword: 'choking', confirm: 'It looks like someone is choking. Say yes, or tap.' },
 };
 
+/**
+ * Asked when a model matched a sentence to a move the state already offers and there is no
+ * written confirm line for it (docs/04 item 8). App text about the phone's own hearing, not
+ * about the patient: it quotes the button's label back and waits for a yes.
+ */
+export function confirmLine(label: string): string {
+  return `Did you say ${label.toLowerCase().replace(/[.?!]+$/, '')}? Say yes, or tap.`;
+}
+
 /** First keyword of a route: the one a confirmed suggestion is entered by. */
 export function routeKeyword(route: TriageRoute): string {
   return route.keywords[0];

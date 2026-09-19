@@ -4,6 +4,7 @@
 // DispatcherSim. Defaults stay local; every upgrade keeps its offline stub underneath.
 // Owned by P4 (docs/07).
 import { createSceneAssessor, createStubSceneAssessor, type SceneAssessor } from '../src/ai/assess';
+import { createIntentRouter, createStubIntentRouter, type IntentRouter } from '../src/ai/intent';
 import type { DispatcherSim } from '../src/ai/dispatcher';
 import { flags } from '../src/flags';
 import type { SceneLabel } from '../src/types';
@@ -40,6 +41,15 @@ export function createDispatcher(
 export function createAssessor(fake: { pick: () => SceneLabel } | null): SceneAssessor | undefined {
   if (!flags.sceneAssess) return undefined;
   return fake ? createStubSceneAssessor(fake.pick) : createSceneAssessor();
+}
+
+/**
+ * A missed sentence to a text model behind its flag (docs/04 item 8). `?fake=1` gets a word
+ * overlap stub, so the yes/no flow demos with no key.
+ */
+export function createRouter(fake: boolean): IntentRouter | undefined {
+  if (!flags.intentRoute) return undefined;
+  return fake ? createStubIntentRouter() : createIntentRouter();
 }
 
 /** Warm the ElevenLabs cache with every line the machines can say, so replays are free and offline (docs/09). */

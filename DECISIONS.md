@@ -532,3 +532,18 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   `GEMINI_VISION_MODEL`. Not one line of `src/ai/assess.ts` changed: it already asked for boxes
   on the 0 to 1000 scale, which is Gemini's own convention, and it already collapsed every
   failure to null. The LM seams (docs/04 items 5 and 8) are untouched and still stubs.
+- **Sat 19:55 (Ricky, `gemini-api` worktree)** The intent router, docs/04 item 8, on the same
+  Gemini key and the same proxy: `POST /intent/route` is the vision route without a picture, so
+  `assessWithVisionModel` became `askModel` with an optional `image` and there is still one
+  upstream call in the file. Two narrowings against the doc. First, the options are the button
+  twins of the current state, not `engine.keywords()`: the model only ever sees moves the screen
+  is already offering, which drops `repeat`, `next` and the keyword answers from its reach and
+  makes the suggestion match a button the person can see. Second, the model answers with the
+  NUMBER of an option, not its keyword, and `parseIntent` returns the option object the engine
+  minted, so inventing a step is not expressible rather than merely rejected. Low confidence is a
+  miss, like no answer at all: an unsure question while someone is counting compressions is worse
+  than silence. It runs in any phase but only after `matchKeyword` and `suggestRoute` have both
+  missed, one sentence in flight, 8 s between tries. `RouteSuggestion.source` gained `'model'`,
+  which the amber bar already renders as "Sounds like" since it is not the camera. The dead
+  `route: TriageRoute` field on the stored suggestion went with it: nothing had read it since it
+  was added. Behind `?flag=intentRoute`, `?fake=1` gets a word overlap stub.
