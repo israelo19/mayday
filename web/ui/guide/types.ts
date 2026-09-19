@@ -13,8 +13,8 @@
 // keyword-triggered line such as the tourniquet advice in the bleeding machine.
 import type { Emphasis, Judgement } from './judge';
 
-/** Machines that ship with pictures. Choking waits for its state ids in docs/02. */
-export type MachineId = 'cardiac' | 'bleeding';
+/** Machines that ship with pictures. */
+export type MachineId = 'cardiac' | 'bleeding' | 'choking';
 
 /** `machine.state` from docs/02, or `machine.keyword` for a keyword-triggered line. */
 export type GuideKey = `${MachineId}.${string}`;
@@ -39,6 +39,11 @@ export const SCENE_IDS = [
   'pack_more',
   'pack_deep',
   'tourniquet',
+  'choke_confirm',
+  'encourage_cough',
+  'back_blows',
+  'abdominal_thrusts',
+  'choke_resolved',
 ] as const;
 
 export type SceneId = (typeof SCENE_IDS)[number];

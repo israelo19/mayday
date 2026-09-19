@@ -15,9 +15,10 @@
 ## MACHINE: triage (entry point for everything)
 States:
 1. `listening` say: ["Tell me what's happening. Say things like: he's not breathing, she's choking, he got shot."]
-   - keywords -> 'not breathing'|'no pulse'|'collapsed'|'heart' => cardiac.scene_check
-   - keywords -> 'shot'|'stabbed'|'bleeding'|'blood' => bleeding.scene_safety
-   - keywords -> 'choking'|'can't breathe' + hands-at-throat fact => choking.confirm (STRETCH, may be disabled)
+   - keywords -> 'not breathing'|'no pulse'|'collapsed'|'heart attack'|... => cardiac.scene_check
+   - keywords -> 'shot'|'gunshot'|'stabbed'|'bleeding'|'blood'|... => bleeding.scene_safety
+   - keywords -> 'choking'|'can't breathe'|'something stuck'|... => choking.confirm
+   - The full vocabulary per route is data in src/protocol/phrases.ts (stemmed, word bounded, one letter of slack on long words; see src/protocol/language.ts). A sentence that matches nothing is scored against cue words and the app asks "It sounds like X. Say yes, or tap."; the route is entered only on yes, by a keyword. Camera gesture detection for choking stays out of scope.
    - manualAdvance buttons on screen for all three (voice must never be the only path).
 2. Every downstream machine's FIRST OR SECOND state includes: "Call 911 now. Put it on speaker." + show CALL 911 button + start SITREP.
 
@@ -64,8 +65,23 @@ States:
 6. `handoff` -> SITREP report screen with continuous-pressure time as the headline metric.
 Note: tourniquets are mentioned ONLY if user says 'tourniquet': respond "If you have a real tourniquet kit, place it two to three inches above the wound, not on a joint, and tighten until the bleeding stops. Otherwise keep pressing." We do not coach improvised belt tourniquets.
 
-## MACHINE: choking (STRETCH GOAL, ships as data, detection disabled)
-Source: Red Cross conscious choking adult. 5 back blows between shoulder blades with heel of hand, then 5 abdominal thrusts (fist just above navel, quick inward-and-upward pulls), repeat; if he goes unconscious => transition to cardiac.position. Keep the machine in the repo so the architecture slide can truthfully say "protocols are plug-in data files, here are three."
+## MACHINE: choking (conscious adult; ships as data, camera detection disabled)
+Source: Red Cross adult and child choking (https://www.redcross.org/take-a-class/resources/learn-first-aid/adult-child-choking). Reached by voice or button from triage; a choking gesture from the camera is out of scope (CLAUDE.md scope walls). If he goes unconscious the machine hands off to cardiac.position. The data file is src/protocol/machines/choking.ts; these lines are that file, verbatim.
+States:
+1. `confirm` say: ["Can he cough or speak? If he can cough, let him cough.", "If he cannot make a sound, tell me: he can't breathe."]
+   - keyword "can't breathe"|'no sound'|manualAdvance => back_blows
+   - keyword 'coughing' => encourage_cough
+2. `encourage_cough` say: ["Good. Keep him coughing. Do not hit his back while he can cough.", "Stay with him. If he stops making sound, tell me."]
+   - keyword "can't breathe"|manualAdvance => back_blows
+3. `back_blows` say: ["Stand behind him and lean him forward.", "Hit him five times between the shoulder blades with the heel of your hand."]
+   - keyword 'still choking'|manualAdvance => abdominal_thrusts
+   - keyword 'it came out' => resolved
+   - keyword 'he passed out'|'unconscious' => cardiac.position
+4. `abdominal_thrusts` say: ["Stand behind him. Make a fist just above his belly button.", "Grab your fist with your other hand. Pull hard, inward and upward, five times.", "If it does not come out, we go back to back blows."]
+   - keyword 'it came out' => resolved
+   - keyword 'he passed out'|'unconscious' => cardiac.position
+   - manualAdvance => back_blows   // the Red Cross cycle: five back blows, five thrusts, repeat
+5. `resolved` say: ["Good. Stay with him until the ambulance arrives. Keep watching his breathing."] End of machine.
 
 ## SITREP (built continuously from EventLog)
 Fields: location (geolocation lat/lon + reverse-geocode later, raw coords fine for demo), emergency type, time of collapse/first interaction, CPR started at, average rate, pauses>10s count, continuous pressure time, current state. Render as read-aloud lines at top ("Say this to the dispatcher:") + timeline below. Handoff screen adds QR of the report JSON.
