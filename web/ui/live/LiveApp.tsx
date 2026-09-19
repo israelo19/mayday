@@ -64,8 +64,10 @@ export function LiveApp() {
       </div>
       {snap.phase === 'handoff' && <div className="live-dim" />}
 
+      {/* One column, normal flow: chip row, metric, dispatcher. Nothing here overlaps anything else. */}
       <div className="live-top">
-        <ListeningChip listening={snap.listening} speaking={snap.speaking} heard={snap.lastHeard} keyword={snap.lastKeyword} />
+        <div className="live-top-row">
+        <ListeningChip listening={snap.listening} speaking={snap.speaking} heard={snap.lastHeard} keyword={snap.lastKeyword} error={snap.listenError} onRetry={() => session.retryListening()} />
         <div className="live-top-right">
           {/* Every state keeps the button; states flagged call911 in the machine data make it pulse. It opens the SIMULATED dispatcher and never dials. */}
           <button className={`live-call${snap.call911 && !snap.callActive ? ' urgent' : ''}`} onClick={() => session.call911()} disabled={snap.callActive}>
@@ -73,13 +75,12 @@ export function LiveApp() {
           </button>
           {snap.callActive && <span className="live-sim">Simulated dispatcher</span>}
         </div>
+        </div>
+        {snap.phase !== 'handoff' && <Metric snap={snap} />}
+        {snap.callActive && (
+          <DispatcherPanel status={snap.dispatcherStatus} lines={snap.dispatcherLines} sitrep={snap.sitrep} onReply={(t) => session.replyToDispatcher(t)} onHangUp={() => session.hangUp()} />
+        )}
       </div>
-
-      {snap.phase !== 'handoff' && <Metric snap={snap} />}
-
-      {snap.callActive && (
-        <DispatcherPanel status={snap.dispatcherStatus} lines={snap.dispatcherLines} sitrep={snap.sitrep} onReply={(t) => session.replyToDispatcher(t)} onHangUp={() => session.hangUp()} />
-      )}
 
       {snap.phase === 'handoff' ? (
         <HandoffPanel snap={snap} session={session} />
@@ -137,8 +138,9 @@ export function LiveApp() {
   );
 }
 
-function ListeningChip({ listening, speaking, heard, keyword }: { listening: string; speaking: boolean; heard: string | null; keyword: string | null }) {
+function ListeningChip({ listening, speaking, heard, keyword, error, onRetry }: { listening: string; speaking: boolean; heard: string | null; keyword: string | null; error: string | null; onRetry: () => void }) {
   const on = listening === 'listening' || listening === 'restarting';
+  const off = !on;
   // While the app talks the mic is muted for echo (docs/09), so say so: a judge who answers
   // over the prompt would otherwise think the app ignored them.
   const label = keyword
@@ -150,13 +152,14 @@ function ListeningChip({ listening, speaking, heard, keyword }: { listening: str
         : on
           ? 'Listening'
           : listening === 'unavailable'
-            ? 'Voice off, use the buttons'
-            : 'Mic off';
+            ? `Voice off${error ? ` (${error})` : ''}, tap to retry`
+            : 'Mic off, tap to retry';
+  // Off states are a button: iOS only grants recognition that starts inside a tap.
   return (
-    <div className={`live-chip${on && !speaking ? ' live-chip-on' : ''}${keyword ? ' live-chip-hit' : ''}`}>
+    <button type="button" className={`live-chip${on && !speaking ? ' live-chip-on' : ''}${keyword ? ' live-chip-hit' : ''}`} onClick={off ? onRetry : undefined} disabled={!off}>
       <span className="live-dot" />
       {label}
-    </div>
+    </button>
   );
 }
 

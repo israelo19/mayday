@@ -10,11 +10,13 @@
 .live-dim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.78); }
 
 .live-top {
-  position: absolute; left: 0; right: 0; top: 0; display: flex; justify-content: space-between; align-items: flex-start;
-  gap: 10px; padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 0;
+  position: absolute; left: 0; right: 0; top: 0; display: flex; flex-direction: column; align-items: stretch;
+  gap: 8px; padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 0; pointer-events: none;
 }
+.live-top > * { pointer-events: auto; }
+.live-top-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .live-top-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.live-call { background: var(--red); border: none; color: #fff; font-weight: 800; font-size: 18px; min-height: 52px; padding: 10px 18px; border-radius: 14px; box-shadow: 0 6px 24px rgba(255, 69, 58, 0.35); }
+.live-call { background: var(--red); border: none; color: #fff; font-weight: 800; font-size: 17px; min-height: 46px; padding: 8px 16px; border-radius: 14px; box-shadow: 0 6px 24px rgba(255, 69, 58, 0.35); }
 .live-call:disabled { opacity: 0.85; }
 .live-call.urgent { animation: live-call-pulse 1.2s ease-in-out infinite; }
 @keyframes live-call-pulse {
@@ -23,23 +25,24 @@
 }
 .live-sim { font-size: 12px; font-weight: 700; color: var(--red); background: var(--glass); padding: 4px 8px; border-radius: 999px; border: 1px solid var(--red); }
 
-.live-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; font-size: 14px; max-width: 60vw; }
+.live-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; font-size: 14px; max-width: 60vw; color: var(--ink); text-align: left; min-height: 0; }
+.live-chip:disabled { opacity: 1; }
 .live-dot { width: 9px; height: 9px; border-radius: 50%; background: #5f6a74; flex: none; }
 .live-chip-on .live-dot { background: var(--mint); animation: live-pulse 1.4s ease-out infinite; }
 .live-chip-hit { border-color: var(--mint); color: var(--mint); }
 @keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(127, 227, 198, 0.6); } 100% { box-shadow: 0 0 0 10px rgba(127, 227, 198, 0); } }
 
-.live-metric { position: absolute; left: 12px; top: calc(70px + env(safe-area-inset-top, 0px)); background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 16px; padding: 10px 14px; min-width: 110px; }
-.live-metric-value { font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.live-metric { align-self: flex-start; background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 16px; padding: 10px 14px; min-width: 110px; }
+.live-metric-value { font-size: 36px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .live-metric.ok .live-metric-value { color: var(--mint); }
 .live-metric.off .live-metric-value { color: var(--amber); }
 .live-metric-label { font-size: 12px; color: var(--ink-2); margin-top: 4px; }
 
-.live-bottom { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 10px; padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 60%, rgba(0, 0, 0, 0)); padding-top: 40px; }
-.live-banner { border-radius: 12px; padding: 10px 14px; font-weight: 700; background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--line); }
+.live-bottom { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 8px; padding: 0 12px calc(10px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 60%, rgba(0, 0, 0, 0)); padding-top: 24px; }
+.live-banner { border-radius: 12px; padding: 8px 12px; font-weight: 700; font-size: 15px; background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--line); }
 .live-banner.amber { color: var(--amber); border-color: rgba(255, 180, 84, 0.5); }
 .live-banner.red { color: var(--red); border-color: rgba(255, 69, 58, 0.6); }
-.live-banner.big { font-size: 22px; }
+.live-banner.big { font-size: 20px; }
 
 .live-card { background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; }
 .live-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; width: 100%; background: transparent; border: 0; padding: 0; color: inherit; min-height: 0; text-align: left; cursor: pointer; }
@@ -52,20 +55,20 @@
 .live-steps { display: flex; gap: 5px; }
 .live-steps i { width: 8px; height: 8px; border-radius: 50%; background: #3a444d; display: block; }
 .live-steps i.on { background: var(--mint); }
-.live-line { margin: 0; font-size: clamp(24px, 6.5vw, 36px); font-weight: 700; line-height: 1.2; }
+.live-line { margin: 0; font-size: clamp(22px, 6vw, 32px); font-weight: 700; line-height: 1.2; }
 .live-card .guide { background: transparent; }
 
 .live-twins { display: flex; flex-wrap: wrap; gap: 8px; }
-.live-twin { flex: 1 1 auto; background: rgba(255, 255, 255, 0.1); border: 1px solid var(--line); color: var(--ink); border-radius: 12px; min-height: 48px; font-size: 16px; font-weight: 600; }
-.live-twin.triage { flex: 1 1 100%; min-height: 64px; font-size: 22px; background: rgba(127, 227, 198, 0.16); border-color: rgba(127, 227, 198, 0.5); }
+.live-twin { flex: 1 1 auto; background: rgba(255, 255, 255, 0.1); border: 1px solid var(--line); color: var(--ink); border-radius: 12px; min-height: 44px; font-size: 15px; font-weight: 600; }
+.live-twin.triage { flex: 1 1 100%; min-height: 54px; font-size: 20px; background: rgba(127, 227, 198, 0.16); border-color: rgba(127, 227, 198, 0.5); }
 
 .live-actions { display: flex; gap: 10px; }
-.live-next { flex: 1; background: #fff; color: #000; border: none; border-radius: 14px; min-height: 60px; font-size: 20px; font-weight: 800; }
+.live-next { flex: 1; background: #fff; color: #000; border: none; border-radius: 14px; min-height: 50px; font-size: 18px; font-weight: 800; }
 .live-next:disabled { opacity: 0.35; }
-.live-ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); border-radius: 14px; min-height: 60px; font-size: 16px; font-weight: 600; padding: 0 14px; }
+.live-ghost { flex: 1; background: transparent; border: 1px solid var(--line); color: var(--ink); border-radius: 14px; min-height: 50px; font-size: 16px; font-weight: 600; padding: 0 14px; }
 .live-ghost.small { min-height: 40px; font-size: 14px; }
 
-.live-dispatch { position: absolute; left: 12px; right: 12px; top: calc(140px + env(safe-area-inset-top, 0px)); max-height: 48vh; overflow: auto; background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--red); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
+.live-dispatch { max-height: 40vh; overflow: auto; background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--red); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
 .live-dispatch.collapsed { padding-bottom: 6px; }
 .live-dispatch-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
 .live-sim-tag { color: var(--red); font-weight: 800; font-size: 13px; }
@@ -103,8 +106,8 @@
 .live-top { left: 0; right: 0; }
 .live-card .gd { gap: 8px; }
 .live-card .gd-steps { display: none; }
-.live-card .gd-stage { aspect-ratio: auto; height: min(22vh, 200px); border-color: rgba(255, 255, 255, 0.08); }
-.live-card .gd-caption { font-size: clamp(20px, 5.5vw, 30px); font-weight: 700; line-height: 1.18; min-height: 0; }
+.live-card .gd-stage { aspect-ratio: auto; height: min(18vh, 160px); border-color: rgba(255, 255, 255, 0.08); }
+.live-card .gd-caption { font-size: clamp(18px, 4.8vw, 26px); font-weight: 700; line-height: 1.18; min-height: 0; }
 .live-card .gd-trace { height: 56px; }
 @media (max-height: 700px) {
   .live-card .gd-stage { height: 18vh; }

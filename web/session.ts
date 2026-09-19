@@ -65,6 +65,8 @@ export type SessionSnapshot = {
   /** Camera guidance the session is currently showing (spoken only in watching states). */
   guidance: string | null;
   listening: VoiceInStatus;
+  /** The recognizer's last error code ('not-allowed', 'network', ...), so the chip can say why the mic is off. */
+  listenError: string | null;
   suggestion: RouteSuggestion | null;
   lastHeard: string | null;
   lastHeardAt: number;
@@ -99,6 +101,8 @@ export interface Session {
   call911(): void;
   replyToDispatcher(text: string): void;
   hangUp(): void;
+  /** Start listening again from inside a tap: iOS refuses recognition that did not start in a user gesture. */
+  retryListening(): void;
   readSitrepAloud(): void;
   /** Data URL of the handoff QR, or null when the encoder is unavailable. */
   qr(): Promise<string | null>;
@@ -179,6 +183,7 @@ export function createSession(deps: SessionDeps): Session {
   let stateEnteredAt = 0;
   let guidanceSpokenAt = -Infinity;
   let listening: VoiceInStatus = 'stopped';
+  let listenError: string | null = null;
   let lastHeard: string | null = null;
   let lastHeardAt = 0;
   let lastKeyword: string | null = null;
@@ -383,6 +388,12 @@ export function createSession(deps: SessionDeps): Session {
       },
       onStatus: (s) => {
         listening = s;
+        if (s === 'listening') listenError = null;
+        notify();
+      },
+      onError: (code) => {
+        listenError = code;
+        log.append({ t: now(), kind: 'system', detail: `speech recognition error: ${code}` });
         notify();
       },
     });
@@ -454,6 +465,7 @@ export function createSession(deps: SessionDeps): Session {
       blind: blindNow(),
       guidance,
       listening,
+      listenError,
       suggestion: suggestion ? { label: suggestion.label, keyword: suggestion.keyword, to: suggestion.to, heard: suggestion.heard } : null,
       lastHeard: t - lastHeardAt <= HEARD_SHOWN_MS ? lastHeard : null,
       lastHeardAt,
@@ -622,6 +634,15 @@ export function createSession(deps: SessionDeps): Session {
       callActive = false;
       dispatcherStatus = 'ended';
       log.append({ t: now(), kind: 'user', detail: 'hung up (SIMULATED dispatcher)' });
+      notify();
+    },
+
+    retryListening(): void {
+      if (phase === 'idle') return;
+      voice.stopListening();
+      listenError = null;
+      log.append({ t: now(), kind: 'user', detail: 'retry listening (tap)' });
+      listen();
       notify();
     },
 

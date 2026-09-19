@@ -111,6 +111,8 @@ export type VoiceInOptions = {
   echoText?: () => readonly string[];
   /** For the debug panel; hide voice affordances on 'unavailable'. */
   onStatus?: (s: VoiceInStatus) => void;
+  /** The recognizer's error code ('not-allowed', 'network', ...), so a screen can say why the mic is off. */
+  onError?: (code: string) => void;
   /** Keyword matcher; defaults to spotKeyword. The session passes the protocol's stemmed, typo-tolerant one. */
   spot?: (transcript: string, keywords: readonly string[]) => string | null;
 };
@@ -185,6 +187,7 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
       }
     };
     r.onerror = (e) => {
+      o.onError?.(e.error ?? 'unknown');
       // Permission is gone for the session: stop retrying and let the buttons carry it.
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
         running = false;
