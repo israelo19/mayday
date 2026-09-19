@@ -99,7 +99,8 @@ describe('scripted dispatcher', () => {
     call.sayToDispatcher('no, not breathing');
     call.sayToDispatcher('okay');
     call.sayToDispatcher('anything else?');
-    expect(panel).toEqual([...DISPATCHER_SCRIPT, DISPATCHER_ACK, DISPATCHER_ACK]);
+    // The acknowledgement plays once; later replies are heard and left alone.
+    expect(panel).toEqual([...DISPATCHER_SCRIPT, DISPATCHER_ACK]);
     await flush();
     // Every audible dispatcher turn plays as the dispatcher, never the coach.
     expect(speaker.spoken.every((s) => s.voice === 'dispatcher')).toBe(true);

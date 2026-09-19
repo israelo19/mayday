@@ -60,7 +60,7 @@
 .live-ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); border-radius: 14px; min-height: 60px; font-size: 16px; font-weight: 600; padding: 0 14px; }
 .live-ghost.small { min-height: 40px; font-size: 14px; }
 
-.live-dispatch { position: absolute; left: 12px; right: 12px; top: calc(140px + env(safe-area-inset-top, 0px)); background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--red); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
+.live-dispatch { position: absolute; left: 12px; right: 12px; top: calc(140px + env(safe-area-inset-top, 0px)); max-height: 48vh; overflow: auto; background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--red); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
 .live-dispatch.collapsed { padding-bottom: 6px; }
 .live-dispatch-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
 .live-sim-tag { color: var(--red); font-weight: 800; font-size: 13px; }

@@ -185,6 +185,18 @@ describe('session', () => {
     expect(s.snapshot().handoff?.headline.length).toBeGreaterThan(0);
   });
 
+  it('skips a call 911 state when the simulated call is already open', () => {
+    const { s, tick } = rig();
+    s.start();
+    s.say('stabbed'); // bleeding.scene_safety, CALL 911 is on screen from the start
+    s.call911();
+    s.advance(); // bleeding.call_911, whose only job is done
+    expect(s.snapshot().stateKey).toBe('bleeding.call_911');
+    tick(100);
+    expect(s.snapshot().stateKey).toBe('bleeding.find_wound');
+    expect(s.log.entries().some((e) => e.kind === 'system' && e.detail.includes('skipped the call 911 prompt'))).toBe(true);
+  });
+
   it('the simulated dispatcher opens on CALL 911 and advances on replies', () => {
     const { s, v } = rig();
     s.start();

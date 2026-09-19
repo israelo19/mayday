@@ -12,7 +12,7 @@ import { createVoiceOut, WebSpeechProvider, type SpeakerProvider, type VoiceOutF
 
 export type { CoachingEvent } from '../types';
 export { chunkForSpeech } from './chunk';
-export { createScriptedDispatcher, DISPATCHER_ACK, DISPATCHER_SCRIPT } from './dispatcher';
+export { createScriptedDispatcher, dispatcherDone, DISPATCHER_ACK, DISPATCHER_SCRIPT } from './dispatcher';
 export { createVoiceIn, isEchoOf, normalizeTranscript, spotKeyword } from './in';
 export type { VoiceIn, VoiceInOptions, VoiceInStatus } from './in';
 export { createLatencyLog } from './latency';

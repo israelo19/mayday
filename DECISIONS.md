@@ -350,3 +350,11 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   the coaching loop measures the helper, a classifier looks at the patient. Provider choice
   is a proxy route: Gemini for the sponsor opt-in, Featherless (OpenAI-compatible, image input
   on some models) as a one-line swap; Featherless is not a listed sponsor.
+- **Sat 05:55 (Ricky, `flow`)** The simulated dispatcher no longer loops. The scripted
+  call-taker acknowledges once after its four questions and then stays quiet on the line;
+  the panel folds itself when the script is done (header reads "On the line · Show") and
+  stops offering reply buttons, so the coaching card underneath is visible again; the open
+  panel is capped at 48vh and scrolls. A `call911` state entered while the call is already
+  open is skipped on the next tick with a system log line: telling someone on the line to
+  call is noise, and the state's lines go stale unplayed when the engine moves on. None of
+  this changes what the machines say; it changes when the phone repeats itself.

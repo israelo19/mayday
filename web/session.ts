@@ -179,6 +179,10 @@ export function createSession(deps: SessionDeps): Session {
   let geo: GeoFix | null = null;
   let geoRequested = false;
   let roiAnnouncedFor: string | null = null;
+  // A call911 state entered while the simulated call is already open is skipped on the next
+  // tick: telling someone on the line to call is noise, and the state's own lines go stale
+  // unplayed when the engine moves on (docs/09). Not medical: it is about the phone.
+  let skipCallPrompt = false;
   let handsMode = false;
   let lastReportAt = 0;
   let cancelTick: (() => void) | null = null;
@@ -193,6 +197,7 @@ export function createSession(deps: SessionDeps): Session {
     const state = engine.currentState()?.state;
     coaching = null;
     phase = machineId === 'triage' ? 'triage' : state?.terminal ? 'handoff' : 'coaching';
+    if (callActive && state?.call911) skipCallPrompt = true;
 
     if (bpm === null) {
       if (metronomeBpm !== null) voice.out.stopMetronome();
@@ -271,6 +276,11 @@ export function createSession(deps: SessionDeps): Session {
 
   function tick(): void {
     const t = now();
+    if (skipCallPrompt) {
+      skipCallPrompt = false;
+      log.append({ t, kind: 'system', detail: 'already on the line with the simulated dispatcher, skipped the call 911 prompt' });
+      engine.advance();
+    }
     engine.tick(t);
     const key = stateKey();
     if (key && WATCHING_STATES.has(key)) {
@@ -465,6 +475,7 @@ export function createSession(deps: SessionDeps): Session {
       dispatcherLines = [];
       geoRequested = false;
       roiAnnouncedFor = null;
+      skipCallPrompt = false;
       session.start();
     },
 

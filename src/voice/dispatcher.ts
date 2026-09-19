@@ -22,14 +22,21 @@ export const DISPATCHER_SCRIPT: readonly string[] = [
   'Help is on the way. Keep following the coaching. Do not hang up.',
 ];
 
-/** Any reply after the script is exhausted gets this steady acknowledgement. */
+/** The first reply after the script is exhausted gets this once; the call-taker then stays quiet and on the line. */
 export const DISPATCHER_ACK = 'Understood. Units are en route. Stay with him and keep going.';
+
+/** True once the dispatcher has nothing left to ask, so a panel can fold away and stop offering replies. */
+export function dispatcherDone(lines: readonly string[]): boolean {
+  const last = lines[lines.length - 1];
+  return last === DISPATCHER_SCRIPT[DISPATCHER_SCRIPT.length - 1] || last === DISPATCHER_ACK;
+}
 
 export function createScriptedDispatcher(voice: Pick<VoiceOutFull, 'speakInternal'>): DispatcherSim {
   return {
     connect(onDispatcherLine: (t: string) => void) {
       let step = 0;
       let live = true;
+      let acked = false;
 
       const say = (line: string): void => {
         onDispatcherLine(line); // the panel shows the line under the SIMULATED banner
@@ -52,7 +59,10 @@ export function createScriptedDispatcher(voice: Pick<VoiceOutFull, 'speakInterna
           if (step < DISPATCHER_SCRIPT.length) {
             say(DISPATCHER_SCRIPT[step]);
             step++;
-          } else {
+          } else if (!acked) {
+            // Once, not on every tap: a call-taker who repeats the same line forever reads as a
+            // loop the bystander cannot escape, and the coaching underneath is what matters now.
+            acked = true;
             say(DISPATCHER_ACK);
           }
         },
