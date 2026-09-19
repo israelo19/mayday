@@ -80,7 +80,12 @@ function fakeScripted() {
 }
 
 const sessionOk = () =>
-  Promise.resolve(new Response(JSON.stringify({ signedUrl: 'wss://agent.test/session?token=abc' }), { status: 200 }));
+  Promise.resolve(
+    new Response(
+      JSON.stringify({ signedUrl: 'wss://agent.test/session?token=abc', firstMessage: '9 1 1, where are you?' }),
+      { status: 200 },
+    ),
+  );
 const sessionMissing = () => Promise.resolve(new Response(JSON.stringify({ error: 'no agent' }), { status: 404 }));
 
 const LIVE = {
@@ -138,6 +143,8 @@ describe('createAgentDispatcher', () => {
     expect(socket.url).toBe('wss://agent.test/session?token=abc');
     expect(b.statuses).toEqual(['connecting', 'live']);
     expect(b.scripted.connects()).toBe(0);
+    // The agent speaks its opening line without an agent_response event; the proxy supplies the text.
+    expect(b.lines).toEqual(['9 1 1, where are you?']);
   });
 
   it('streams mic audio to the agent once live, as base64 user_audio_chunk', async () => {
@@ -155,7 +162,7 @@ describe('createAgentDispatcher', () => {
     socket.receive({ type: 'audio', audio_event: { audio_base_64: 'QUJD', event_id: 1 } });
     socket.receive({ type: 'user_transcript', user_transcript_event: { user_transcript: 'Main and 5th' } });
     socket.receive({ type: 'ping', ping_event: { event_id: 7, ping_ms: 12 } });
-    expect(b.lines).toEqual(['What is your location?']);
+    expect(b.lines).toEqual(['9 1 1, where are you?', 'What is your location?']);
     expect(b.played).toEqual(['QUJD']);
     expect(b.transcripts).toEqual(['Main and 5th']);
     expect(socket.sentJson()).toContainEqual({ type: 'pong', event_id: 7 });

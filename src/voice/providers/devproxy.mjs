@@ -15,8 +15,10 @@
 //
 // Routes, relative to the mount point:
 //   POST /v1/text-to-speech/*        forwarded to ElevenLabs with the key header added
-//   GET  /dispatcher/session         { signedUrl } for the dispatcher agent named by
-//                                    ELEVENLABS_AGENT_ID; 404 when no agent is configured
+//   GET  /dispatcher/session         { signedUrl, firstMessage } for the dispatcher agent named
+//                                    by ELEVENLABS_AGENT_ID; 404 when no agent is configured.
+//                                    firstMessage is the agent's configured opening line: the
+//                                    socket delivers it as audio only, so the panel needs it here.
 // Nothing else is forwarded: the proxy exposes exactly what the app calls, not the API.
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
@@ -69,6 +71,16 @@ export function createKeyProxy({ apiKey, agentId = null }) {
     return upstream;
   };
 
+  // The opening line is agent configuration, fixed for the process: fetched once, kept.
+  let firstMessage;
+  const agentFirstMessage = async () => {
+    if (firstMessage !== undefined) return firstMessage;
+    const upstream = await forward(`/v1/convai/agents/${encodeURIComponent(agentId)}`, { method: 'GET', headers: {} });
+    const config = upstream.ok ? await upstream.json() : null;
+    firstMessage = config?.conversation_config?.agent?.first_message || null;
+    return firstMessage;
+  };
+
   return async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://proxy');
     try {
@@ -80,7 +92,7 @@ export function createKeyProxy({ apiKey, agentId = null }) {
         );
         if (!upstream.ok) return sendJson(res, upstream.status, { error: await upstream.text() });
         const { signed_url: signedUrl } = await upstream.json();
-        return sendJson(res, 200, { signedUrl });
+        return sendJson(res, 200, { signedUrl, firstMessage: await agentFirstMessage() });
       }
       if (req.method === 'POST' && url.pathname.startsWith(TTS_PREFIX)) {
         const upstream = await forward(url.pathname + url.search, {

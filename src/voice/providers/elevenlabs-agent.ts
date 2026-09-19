@@ -194,6 +194,7 @@ export function createAgentDispatcher(options: AgentDispatcherOptions): Dispatch
           case 'conversation_initiation_metadata':
             clearTimeout(liveTimer);
             setStatus('live');
+            if (firstMessage) onDispatcherLine(firstMessage);
             for (const text of pending.splice(0)) sendUserMessage(text);
             break;
           case 'audio':
@@ -218,11 +219,16 @@ export function createAgentDispatcher(options: AgentDispatcherOptions): Dispatch
         socket?.send(JSON.stringify({ type: 'user_message', text }));
       };
 
+      /** The agent's configured opening line: it arrives as audio only, so the proxy sends the text. */
+      let firstMessage: string | null = null;
+
       const open = async (): Promise<void> => {
         const res = await fetchFn(`${o.baseUrl}/dispatcher/session`);
         if (!res.ok) throw new Error(`dispatcher session ${res.status}`);
-        const { signedUrl } = (await res.json()) as { signedUrl: string };
+        const session = (await res.json()) as { signedUrl: string; firstMessage?: string };
+        firstMessage = session.firstMessage ?? null;
         if (status !== 'connecting') return; // fell back or hung up while fetching
+        const { signedUrl } = session;
         const s = socketFactory(signedUrl);
         socket = s;
         s.onmessage = onServerEvent;
@@ -233,7 +239,8 @@ export function createAgentDispatcher(options: AgentDispatcherOptions): Dispatch
           // Mic before metadata: the agent's first words are its own, and the bystander
           // often answers before our state machine notices the session is live.
           micStarted = true;
-          void mic.start((pcm16Base64) => socket?.send(JSON.stringify({ user_audio_chunk: pcm16Base64 })));
+          // A call-taker who cannot hear is no call-taker: mic refused means the script.
+          mic.start((pcm16Base64) => socket?.send(JSON.stringify({ user_audio_chunk: pcm16Base64 }))).catch(fallBack);
         };
       };
       void player.unlock?.();

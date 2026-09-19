@@ -52,7 +52,7 @@ async function main() {
         },
         tts: {
           voice_id: DISPATCHER_VOICE_ID,
-          model_id: 'eleven_flash_v2_5',
+          model_id: 'eleven_flash_v2', // English agents must use flash v2 or turbo v2, not v2.5
           agent_output_audio_format: 'pcm_16000',
         },
         asr: { user_input_audio_format: 'pcm_16000' },
