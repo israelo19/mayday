@@ -9,6 +9,10 @@
 //   node scripts/mobile-tunnel.mjs          build, serve the build, start the tunnel
 //   node scripts/mobile-tunnel.mjs --dev    serve the Vite dev server instead (no HMR through
 //                                           the tunnel; reload the phone after a change)
+//   node scripts/mobile-tunnel.mjs --lan    no tunnel, no login: the QR points at this laptop
+//                                           on the wifi. The page is plain http there, so the
+//                                           phone will not open the camera; everything else runs.
+// Other flags (for example --port 8090) go to `expo start`.
 import { spawn, spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +20,8 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const dev = args.includes('--dev');
-const passthrough = args.filter((a) => a !== '--dev');
+const lan = args.includes('--lan');
+const passthrough = args.filter((a) => a !== '--dev' && a !== '--lan');
 const PAGE_PORT = dev ? '5173' : '4173';
 const pageEnv = { ...process.env, MAYDAY_VIA_EXPO: '1', MAYDAY_HTTP: '1' };
 
@@ -32,7 +37,7 @@ const page = spawn(
     : ['vite', 'preview', '--port', PAGE_PORT, '--strictPort'],
   { cwd: root, stdio: ['ignore', 'inherit', 'inherit'], env: pageEnv },
 );
-const expo = spawn('npx', ['expo', 'start', '--tunnel', ...passthrough], {
+const expo = spawn('npx', ['expo', 'start', lan ? '--lan' : '--tunnel', ...passthrough], {
   cwd: join(root, 'mobile'),
   stdio: 'inherit',
   env: { ...process.env, MAYDAY_PAGE_PORT: PAGE_PORT },

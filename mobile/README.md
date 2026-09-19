@@ -31,6 +31,11 @@ starts `expo start --tunnel`. Metro proxies `/app/` to that server
 also serves the page over a real certificate. Scan the QR with Expo Go (Android: the Expo
 Go app; iOS: the camera app). Allow camera, microphone and location once. The page opens.
 
+No Expo account yet? `npm run mobile:tunnel -- --lan` skips the tunnel and the login: the QR
+points at the laptop on the wifi. The page is plain http there, so the phone refuses the
+camera and the app coaches by voice; everything else works. Log in and drop `--lan` for the
+camera.
+
 Iterating on the web app? `npm run mobile:tunnel:dev` serves the Vite dev server instead
 of a build. There is no HMR through the tunnel: after a change, press and hold the
 status-bar strip on the phone and tap Open to reload.
