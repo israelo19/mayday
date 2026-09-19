@@ -382,3 +382,11 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   open is skipped on the next tick with a system log line: telling someone on the line to
   call is noise, and the state's lines go stale unplayed when the engine moves on. None of
   this changes what the machines say; it changes when the phone repeats itself.
+- **Sat 17:55 (P4)** iPhone runs the PWA fullscreen from the home screen, not a Simulator or
+  a WKWebView shell. The Simulator has no camera and a WKWebView has no SpeechRecognition,
+  and Sat 05:00 already dropped the shell. `index.html` carries the three Apple meta tags
+  (iOS before 16.4 ignores the manifest's `display`) and a PNG `apple-touch-icon`, because
+  Safari ignores SVG there and would screenshot the page for the icon. The manifest sets no
+  `start_url`: `vite-plugin-pwa` defaults it to `/`, which made an icon launch drop the
+  `?flag=` the phone was added with. Adding the icon from the flagged URL is the phone's
+  bookmark; flags still do not persist in storage.
