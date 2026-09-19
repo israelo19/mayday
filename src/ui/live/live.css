@@ -81,3 +81,17 @@
 .live-fake input { width: 120px; accent-color: var(--amber); }
 
 @media (prefers-reduced-motion: reduce) { .live-chip-on .live-dot { animation: none; } }
+
+/* ---- the step guide inside the floating card: a picture strip, not a full player ---- */
+.live-bottom, .live-top, .live-dispatch { max-width: 560px; margin-left: auto; margin-right: auto; }
+.live-handoff { max-width: 640px; margin: 0 auto; left: 0; right: 0; }
+.live-top { left: 0; right: 0; }
+.live-card .gd { gap: 8px; }
+.live-card .gd-steps { display: none; }
+.live-card .gd-stage { aspect-ratio: auto; height: min(22vh, 200px); border-color: rgba(255, 255, 255, 0.08); }
+.live-card .gd-caption { font-size: clamp(20px, 5.5vw, 30px); font-weight: 700; line-height: 1.18; min-height: 0; }
+.live-card .gd-trace { height: 56px; }
+@media (max-height: 700px) {
+  .live-card .gd-stage { height: 18vh; }
+  .live-card .gd-trace { display: none; }
+}

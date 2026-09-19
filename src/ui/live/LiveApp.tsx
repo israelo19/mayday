@@ -5,7 +5,7 @@
 import { useEffect, useMemo } from 'react';
 import { createPerception, type Perception } from '../../perception';
 import { createFakePerception, isFakeRequested, type FakePerceptionHandle } from '../../perception/fake';
-import { createSession } from '../../session';
+import { createSession, WATCHING_STATES } from '../../session';
 import { createVoice } from '../../voice';
 import { CameraView } from '../CameraView';
 import { LaunchScreen } from '../LaunchScreen';
@@ -32,7 +32,11 @@ export function LiveApp() {
   const session = useMemo(() => createSession({ perception, voice }), [perception, voice]);
   const snap = useSession(session);
 
-  useEffect(() => () => session.stop(), [session]);
+  useEffect(() => {
+    // Dev aid: `mayday.log.entries()` in the console shows what the session heard and did.
+    (window as unknown as { mayday?: unknown }).mayday = session;
+    return () => session.stop();
+  }, [session]);
 
   if (snap.phase === 'idle') {
     return (
@@ -71,11 +75,14 @@ export function LiveApp() {
         <HandoffPanel snap={snap} session={session} />
       ) : (
         <div className="live-bottom">
-          {snap.blind && snap.stateKey && (snap.stateKey.endsWith('compressions') || snap.stateKey.startsWith('bleeding.p')) && (
+          {!snap.blind && snap.guidance && <div className="live-banner amber">{snap.guidance}</div>}
+          {/* The engine's own line is the message. With a picture, the guide caption shows it; without one, the banner does. */}
+          {snap.coaching && !guideFor(snap.stateKey ?? '') && (
+            <div className={`live-banner ${snap.coaching.priority === 'critical' ? 'red' : 'amber'} big`}>{snap.coaching.text}</div>
+          )}
+          {snap.blind && !snap.coaching && snap.stateKey && WATCHING_STATES.has(snap.stateKey) && (
             <div className="live-banner red">Can't see you clearly. Coaching by voice.</div>
           )}
-          {!snap.blind && snap.guidance && <div className="live-banner amber">{snap.guidance}</div>}
-          {snap.coaching && <div className={`live-banner ${snap.coaching.priority === 'critical' ? 'red' : 'amber'} big`}>{snap.coaching.text}</div>}
 
           <Instruction snap={snap} />
 

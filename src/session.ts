@@ -303,6 +303,11 @@ export function createSession(deps: SessionDeps): Session {
 
   // ---- snapshot --------------------------------------------------------------------------
 
+  function terminalStateOf(machineId: string): string | null {
+    const m = machines.find((x) => x.id === machineId);
+    return m?.states.find((s) => s.terminal)?.id ?? null;
+  }
+
   function stateKey(): string | null {
     const cur = engine.currentState();
     return cur ? `${cur.machineId}.${cur.state.id}` : null;
@@ -317,10 +322,15 @@ export function createSession(deps: SessionDeps): Session {
 
   function twinsOf(state: State | null): ButtonTwin[] {
     if (!state) return [];
+    const cur = engine.currentState();
+    const terminal = cur ? terminalStateOf(cur.machineId) : null;
     const seen = new Set<string>();
     const twins: ButtonTwin[] = [];
     for (const tr of state.transitions) {
       if (tr.on.kind !== 'keyword' || seen.has(tr.to)) continue;
+      // "Ambulance is here" is a standing button in every coaching state (finish()), so a
+      // state's own keyword to the terminal state would be the same button twice.
+      if (terminal !== null && (tr.to === terminal || tr.to === `${cur?.machineId}.${terminal}`)) continue;
       seen.add(tr.to);
       twins.push({ label: tr.label, keyword: tr.on.keyword, to: tr.to });
     }
@@ -373,11 +383,6 @@ export function createSession(deps: SessionDeps): Session {
   }
 
   // ---- the surface -----------------------------------------------------------------------
-
-  function terminalStateOf(machineId: string): string | null {
-    const m = machines.find((x) => x.id === machineId);
-    return m?.states.find((s) => s.terminal)?.id ?? null;
-  }
 
   const session: Session = {
     engine,

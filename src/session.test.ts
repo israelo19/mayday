@@ -128,6 +128,8 @@ describe('session', () => {
     s.advance(); // compressions
     expect(s.snapshot().stateKey).toBe('cardiac.compressions');
     expect(s.snapshot().metronomeBpm).toBe(110);
+    // both keyword transitions here lead to handoff, which the standing finish button covers
+    expect(s.snapshot().twins).toEqual([]);
     expect(v.metronome).toEqual([110]);
     s.finish();
     expect(s.snapshot().phase).toBe('handoff');
