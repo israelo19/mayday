@@ -203,3 +203,42 @@ describe('state entry', () => {
     expect(h.log().some((e) => e.kind === 'user' && e.detail.includes('ambulance'))).toBe(true);
   });
 });
+
+describe("P2's M1 gate: cardiac end to end on fake facts, driven by taps alone", () => {
+  it('walks triage to handoff and corrects a slow rescuer on the way', () => {
+    const h = harness('triage', undefined, { rate: 80, compressing: false });
+
+    h.engine.onKeyword("oh god he's not breathing");
+    expect(h.stateKey()).toBe('cardiac.scene_check');
+
+    h.engine.advance();
+    expect(h.stateKey()).toBe('cardiac.check_breathing');
+
+    h.engine.onKeyword('no');
+    expect(h.stateKey()).toBe('cardiac.call_911');
+
+    h.idle(0, 8500, 500); // the 8s grace while the bystander dials
+    expect(h.stateKey()).toBe('cardiac.position');
+
+    h.facts.set({ compressing: true });
+    h.run(8600, 9000);
+    expect(h.stateKey()).toBe('cardiac.compressions');
+
+    h.run(9100, 20000);
+    expect(h.fired('rate-low').length).toBeGreaterThan(0);
+
+    h.engine.onKeyword('the paramedics are here');
+    expect(h.stateKey()).toBe('cardiac.handoff');
+
+    const timeline = h.log().filter((e) => e.kind === 'state_enter').map((e) => e.detail);
+    expect(timeline).toEqual([
+      'triage.listening',
+      'cardiac.scene_check',
+      'cardiac.check_breathing',
+      'cardiac.call_911',
+      'cardiac.position',
+      'cardiac.compressions',
+      'cardiac.handoff',
+    ]);
+  });
+});
