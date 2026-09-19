@@ -139,3 +139,52 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   SITREP -> HANDOFF instead of the bare debug view. These were never actually competing —
   the guide gallery is a dev preview surface for protocol pictures (same category as
   `?debug=1`), not a default end-to-end flow, so nothing here overrides anyone's work.
+- **Sat 02:00** `CoachingEvent` gains two fields. `t` is the timestamp of the fact that
+  triggered the line, so P3 can measure fact-to-audible latency without a second channel.
+  `cooldownMs` is the engine passing docs/04's per-dedupeKey rate limit through to the queue.
+- **Sat 02:00** docs/07 decisions 1, 2, 4 and 5 are landed as written. Blind lines are
+  priority `critical`, dedupeKey `blind`, 20 s cooldown, logged as kind `system`. `Rule`
+  carries `forMs` and `everyMs`. The hands-off rule fires above 1000 ms, not 1500, so P3 has
+  room to measure the end-to-end number before anyone claims 1.5 s on stage.
+- **Sat 02:00** Blindness is engine policy, not a per-rule predicate. The engine is blind when
+  confidence is below 0.5, when the newest facts are more than 2 s old, or when perception has
+  never reported and the state has been active 3 s. While blind only rules marked `blindSafe`
+  may fire. The stale-facts case matters: a frozen number that keeps coaching is the one
+  unacceptable state in principle 4, and a crashed perception loop produces exactly that.
+- **Sat 02:00** `Rule` also carries `requires`, a list of fact fields that must be measured
+  before the rule is even evaluated. Without it the rate rules would fire on the null rate that
+  perception reports for the first few seconds of compressions.
+- **Sat 02:00** Keyword collisions are handled by phrase-level, word-bounded, longest-first
+  matching in `src/protocol/keywords.ts`, plus a test asserting every keyword in a state
+  resolves to itself. `breathing normally` was dropped as a keyword: it is longer than
+  `not breathing`, so it would have won on "he's not breathing normally" and routed a dying
+  patient to the recovery branch.
+- **Sat 02:00** `EventLogEntry` gains an optional `data` twin, machine readable, alongside the
+  human-readable `detail`. The SITREP builder folds over `data` and never parses prose.
+- **Sat 02:00** `SitrepMetrics` gains `unmeasuredMs`. Time the camera could not see is reported
+  as unmeasured, never as a pause. Telling a paramedic "you stopped for 14 seconds" because the
+  lens was covered is a false claim, and the handoff report is the one artefact that leaves the
+  app.
+- **Sat 02:00** `HandoffReport` is plain data. The seam sketch in docs/07 gave it a `toJSON()`
+  returning a string, which would make `JSON.stringify(report)` doubly encode. P4 calls
+  `handoffJson(report)` for the full report and `handoffQrPayload(report)` for the QR, which
+  drops metric heartbeats and trims the timeline until it fits under 2000 characters.
+- **Sat 02:00** `next` and `repeat` are global keywords handled by the engine in any state,
+  after the state's own keywords get first refusal. `repeat` re-speaks the current state's
+  lines, which is the cheapest recovery when a judge misses an instruction.
+- **Sat 02:00** Test runner is vitest, no DOM environment needed because the engine is pure.
+  `qrcode` added as the sanctioned exception from docs/07 decision 7, loaded with a dynamic
+  import so the encoder never sits in the critical bundle. `tsconfig.test.json` typechecks
+  `tests/` and is run by `npm run typecheck` after the app build.
+- **Sat 02:00** The Red Cross conscious-choking URL in docs/02 returns 410 Gone. The choking
+  machine cites the live adult/child choking page instead. The compressions state cites 2025
+  AHA Guidelines Part 7, which is where 100 to 120 a minute and at least two inches come from;
+  the hands-only pages do not state the numbers. All five cited pages were opened before they
+  landed.
+- **Sat 02:00** Machine diagrams are generated from the data by `npm run diagrams`, and a test
+  fails when the committed `docs/protocol-diagrams.md` drifts from it.
+- **Sat 02:05** The no-network grep test from docs/07 task 9 would have failed P3's own M4
+  work, because docs/04 plans ElevenLabs streaming TTS inside `src/voice`. One exemption now
+  exists, `src/voice/providers/`, on the grounds that the default speaker is local and the
+  upgrade falls back to it. The voice queue may not import from that directory, so the local
+  default cannot quietly become a networked one.
