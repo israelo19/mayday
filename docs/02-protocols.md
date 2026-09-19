@@ -6,7 +6,7 @@
 - Team member B owns verifying every line against the published guideline pages on Saturday and pasting source URLs into the comments. Nothing ships unverified.
 - Canonical text is written to be SPOKEN. Short sentences. Imperative. No medical jargon.
 
-## Engine semantics (implement in /src/protocol/engine.ts, keep under ~120 lines)
+## Engine semantics (/src/protocol/engine.ts, ~240 lines, with rule evaluation split into rules.ts; the original budget was ~120)
 - A machine = `{ id, states: State[] }`. A State = `{ id, say: string[], metronome?: number, coachingRules?: Rule[], transitions: Transition[] }`.
 - Transition triggers: `keyword(k)`, `timerMs(n)`, `fact(predicate)`, `manualAdvance` (big NEXT button, always available as fallback so a demo can never wedge).
 - Coaching rules run every facts tick while in the state: `{ when: predicate, event: CoachingEvent, cooldownMs }`. Cooldown prevents nagging (default 6000ms per dedupeKey).

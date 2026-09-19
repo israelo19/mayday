@@ -12,7 +12,7 @@ Single speaker queue with priorities:
   - `ElevenLabsProvider` (LATER, behind stub): streaming TTS via proxy. Must implement the same cancel semantics. Falls back to WebSpeech on any error within 800ms.
 
 ## Voice in (/src/voice/in.ts)
-- Web Speech API SpeechRecognition, continuous, interimResults on. KEYWORD SPOTTING ONLY: lowercase transcript, match against the active state's keyword list + global keywords ('ambulance here', 'help'). No free-text goes anywhere near the protocol engine or any LLM authority path.
+- Web Speech API SpeechRecognition, continuous, interimResults on. KEYWORD SPOTTING ONLY: lowercase transcript, match against the active state's keyword list + the global keywords (`next`, `repeat`; 'ambulance here' is a per-state keyword and a standing button). No free-text goes anywhere near the protocol engine or any LLM authority path.
 - Chrome-only reality: feature-detect; if unavailable, hide voice affordances, buttons carry the demo. Buttons ALWAYS exist for every transition regardless.
 - Mic transcript lines are logged to EventLog as kind:'user' (they enrich the handoff report).
 
@@ -25,6 +25,8 @@ default OFF). `DispatcherSim` is interface-only in `src/ai/dispatcher.ts` for P3
 instead of ESLint.
 
 Every function here has: an interface, a hardcoded stub returning realistic demo data, a feature flag (default OFF), and a TODO entry below. Build the app against stubs; wire keys later without touching call sites.
+
+As of Sat 05:20 none of `VisionDescriber`, `NarrationFlavor` or `validateNarration` is called by the session, and `perception.captureFrame()` has no consumer; `visionDescribe` and `narrationFlavor` parse from the URL and nothing reads them. Items 4, 5, 7 and 8 below all start by wiring one of them in `web/session.ts`.
 
 ```ts
 export interface VisionDescriber {
@@ -52,6 +54,8 @@ export interface DispatcherSim {
 | 4 | Vision scene describe | Gemini API (sponsor prize) | VisionDescriber | Prompt: strictly describe visible scene + list cloth/materials usable for bleeding control; no advice, no diagnosis. Temperature low. |
 | 5 | Narration flavor | Claude Haiku or Gemini | NarrationFlavor | OPTIONAL. Cut first if time is short; canonical lines are already written to be spoken. |
 | 6 | Domain | GoDaddy (sponsor prize) | DNS -> DO app | 10 minutes, do during a lull. |
+| 7 | Emergency suggestion from one frame | Gemini (sponsor prize) or any OpenAI-compatible vision model through the same proxy (Featherless hosts Gemma 3 27B with image input) | `EmergencyClassifier` in src/ai; session calls it once on `triage.listening` entry with `captureFrame()` | Closed label set {collapsed, bleeding, choking, unclear}; any other output is unclear. The label picks which pre-written triage line plays ("It looks like someone is down and not moving. Is he breathing?") and which button is highlighted; the human answers by voice or tap and the machine transitions. It never transitions by itself and never speaks model text. 3 s timeout, no effect on a miss. The on-device pose heuristic in docs/03 ships first and is the offline fallback. |
+| 8 | Intent to keyword | Any text model through the proxy | `IntentRouter` in src/ai, called only after `matchKeyword` misses | Maps a missed transcript ("he's just lying there and won't wake up") to one of `engine.keywords()` or null; output validated against that list; the app asks "Did you say: not breathing?" with the button highlighted and the human confirms. Interprets the bystander, never chooses the instruction. |
 
 ## Sponsor prize mapping (so nobody forgets why a dependency exists)
 ElevenLabs opt-ins: items 2+3. Gemini opt-in: item 4. DigitalOcean opt-in: item 1 + hosting. GoDaddy opt-in: item 6. If any integration is not stable by Sat 11 PM, its flag stays OFF and the stub ships; a working demo outranks every opt-in prize.

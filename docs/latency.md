@@ -37,12 +37,12 @@ so it is measured end to end on camera, not from this module alone.
 
 | Date | Device | Provider | N | correction p50 | correction p95 | worst | Notes |
 |---|---|---|---|---|---|---|---|
-| TBD | demo phone | WebSpeech | - | - | - | - | blocked: no engine on main emits CoachingEvents yet (see docs/09) |
+| TBD | demo phone | WebSpeech | - | - | - | - | engine on main since Sat 04:15; run the protocol above with `?fake=1` |
 
 | Date | Device | Blind runs N | cover -> word p50 | worst | Notes |
 |---|---|---|---|---|---|
-| TBD | demo phone | - | - | - | needs P1's low-confidence fact + an engine blind rule |
+| TBD | demo phone | - | - | - | blind fact and rule are live; time cover -> first word on the phone |
 
-Until an engine lands, the queue's own numbers can be sanity-checked from the debug screen
-by enqueueing synthetic events; those numbers validate the queue (typically a few tens of
-ms plus TTS spin-up) but are NOT the stage claim and do not go in the tables above.
+The queue's own numbers can be sanity-checked from the debug screen by enqueueing synthetic
+events; those numbers validate the queue (typically a few tens of ms plus TTS spin-up) but are
+NOT the stage claim and do not go in the tables above.

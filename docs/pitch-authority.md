@@ -39,7 +39,7 @@ when the truth is that we could not see.
 
 | | |
 |---|---|
-| Tests | 81, fake clock throughout |
+| Tests | 204, fake clock throughout |
 | Machines | 4, every medical state citing a live guideline URL |
-| Engine | 232 lines of code, zero dependencies |
+| Engine | 240 lines of code plus a 55-line rule evaluator, zero dependencies |
 | Network calls in the coaching path | 0, enforced by a test |

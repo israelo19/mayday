@@ -39,8 +39,9 @@ Last commit before Sun 09:00 ET, no exceptions, not even README fixes.
 | `src/voice/**` | P3 |
 | `web/App.tsx`, `web/session.ts`, `web/ui/**` (except P1's three files), `src/ai/**`, `src/flags.ts`, `api/**`, `vite.config.ts`, `package.json`, `README.md`, `DECISIONS.md`, `docs/pitch.md`, deploy config | P4 |
 
-Branching: main only. `git pull --rebase` before every commit. Commit at least hourly with a
-message that says what demonstrably works. No PRs; ownership prevents conflicts, process does not.
+Branching: one short-lived branch per role (`eyes`/`brain`/`mouth`/`face`, DECISIONS Sat 02:05),
+merged to `main` by PR when a milestone gate goes green. `git pull --rebase` before every commit.
+Commit at least hourly with a message that says what demonstrably works.
 Changes to `src/types.ts` are announced in chat before they land.
 
 ## Seams (agree by Sat 02:30)
@@ -136,7 +137,7 @@ export const flags: { elevenLabs: boolean; dispatcherSim: boolean; visionDescrib
 1. **Take over M0 perception code** (Sat 03:00). Read `src/perception/*`, run it on the demo phone over LAN, fix whatever a real camera reveals. DONE = the M0 gate passes on the phone, not just the laptop.
 2. **M1 signal extraction** (Sat 06:00). Peak detection on the EMA series: local max with prominence > 0.008 and a 250 ms refractory; rate = peaks in trailing 10 s x 6, null until 5 peaks; `compressionActive` = 2+ peaks in trailing 2 s; `recoilRatio` per cycle, averaged over the window, clamped 0..1; confidence gate: min visibility of landmarks 11/12 below 0.5 for more than 1 s nulls every derived metric and reports the low confidence. Debug sliders for alpha, prominence, refractory. DONE = the rate number tracks a metronome-paced teammate within 5 bpm at 100 and at 120, on a pillow.
 3. **Replay harness** (Sat 08:00). `?replay=/fixtures/cpr-110.webm` runs a recorded clip through the exact same pipeline. Record three clips: good light at 110, slow at 80, phone-on-the-floor angle. Keep each under 5 MB. DONE = tuning no longer needs a live human.
-4. **Camera guidance and the blind path** (Sat 10:00). No pose for 3 s -> "I can't see the patient. Prop the phone so I can see his chest." Shoulder distance < 0.08 -> "Move the phone closer." Mean luminance too low -> "Turn on a light." Cover-the-lens: low confidence must be emitted within 1.2 s of the cover so the whole pipeline hits the 2 s demo budget. DONE = blind line audible in under 2 s end to end with P3 and P4.
+4. **Camera guidance and the blind path** (Sat 10:00). No measurable shoulders for 3 s -> "I can't see you. Prop the phone so I can see your chest and shoulders." (the rescuer is the signal, DECISIONS Sat 02:40) Shoulder distance < 0.08 -> "Move the phone closer." Mean luminance too low -> "Turn on a light." Cover-the-lens: low confidence must be emitted within 1.2 s of the cover so the whole pipeline hits the 2 s demo budget. DONE = blind line audible in under 2 s end to end with P3 and P4.
 5. **Performance** (Sat 12:00). `requestVideoFrameCallback`, 640 px input, GPU delegate with CPU fallback, fps HUD. Targets: 15 fps laptop, 10 fps phone. Stretch: MediaPipe in a Web Worker with OffscreenCanvas so the UI never janks. DONE = targets measured and written in the debug footer.
 6. **M3 hands and ROI** (Sat 15:00). HandLandmarker runs only in `pose+hands` mode. ROI lock: both hand centroids stable (variance under threshold for 1.5 s) -> circle around them, radius 1.5x hand span. `handsOnRegion` = at least one centroid inside; `handsOffMs` = continuous time both are outside. No stabilization in 10 s -> verbal-only for this state, announced. Draw the ROI on the overlay. DONE = lift hands to peek and the fact crosses the threshold within 100 ms of the true moment.
 7. **Stretch flags** (after M3). Choking gesture: both hand centroids near the neck midpoint for 1.5 s -> a triage-suggestion fact only, never auto-starts a protocol. Amplitude proxy: shoulder-y amplitude over shoulder width, flag OFF, never a centimetre claim. DONE = both behind flags, both OFF by default, both demoable with `?flag=`.
