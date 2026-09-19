@@ -26,4 +26,14 @@ Justification for judges: the killer behavior is releasing pressure to peek; han
 Both hand centroids within radius of pose neck midpoint (avg of landmarks 11,12 shifted up toward 0) for >1.5s => fact for triage suggestion only ("It looks like he might be choking. Can he speak or cough?"). Never auto-starts a protocol.
 
 ## Camera guidance
-If zero poses detected for 3s: "I can't see the patient. Prop the phone so I can see his chest." If pose too small (shoulder distance < 0.08 normalized): "Move the phone closer." Emit via getCameraGuidance(), UI speaks it max once per 10s.
+If no measurable shoulders for 3s: "I can't see you. Prop the phone so I can see your chest and shoulders." (the rescuer's shoulders are the signal, so the line addresses the rescuer; DECISIONS Sat 02:40). Too dark: "It's too dark. Turn on a light." Shoulder distance < 0.08 normalized: "Move the phone closer."; > 0.5: "Move the phone back a little." Emit via getCameraGuidance(); the session speaks it at most once per 10 s and only in the states that watch the rescuer.
+
+## Who the camera watches
+The camera sees the patient and the helper. The coaching signal is the HELPER: shoulder-y of the person doing compressions, palms of the person pressing the wound. The patient is what a scene classifier (docs/04 item 7) would look at; nothing in the coaching loop measures the patient.
+
+Two people are usually in frame: the patient lying flat and the rescuer kneeling over the chest, or a second bystander holding the phone. The pose model therefore runs with `numPoses: 2` and `pickRescuer()` in signal.ts chooses the pose to measure: shoulders visible, hips below the shoulders by at least half a shoulder span (kneeling or standing), and the same person as last frame while that holds, so a swap between two candidates cannot fake a compression. A patient lying flat scores near zero and is never measured. The perception matrix row "second person lying in frame" (docs/perception-tests.md) is the check for this on the demo phone, fps included.
+
+A handheld phone adds camera shake to the shoulder signal. The guidance and the machines both say to put the phone down; if a second bystander holds it, the rate is still measured but the perception matrix row for it is the honest number.
+
+## Scene hint (planned, on-device, docs/04 item 7's offline half)
+A pose-only fact for triage, suggestion only, never a transition: `sceneHint: 'person_down' | 'hands_at_throat' | null`. Person down = a measurable pose whose torso axis is within ~25 degrees of horizontal for > 2 s. Hands at throat = the existing ChokingGestureDetector, which today runs only in `pose+hands` mode (bleeding states) and reaches only the debug screen; it would need hands tracked during triage. The session maps a hint to a pre-written triage line and a highlighted button; the human confirms. This is the same rule as the choking gesture above.

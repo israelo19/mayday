@@ -310,3 +310,43 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   call-taker with the panel's status chip and the bystander transcript fed back into the
   snapshot. The ElevenLabs cache is warmed on the first tap with every canonical line from the
   machines instead of the mock steps. Nothing about the flags' defaults changed.
+- **Sat 05:20 (Ricky, `flow`)** Repo-wide flow check. Typecheck, 204 tests, the AI boundary
+  script and the production build were green before and after. Fixed: the choking machine
+  never said "call 911" (docs/02 requires it in the first two states of every medical
+  machine, and the test exempted choking); it now has a `call_911` state second and a
+  `handoff` terminal, with `resolved` no longer terminal so "Ambulance is here" lands on a
+  handoff line instead of "wait for the ambulance". The machines test no longer exempts
+  choking. `tests/boundaries.test.ts` gained a principle 5 check: no `tel:` link and no
+  telephony API anywhere in `src` or `web`, and the live screen must label the dispatcher
+  SIMULATED. The 911 call is a button and a simulated call-taker for the demo only; the app
+  never dials a real line, and now a test says so.
+- **Sat 05:20 (Ricky, `flow`, P1's area, needs the phone check)** The pose model now runs with
+  `numPoses: 2` and `pickRescuer()` in `signal.ts` decides which pose to measure: shoulders
+  visible, hips at least half a shoulder span below the shoulders (kneeling or standing), and
+  the same person as last frame while that holds. Reason: the camera sees the patient lying
+  flat and the rescuer kneeling over the chest; with one pose the model could lock onto the
+  patient, the shoulder signal goes flat and the app nags "don't stop" at someone who is
+  pushing. Pure function, four tests. Cost is a second landmark pass per frame; the
+  perception matrix row "second person lying in frame" is where the phone fps gets written
+  before the demo. If fps drops under 10, drop `numPoses` back to 1 and keep the selector.
+- **Sat 05:20 (Ricky, `flow`)** The first-cut mock screens (`CoachScreen`, `SitrepScreen`,
+  `HandoffScreen`, `mockDemoData`) were imported by nothing since the live app landed and are
+  deleted; `LaunchScreen` stays. The per-state `call911` flag in the machine data was read by
+  no UI; the CALL 911 button now pulses in those states. It still opens the simulated
+  dispatcher and nothing else.
+- **Sat 05:20 (Ricky, `flow`)** Docs caught up with the merges: README no longer says the app
+  runs on mock data; docs/09 points at `web/providers.ts`, drops the "restore the engine"
+  section and the "no fact timestamp" note; docs/latency is unblocked; docs/04 lists the real
+  global keywords and says plainly that no `src/ai` stub is wired yet; docs/03 and docs/07
+  match the code's "I can't see you" guidance; docs/07 records the branch-per-role practice;
+  docs/02 names the choking states and the engine's real size; pitch-authority has today's
+  numbers. Still open: `.do/app.yaml` has no `/api/proxy` function, so both ElevenLabs flags
+  fall back to the script on the deployed URL (docs/04 TODO 1).
+- **Sat 05:20 (Ricky, `flow`)** Emergency classification by camera is designed, not built:
+  docs/04 items 7 (one frame, closed label set, picks a pre-written triage line and highlights
+  a button, the human confirms, never transitions) and 8 (a missed transcript mapped to one of
+  the current state's keywords, confirmed the same way), plus the on-device scene hint in
+  docs/03. Framing rule written down in docs/03: the camera sees the patient and the helper,
+  the coaching loop measures the helper, a classifier looks at the patient. Provider choice
+  is a proxy route: Gemini for the sponsor opt-in, Featherless (OpenAI-compatible, image input
+  on some models) as a one-line swap; Featherless is not a listed sponsor.

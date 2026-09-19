@@ -377,3 +377,51 @@ export function cameraGuidance(i: GuidanceInput): string | null {
   }
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// Which person to measure when the camera sees two (docs/03 "Who the camera watches")
+// ---------------------------------------------------------------------------
+
+export const LEFT_HIP = 23;
+export const RIGHT_HIP = 24;
+
+/** A pose whose shoulders are visible enough to measure. Same bar as the blind gate. */
+const MEASURABLE_CONFIDENCE = 0.5;
+/** Hips at least this many shoulder spans below the shoulders reads as kneeling or standing. */
+export const UPRIGHT_MIN = 0.5;
+/** A pose whose shoulder midpoint moved less than this since last frame is the same person. */
+export const SAME_POSE_MAX_DIST = 0.15;
+
+/**
+ * How upright a pose is: hips below the shoulders in image space, in shoulder spans. A kneeling
+ * rescuer scores near 1 or more; a patient lying flat scores near 0.
+ */
+export function uprightness(lm: readonly LandmarkLike[]): number {
+  const span = shoulderSpan(lm);
+  if (span <= 0) return 0;
+  const hipY = (lm[LEFT_HIP].y + lm[RIGHT_HIP].y) / 2;
+  return (hipY - shoulderMidY(lm)) / span;
+}
+
+/**
+ * The pose to measure when more than one person is in frame: the rescuer, whose shoulders
+ * move, never the patient, who lies flat. The pose chosen last frame is kept while it is still
+ * upright and nearby, so a swap between two candidates cannot fake a compression.
+ */
+export function pickRescuer<T extends readonly LandmarkLike[]>(
+  poses: readonly T[],
+  previous: { x: number; y: number } | null,
+): T | undefined {
+  if (poses.length <= 1) return poses[0];
+  const seen = poses.filter((p) => shoulderConfidence(p) >= MEASURABLE_CONFIDENCE);
+  const candidates = seen.length > 0 ? seen : poses;
+  if (previous) {
+    const same = candidates.find(
+      (p) => Math.hypot(shoulderMidX(p) - previous.x, shoulderMidY(p) - previous.y) <= SAME_POSE_MAX_DIST,
+    );
+    if (same && uprightness(same) >= UPRIGHT_MIN) return same;
+  }
+  return [...candidates].sort(
+    (a, b) => uprightness(b) - uprightness(a) || shoulderConfidence(b) - shoulderConfidence(a),
+  )[0];
+}

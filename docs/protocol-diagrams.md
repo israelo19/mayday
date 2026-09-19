@@ -101,13 +101,17 @@ Source: https://www.redcross.org/take-a-class/resources/learn-first-aid/adult-ch
 stateDiagram-v2
     [*] --> choking_confirm
     choking_confirm: confirm
-    choking_confirm --> choking_back_blows: "can't breathe"
-    choking_confirm --> choking_back_blows: "no sound"
+    choking_confirm --> choking_call_911: "can't breathe"
+    choking_confirm --> choking_call_911: "no sound"
     choking_confirm --> choking_encourage_cough: "coughing"
-    choking_confirm --> choking_back_blows: NEXT
+    choking_confirm --> choking_call_911: NEXT
+    choking_call_911: call_911
+    choking_call_911 --> choking_back_blows: after 8s
+    choking_call_911 --> choking_back_blows: NEXT
     choking_encourage_cough: encourage_cough
-    choking_encourage_cough --> choking_back_blows: "can't breathe"
-    choking_encourage_cough --> choking_back_blows: NEXT
+    choking_encourage_cough --> choking_call_911: "can't breathe"
+    choking_encourage_cough --> choking_resolved: "it came out"
+    choking_encourage_cough --> choking_call_911: NEXT
     choking_back_blows: back_blows
     choking_back_blows --> choking_abdominal_thrusts: "still choking"
     choking_back_blows --> choking_resolved: "it came out"
@@ -120,5 +124,9 @@ stateDiagram-v2
     choking_abdominal_thrusts --> cardiac_position: "unconscious"
     choking_abdominal_thrusts --> choking_back_blows: NEXT
     choking_resolved: resolved
-    choking_resolved --> [*]
+    choking_resolved --> cardiac_position: "not breathing"
+    choking_resolved --> choking_handoff: "ambulance here"
+    choking_resolved --> choking_handoff: NEXT
+    choking_handoff: handoff
+    choking_handoff --> [*]
 ```
