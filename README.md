@@ -59,7 +59,7 @@ coach-screen preview. No camera needed.
 4. Turn wifi off and repeat step 3. Everything keeps working.
 
 DONE means: the waveform wiggles, confidence is on screen, the metronome ticks. Confirmed on
-an iPhone rear camera at 28 to 31 fps on Sat 01:50.
+an iPhone rear camera at 28 to 31 fps on Sat 01:50, and working on Android as well.
 
 ## M1 check (perception side, `?debug=1`)
 
