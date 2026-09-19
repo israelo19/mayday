@@ -33,7 +33,7 @@ One-liner for every README and pitch surface: "The minutes before the ambulance,
 
 ## What we are NOT building (scope walls)
 - Machines this weekend: triage, cardiac, bleeding, and choking as data only with detection disabled. Any other emergency (stroke, seizure, overdose, burns) is a future machine file, not hackathon work.
-- No accounts, no database, no ambient always-on listening, no auto-dial, no diagnosis claims, no blood detection via CV, no native app.
+- No accounts, no database, no ambient always-on listening, no auto-dial, no diagnosis claims, no blood detection via CV, no native app (the phone runs the PWA; an Expo Go shell was tried and dropped, DECISIONS.md Sat 05:00).
 
 ## Repo layout
 ```
@@ -43,6 +43,7 @@ One-liner for every README and pitch surface: "The minutes before the ambulance,
   /voice         speech out (queue, metronome), speech in (keyword router) (docs/04)
   /ai            episodic cloud calls, all stubbed behind interfaces (docs/04)
   /sitrep        event log, SITREP builder, handoff report
+/web             the browser app: main.tsx, App.tsx, index.css, session.ts (orchestrator, P4)
   /ui            screens and overlays (docs/05)
   /ui/guide      step guides: one picture per protocol line, gallery at ?guide=1 (docs/05)
 /docs            these context documents; docs/07 is the four-person work split

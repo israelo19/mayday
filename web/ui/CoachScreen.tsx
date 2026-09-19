@@ -4,7 +4,7 @@
 // `line`/`metricLabel`/`metricValue` are session.ts's job once it exists (P2's engine via
 // CoachingEvent); App.tsx feeds mock data for now. Owned by P4.
 import { CameraView } from './CameraView';
-import type { Perception } from '../perception';
+import type { Perception } from '../../src/perception';
 
 type Props = {
   perception: Perception;

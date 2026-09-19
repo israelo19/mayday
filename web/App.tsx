@@ -1,12 +1,12 @@
-// App root, docs/05. `?guide` opens the step guide gallery (src/ui/guide), the local test
+// App root, docs/05. `?guide` opens the step guide gallery (web/ui/guide), the local test
 // surface for the protocol pictures (P2/P3). `?debug=1` gets the M0 debug view. Otherwise:
 // four screens (LAUNCH -> COACH -> SITREP -> HANDOFF) driven by mock data from
-// src/ui/mockDemoData.ts until src/session.ts and P2's engine exist to drive them for real
+// web/ui/mockDemoData.ts until web/session.ts and P2's engine exist to drive them for real
 // (see DECISIONS.md). Owned by P4 (docs/07).
 import { useMemo, useState } from 'react';
-import { createPerception } from './perception';
-import { WebSpeechProvider } from './voice/out';
-import { Metronome } from './voice/metronome';
+import { createPerception } from '../src/perception';
+import { WebSpeechProvider } from '../src/voice/out';
+import { Metronome } from '../src/voice/metronome';
 import { DebugScreen } from './ui/DebugScreen';
 import { GuideGallery } from './ui/guide';
 import { LaunchScreen } from './ui/LaunchScreen';

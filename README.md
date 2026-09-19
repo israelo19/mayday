@@ -30,7 +30,7 @@ npm run dev        # https://localhost:5173 and https://<your-LAN-ip>:5173
 ```
 
 A plain load is the real app: LAUNCH -> CALL PREP -> COACH -> SITREP -> HANDOFF (docs/05),
-running on mock data until `src/session.ts` and P2's engine wire it up for real (see
+running on mock data until `web/session.ts` and P2's engine wire it up for real (see
 `DECISIONS.md`). `?debug=1` gets the M0 sensor/debug view instead -- that's what the M0 and M1
 checks below are walking.
 
@@ -50,6 +50,23 @@ Other scripts: `npm run typecheck`, `npm test` (vitest), `npm run build` (output
 `npm run preview`. Open `http://localhost:5173/?guide=1` (any of the dev modes) for the step
 guide gallery: every protocol picture, a simulated bystander to watch the guide react, and a
 coach-screen preview. No camera needed.
+
+## Run it on a phone
+
+The phone runs the web app itself, as a PWA. No store, no account, no shell: Chrome on
+Android has the camera, Web Speech, vibrate and wake lock the app needs, and Safari on iOS
+has all but vibrate.
+
+1. `npm run dev` (or `npm run preview` for the production build). Under Vite's URL list it
+   prints a QR of the LAN address. Scan it with the phone's camera app.
+2. Accept the self-signed certificate warning once (Advanced, proceed). Camera works after
+   that because a secure context is about the https scheme, not certificate trust.
+3. Chrome menu, "Add to Home Screen": the app opens full screen from its own icon from then
+   on, and a reload with wifi off still loads once a session has run online
+   (`vite-plugin-pwa`, see Deploy). The deployed DigitalOcean URL skips step 2 entirely.
+
+Expo Go was tried and dropped: on the current SDK it refuses any project whose dev server
+is not signed in to an Expo account, on the laptop and on the phone (DECISIONS.md, Sat 05:00).
 
 ## M0 demo check
 
@@ -91,12 +108,13 @@ Tests for the pure signal code: `npm test`.
   /voice         speech out (queue, metronome), speech in (keyword router) (docs/04)
   /ai            episodic cloud calls, all stubbed behind interfaces (docs/04)
   /sitrep        event log, SITREP builder, handoff report
+/web             the browser app: main.tsx, App.tsx, index.css, and session.ts once the engine lands
   /ui            screens and overlays (docs/05)
   /ui/guide      step guides: one picture per protocol line, gallery at ?guide=1 (docs/05)
 /docs            context documents; docs/07 is the four-person work split
 /public/models   MediaPipe .task model files (committed)
 /public/wasm     MediaPipe WASM runtime (generated, gitignored)
-/scripts         prepare-assets.mjs
+/scripts         prepare-assets.mjs, check-ai-boundaries.mjs
 ```
 
 Decisions the docs did not settle are logged in `DECISIONS.md`.

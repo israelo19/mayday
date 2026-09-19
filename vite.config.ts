@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import mkcert from 'vite-plugin-mkcert';
 import { VitePWA } from 'vite-plugin-pwa';
+import * as QRCode from 'qrcode';
 
 // HTTPS in dev because getUserMedia needs a secure context on any origin other than
 // localhost (the phone on the LAN hits https://<laptop-ip>:5173).
@@ -14,10 +15,44 @@ import { VitePWA } from 'vite-plugin-pwa';
 const https: PluginOption[] =
   process.env.MAYDAY_HTTP === '1' ? [] : process.env.MAYDAY_MKCERT === '1' ? [mkcert()] : [basicSsl()];
 
+/**
+ * Prints a QR code of the LAN URL under Vite's own URL list, for dev and preview. The demo
+ * runs on a phone (docs/05); one scan with the camera app beats typing an address, and the
+ * phone then installs the PWA from Chrome's "Add to Home Screen". `qrcode` is the package
+ * P2 already sanctioned for the handoff QR (DECISIONS.md).
+ */
+function phoneQr(): PluginOption {
+  const show = (urls: { network: string[] } | null): void => {
+    const url = urls?.network[0];
+    if (!url) return;
+    QRCode.toString(url, { type: 'terminal', small: true })
+      .then((qr) => console.log(`\n  Phone: scan to open ${url}\n\n${qr}`))
+      .catch(() => {});
+  };
+  return {
+    name: 'mayday-phone-qr',
+    configureServer(server) {
+      const printUrls = server.printUrls.bind(server);
+      server.printUrls = () => {
+        printUrls();
+        show(server.resolvedUrls);
+      };
+    },
+    configurePreviewServer(server) {
+      const printUrls = server.printUrls.bind(server);
+      server.printUrls = () => {
+        printUrls();
+        show(server.resolvedUrls);
+      };
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     react(),
     ...https,
+    phoneQr(),
     // docs/07 P4 task 7: an accidental reload with wifi off must still load. `vite-plugin-pwa`
     // is a pre-approved exception to the no-new-libraries rule (DECISIONS.md).
     VitePWA({

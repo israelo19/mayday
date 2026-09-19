@@ -1,5 +1,5 @@
 // Types for the step guides: the pictures that show a bystander what the current
-// protocol state is asking for. Owned by P4 (src/ui, docs/07).
+// protocol state is asking for. Owned by P4 (web/ui, docs/07).
 //
 // A guide is keyed by `machine.state` from docs/02 and holds one step per canonical
 // spoken line of that state. Captions are those lines verbatim. The guide never adds,
