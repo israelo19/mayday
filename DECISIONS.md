@@ -397,3 +397,11 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   like someone has collapsed. Say yes, or tap."), and yes routes by `collapsed`. The engine
   never moves on the hint; a rejected or ignored hint waits 30 s. Hands-at-throat stays off
   (a second model per frame is what froze the phone). Roadmap in docs/03.
+- **Sat 06:30 (Ricky, `mobile-polish`)** Dispatcher replies answer the question asked.
+  `repliesFor()` in `src/voice/dispatcher.ts` maps each scripted question to its answers from
+  the SITREP: the address for "where", the emergency and how long ago for "what happened",
+  and per-protocol patient-status statements for "is he awake, is he breathing" (two choices
+  where the app cannot know, so the bystander picks the true one). The last script line and
+  the acknowledgement offer nothing, which is what folds the panel. Before this the panel
+  offered the same four read-aloud lines under every question, so the address came up again
+  after "what happened" and nothing answered the status question.

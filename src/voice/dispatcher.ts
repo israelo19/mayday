@@ -10,6 +10,7 @@
 // a coaching critical always talks over the dispatcher, never the reverse.
 // Owned by P3 (docs/07).
 import type { DispatcherSim } from '../ai/dispatcher';
+import type { Sitrep } from '../types';
 import type { VoiceOutFull } from './out';
 
 export const DISPATCHER_STATE = 'voice:dispatcher';
@@ -24,6 +25,48 @@ export const DISPATCHER_SCRIPT: readonly string[] = [
 
 /** The first reply after the script is exhausted gets this once; the call-taker then stays quiet and on the line. */
 export const DISPATCHER_ACK = 'Understood. Units are en route. Stay with him and keep going.';
+
+/** What each scripted question is after, in the same order as DISPATCHER_SCRIPT. */
+export type DispatcherWant = 'location' | 'what' | 'status' | 'none';
+export const DISPATCHER_WANTS: readonly DispatcherWant[] = ['location', 'what', 'status', 'none'];
+
+/**
+ * Patient-status answers per protocol, keyed by machine. Statements the bystander can read
+ * to the call-taker, chosen by the bystander; the app never picks one. Not instructions.
+ */
+const STATUS_REPLIES: Readonly<Record<string, (stateId: string) => string[]>> = {
+  cardiac: (stateId) =>
+    stateId === 'recovery_hold'
+      ? ['He is breathing. I am staying with him.']
+      : ['He is not breathing. I am doing chest compressions.', 'He is not responding.'],
+  bleeding: () => ['He is awake. I am pressing on the wound.', 'He is not responding. I am pressing on the wound.'],
+  choking: (stateId) =>
+    stateId === 'resolved' ? ['It came out. He is breathing now.'] : ['He is awake but he cannot breathe.', 'He passed out.'],
+};
+const STATUS_FALLBACK = ['He is not breathing.', 'He is awake.'];
+
+/**
+ * The replies that answer the call-taker's latest question, from the SITREP: the address for
+ * "where", the emergency and how long ago for "what happened", patient status for "is he
+ * awake". Nothing to answer once the script is done, so the panel can fold.
+ */
+export function repliesFor(lastDispatcherLine: string | null, sitrep: Pick<Sitrep, 'readAloud' | 'currentState'> | null): string[] {
+  const step = lastDispatcherLine === null ? -1 : DISPATCHER_SCRIPT.indexOf(lastDispatcherLine);
+  const want: DispatcherWant = step < 0 ? 'none' : DISPATCHER_WANTS[step];
+  const lines = sitrep?.readAloud ?? [];
+  switch (want) {
+    case 'location':
+      return lines.slice(0, 1);
+    case 'what':
+      return [lines[1], lines.find((l) => l.startsWith('This started'))].filter((l): l is string => !!l);
+    case 'status': {
+      const [machineId, stateId] = (sitrep?.currentState ?? '').split('.');
+      return (STATUS_REPLIES[machineId] ?? (() => STATUS_FALLBACK))(stateId ?? '');
+    }
+    default:
+      return [];
+  }
+}
 
 /** True once the dispatcher has nothing left to ask, so a panel can fold away and stop offering replies. */
 export function dispatcherDone(lines: readonly string[]): boolean {
