@@ -427,6 +427,13 @@ export function createSession(deps: SessionDeps): Session {
     if (!force && t - lastReportAt < REPORT_MS) return;
     lastReportAt = t;
     if (phase === 'idle') return;
+    // Freeze the closing report the moment it's first built after the ambulance arrives.
+    // Without this, the per-tick refresh below (called every second regardless of phase)
+    // kept calling buildHandoff() with a fresh `now()`, so `generatedAt` and `durationMs`
+    // drifted every second on a screen whose whole point is a final, stable snapshot --
+    // the QR encodes those fields, so it silently re-rendered as a different image every
+    // second. A phone scanning it mid-change read garbage instead of the payload.
+    if (phase === 'handoff' && handoff) return;
     sitrep = buildSitrep(log, geo, t);
     handoff = buildHandoff(log, t, geo);
   }
