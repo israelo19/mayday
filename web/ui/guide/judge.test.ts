@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PerceptionFacts } from '../../types';
+import type { PerceptionFacts } from '../../../src/types';
 import { emphasisFrom, judge, rateBandOf } from './judge';
 
 const facts = (patch: Partial<PerceptionFacts> = {}): PerceptionFacts => ({

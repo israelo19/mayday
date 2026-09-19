@@ -1,7 +1,8 @@
 # 02 - Protocol state machines
 
 ## Rules for this file
-- Every machine is pure data: an array of states with canonical instruction text, entry actions, transitions, and coaching rules. Sources cited per machine. If a step here disagrees with the cited guideline, the guideline wins; fix the data, never patch around it in code.
+- One machine per emergency. Every machine is pure data: an array of states with canonical instruction text, entry actions, transitions, and coaching rules. Sources cited per machine. If a step here disagrees with the cited guideline, the guideline wins; fix the data, never patch around it in code.
+- Adding an emergency is adding a machine here and in /src/protocol/machines, with its guideline URL, a triage route into its first state, and a green run of the machine linter (docs/07 P2 task 5). The engine does not change. The hackathon ships triage, cardiac and bleeding, with choking as data only.
 - Team member B owns verifying every line against the published guideline pages on Saturday and pasting source URLs into the comments. Nothing ships unverified.
 - Canonical text is written to be SPOKEN. Short sentences. Imperative. No medical jargon.
 

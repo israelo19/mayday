@@ -1,5 +1,5 @@
 // Placeholder content for the screens (docs/05 + the design proposal, see DECISIONS.md) until
-// src/session.ts can drive them from a real Engine/EventLog (P2, not built yet). Owned by P4.
+// web/session.ts can drive them from a real Engine/EventLog (P2, not built yet). Owned by P4.
 // Delete this file once session.ts replaces it -- the screen components take these same shapes
 // as props either way.
 

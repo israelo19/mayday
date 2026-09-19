@@ -49,7 +49,7 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   secure context is about the https scheme, not certificate trust.
 - **Sat 02:05 (P4)** docs/07 task 4 calls for ESLint's `no-restricted-imports` to stop
   perception/protocol/voice from importing `src/ai`. `typescript-eslint` hard-errors on our
-  TypeScript 7 (`typescript-eslint does not support TS 7.0`, no released fix yet) — not a
+  TypeScript 7 (`typescript-eslint does not support TS 7.0`, no released fix yet). Not a
   warning, it refuses to run at all. Rather than downgrade TypeScript for the whole team,
   `npm run lint` is a zero-dependency script (`scripts/check-ai-boundaries.mjs`) that greps
   guarded dirs for a value import (not `import type`) reaching `src/ai` and fails the build.
@@ -57,7 +57,7 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
 - **Sat 02:10 (P4)** `src/flags.ts` and `src/ai/{vision,narration,dispatcher,index}.ts` added
   per docs/07 task 4: both stubs return hardcoded demo data and never touch the network;
   `DispatcherSim` is interface-only, P3 implements it in `src/voice`. Pushed to a `face` branch
-  rather than straight to `main` — the team moved to one short-lived branch per role
+  rather than straight to `main`. The team moved to one short-lived branch per role
   (`eyes`/`brain`/`mouth`/`face`) instead of docs/07's "main only" so four people editing
   disjoint paths stop stepping on each other's half-finished commits; merge to `main` when a
   milestone gate goes green, not on every commit.
@@ -127,9 +127,81 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
 - **Sat 02:40** `vitest` added as dev tooling (the plan in docs/07 already calls for it);
   tests live next to their module as `*.test.ts` and type-check through
   `tsconfig.test.json` so Node types stay out of browser code. `npm test` runs them.
+- **Sat 03:05** Mayday is framed as coaching any medical emergency with a published bystander
+  protocol, with one machine data file per emergency and a generic engine. CPR and severe
+  bleeding are the hackathon build and the demo cases, not the product boundary. CLAUDE.md,
+  README, docs/01, docs/02 and the docs/05 pitch notes now say so in one place each; the
+  scope walls list the machines that ship this weekend instead of naming emergencies we
+  skip. START_PROMPT is marked historical since M0 is done.
 - **Sat 03:10 (P4)** Merged `main`'s `?guide=1` gallery (Ricky) into the same `App.tsx` as the
   P4 four-screen flow instead of picking one: `?guide=<key>` still opens `GuideGallery`,
   `?debug=1` still opens the M0 `DebugScreen`, and a plain load now shows LAUNCH -> COACH ->
   SITREP -> HANDOFF instead of the bare debug view. These were never actually competing —
   the guide gallery is a dev preview surface for protocol pictures (same category as
   `?debug=1`), not a default end-to-end flow, so nothing here overrides anyone's work.
+- **Sat 03:40 (P4)** The phone runs Mayday through Expo Go as a shell, not a port. Expo Go
+  runs React Native only, and the eyes and voice are browser APIs (MediaPipe WASM,
+  getUserMedia, Web Audio, Web Speech), so `mobile/` is a full-screen WebView around the same
+  web app plus what a WebView cannot do: speech on the phone's own engine (a WebView has no
+  usable Web Speech API; Android's object exists and never speaks), haptics on iOS (no
+  vibrate API), keep-awake, and camera, microphone and location granted to the page because
+  the app holds them. The shell holds no screens, no protocol and no instruction text; the
+  CLAUDE.md scope wall now reads "no native app logic" and names this exception. The page
+  and the shell share one protocol file, `src/platform/bridge.ts`; the page side is
+  `src/platform/shell.ts`, which installs nothing outside the shell. Speech reaches the
+  shell as a `SpeakerProvider` (`ShellSpeakerProvider`) handed to the voice queue through the
+  docs/07 `setProvider()` seam, chosen by shell identity, never by capability sniffing, for
+  the Android reason above. Voice in stays off in the shell: WebViews have no
+  SpeechRecognition and native recognition needs a development build, not Expo Go. Buttons
+  carry the demo there, which docs/04 already requires.
+- **Sat 03:40 (P4)** The page reaches the phone through Expo's own tunnel. WebViews refuse
+  self-signed certificates on both platforms (Android cancels the load, iOS trusts only what
+  the system trusts) and the camera needs a secure context, so the LAN address that Chrome
+  accepts after a warning is no use to the shell. `npm run mobile:tunnel` builds the web app
+  with `base: '/app/'` (`MAYDAY_VIA_EXPO=1`, plain http, no HMR), serves the build locally
+  with `vite preview`, and starts `expo start --tunnel`; `mobile/metro.config.js` proxies
+  `/app/*` to that server through Metro's `enhanceMiddleware`, so the same
+  `https://*.exp.direct` URL Expo Go loads the shell from serves the page over a real
+  certificate. `mobile:tunnel:dev` swaps in the Vite dev server for iteration (reload the
+  phone by hand; the HMR websocket cannot cross Metro's proxy). The proxy only wins because
+  the shell declares `platforms: ['ios', 'android']`: with web listed, Expo's dev server
+  answers every unknown path with its own web index before any config middleware runs. A
+  static copy of the build under `mobile/public` was tried and rejected for the same reason.
+  `expo login` is required once because both Expo tunnel backends sign the URL with the
+  account. `EXPO_PUBLIC_MAYDAY_WEB_URL` points the shell at the deployed site instead. The
+  default is a production build on purpose: the demo runs the bundle the deploy ships.
+- **Sat 03:40 (P4)** `src/platform` is guarded by `npm run lint` like perception, protocol and
+  voice: the bridge is a reflex path and may never import `src/ai`. `mobile/` has its own
+  `package.json` and lockfile rather than an npm workspace so the root install stays what it
+  was for the three people who never touch the phone; `npm run mobile:install` is opt-in.
+- **Sat 04:30 (P4)** `src/` is the engine, `web/` is the browser app. `src/App.tsx`, `main.tsx`,
+  `index.css` and `ui/**` moved to `web/` with `git mv` (history follows); `src/` keeps types,
+  flags, protocol, sitrep, perception, voice, ai and platform. The frontend moved rather than
+  the engine because every role branch adds files under `src/` and a moved `src/` would
+  mis-land all of them; `web/` was new, so only `App.tsx` could conflict. Vite's root stays the
+  repo root (`public/`, `dist/`, `.do/app.yaml` and the PWA globs assume it); only the script
+  tag in `index.html` changed. Imports across the seam are relative (`../../src/...`), not an
+  alias: it is fifteen lines, twelve of them `import type`, and an alias would need matching
+  entries in tsconfig, vite, vitest and metro. `web/ui/guide` sits at the same depth as
+  `src/ui/guide` did on purpose: `guides.test.ts` reads docs/02 by a relative URL. The three
+  test globs (`src`, `web`, and P2's `tests/` when it lands) all run from the repo root because
+  the boundary tests resolve paths from the CWD. `DebugScreen` now takes any `SpeakerProvider`
+  (P1's file, two lines) so the shell's speaker reaches `?debug=1` too; `App.tsx` picks
+  `ShellSpeakerProvider` when `shellInfo()` is non-null and `WebSpeechProvider` otherwise.
+  `web/session.ts` is still to be written once `p2-brain` is on main.
+- **Sat 05:00 (P4)** Expo Go dropped; the phone runs the PWA. On the current SDK, Expo Go
+  sends a signature request with every load and the CLI can only answer it with a
+  certificate fetched for a logged-in Expo account, on the laptop and in Expo Go on the
+  phone; no flag, offline mode or LAN setting avoids it (checked in the CLI source, and
+  confirmed on the demo phone: "You need to be signed in to Expo Go and Expo CLI"). Ricky
+  does not want an Expo account for a hackathon demo, and neither should a judge. So the
+  shell (`mobile/`), its bridge (`src/platform/`), the tunnel script and the `mobile:*`
+  scripts are removed in full rather than left as dead code; the Sat 03:40 entries stay as
+  history. What replaces them is what docs/07 planned from the start: Chrome on the Android
+  demo phone, "Add to Home Screen" through `vite-plugin-pwa`, and a QR of the LAN URL that
+  `npm run dev` and `npm run preview` now print under Vite's URL list (`qrcode`, the package
+  P2 already sanctioned). Chrome has the camera, Web Speech, vibrate and wake lock the app
+  needs; the shell's only extras were native speech and haptics on iOS. The `src` versus
+  `web` split (Sat 04:30) stays: it was about ownership and a clean engine, not about the
+  shell. Capacitor is the route if a native shell is ever wanted: the page ships inside the
+  app, so no server, certificate or account, at the cost of Xcode and Android Studio builds.

@@ -8,9 +8,9 @@
 // The dispatcher indicator is ALWAYS labeled SIMULATED, including once "connected" -- CLAUDE.md
 // principle 5 / docs/05 require the sim to never read as a real 911 line at any point.
 // `step` will come from session.ts/P2's engine (CoachingEvent) once it exists; App.tsx feeds
-// mock data (src/ui/mockDemoData.ts) for now. Owned by P4.
+// mock data (web/ui/mockDemoData.ts) for now. Owned by P4.
 import { CameraView } from './CameraView';
-import type { Perception } from '../perception';
+import type { Perception } from '../../src/perception';
 import type { MockCoachStep } from './mockDemoData';
 import './coach.css';
 

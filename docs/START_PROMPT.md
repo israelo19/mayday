@@ -1,5 +1,9 @@
 # Starting prompt for Claude Code (paste everything below the line)
 
+Historical: this is the M0 kickoff prompt and M0 is done. The current milestone is in
+docs/06-plan.md and file ownership is in docs/07-work-split.md. A fresh session follows the
+reading order in CLAUDE.md, not this file.
+
 ---
 
 You are building Mayday, an emergency-response coaching web app, at a hackathon with a hard deadline. The repo root contains CLAUDE.md and a docs/ folder. Read them in this order before writing any code: CLAUDE.md, docs/01-architecture.md, docs/06-plan.md, then docs/03-perception.md. The other docs are reference for their modules; consult docs/02-protocols.md when touching /src/protocol, docs/04 for voice and AI, docs/05 for UI.

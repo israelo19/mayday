@@ -2,7 +2,7 @@
 // workout app. Uncontrolled it auto-advances on each step's hold time; controlled (the
 // coach screen passing `step`) it shows exactly the line the voice is on. Owned by P4.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { CoachingEvent, PerceptionFacts } from '../../types';
+import type { CoachingEvent, PerceptionFacts } from '../../../src/types';
 import { COMPRESSION_BPM } from './guides';
 import { emphasisFrom, judge, type Emphasis } from './judge';
 import { RhythmTrace, type LiveSource } from './RhythmTrace';

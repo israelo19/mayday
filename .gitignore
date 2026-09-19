@@ -8,3 +8,5 @@ npm-debug.log*
 public/wasm
 # vite-plugin-mkcert keeps certs in ~/.vite-plugin-mkcert, nothing here
 .claude/launch.json
+# secrets live in .env.local (covered by *.local); a copied .env must never be committed
+.env

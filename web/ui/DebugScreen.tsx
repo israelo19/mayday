@@ -2,10 +2,10 @@
 // shoulder trace, and the controls P1 needs to tune perception on a real phone. This is
 // the instrument panel, not a product screen; the four product screens (docs/05) are P4's.
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
-import type { PerceptionFacts } from '../types';
-import { DEFAULT_TUNING, TUNING_RANGES, type Perception, type PerceptionStatus, type Roi, type Tuning } from '../perception';
-import type { WebSpeechProvider } from '../voice/out';
-import type { Metronome } from '../voice/metronome';
+import type { PerceptionFacts } from '../../src/types';
+import { DEFAULT_TUNING, TUNING_RANGES, type Perception, type PerceptionStatus, type Roi, type Tuning } from '../../src/perception';
+import type { SpeakerProvider } from '../../src/voice/out';
+import type { Metronome } from '../../src/voice/metronome';
 import { CameraView } from './CameraView';
 import { Waveform } from './Waveform';
 import './debug.css';
@@ -16,7 +16,8 @@ const TUNING_KEY = 'mayday.eyes.tuning';
 const RATE_LOW = 100;
 const RATE_HIGH = 120;
 
-type Props = { perception: Perception; speaker: WebSpeechProvider; metronome: Metronome };
+// Any SpeakerProvider, not the WebSpeech class: the debug view only speaks and names the voice.
+type Props = { perception: Perception; speaker: SpeakerProvider & { currentVoiceName?(): string | null }; metronome: Metronome };
 
 type Snapshot = {
   status: PerceptionStatus;
@@ -362,7 +363,7 @@ export function DebugScreen({ perception, speaker, metronome }: Props) {
         {snap.frame && <span>{snap.frame}</span>}
         <span>raw y {snap.raw === null ? 'none' : snap.raw.toFixed(3)}</span>
         <span>light {snap.luma ?? 'n/a'}</span>
-        <span>voice {speaker.currentVoiceName() ?? 'default'}</span>
+        <span>voice {speaker.currentVoiceName?.() ?? 'default'}</span>
         <span>{online ? 'online' : 'offline, still working'}</span>
         {snap.error && <span className="err">{snap.error}</span>}
       </footer>

@@ -24,13 +24,14 @@ Record a full run as the sub-3-minute Devpost video Saturday night. It is the in
 ## Pitch notes (deck lives in /docs/pitch.md when written)
 - Stats slide, verify Saturday against heart.org and stopthebleed.org before putting numbers on it: ~350k US out-of-hospital cardiac arrests/yr (~one every 90s), survival falls ~10%/min without CPR, bystander CPR can double or triple survival, avg EMS response ~7 min, severe bleeding can kill in ~5.
 - Lineage slide: dispatcher-assisted CPR is proven practice; ChatCPR (JAMA Internal Medicine 2026, UCSD + Pitt + Johns Hopkins) showed an AI agent out-coaching dispatchers over AUDIO. Mayday adds eyes. Cite it; some judges may know the authors.
+- Architecture slide: one machine per emergency, plug-in data files, engine untouched. Three machines in the repo, two demoed. The demo is CPR and bleeding; the product is any emergency with a published bystander protocol.
 - Threat model slide: the 6-row table from docs/01.
 - Limits slide, said before asked: coaching aid not a medical device; no depth-in-cm claims from monocular video; real deployment = FDA SaMD pathway + dispatch integration via platforms like RapidSOS.
 - Track: Bloomberg (Most Philanthropic). Opt-ins: ElevenLabs x2, Gemini, DigitalOcean, GoDaddy, SpaceXAI, Auctor if their requirement is light. Select EXACTLY ONE track on Devpost.
 
 ## Step guides (pictures for each protocol line)
 
-`src/ui/guide` draws what the current state is asking for, the way a workout app shows
+`web/ui/guide` draws what the current state is asking for, the way a workout app shows
 the movement next to the cue: a pictogram per docs/02 line, a segmented step bar that
 walks the lines in spoken order, and for `cardiac.compressions` a figure that pushes on
 the metronome tick over a scrolling rhythm trace. Browse everything at `?guide=1`, or

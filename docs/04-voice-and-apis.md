@@ -21,7 +21,7 @@ Status: `VisionDescriber` and `NarrationFlavor` stubs live in `src/ai/vision.ts`
 `src/ai/narration.ts`, both returning hardcoded demo data, both flag-gated (`src/flags.ts`,
 default OFF). `DispatcherSim` is interface-only in `src/ai/dispatcher.ts` for P3 to implement in
 `src/voice` (docs/07 P3 task 7) via `import type` only. Boundary enforced by
-`npm run lint` (`scripts/check-ai-boundaries.mjs`) — see DECISIONS.md for why that script exists
+`npm run lint` (`scripts/check-ai-boundaries.mjs`). DECISIONS.md records why that script exists
 instead of ESLint.
 
 Every function here has: an interface, a hardcoded stub returning realistic demo data, a feature flag (default OFF), and a TODO entry below. Build the app against stubs; wire keys later without touching call sites.

@@ -10,10 +10,10 @@ Every task below is meant to ship. Stretch items are marked, everything else is 
 
 | Person | Name | Mission | Owns | Never touches | Primary gate |
 |---|---|---|---|---|---|
-| P1 | Eyes | Turn camera frames into trustworthy measurements on-device, and say so loudly when they stop being trustworthy. | `src/perception/**` (not `fake.ts`), `public/models`, `scripts/prepare-assets.mjs`, `CameraView`, `Waveform`, `DebugScreen`, `fixtures/**` | `src/protocol`, `src/voice`, `src/ai`, `src/session.ts` | M1 rate within 5 bpm; M2 blind fact within 1.2 s; M3 hands-off fact |
-| P2 | Brain | Be the only source of medical instructions: typed machine data verified against guidelines, executed by a deterministic engine, proven by tests. | `src/types.ts`, `src/protocol/**`, `src/sitrep/**`, `tests/**`, `src/perception/fake.ts` | `src/perception` (except `fake.ts`), `src/voice`, `src/ui`, `src/ai` | M1 cardiac end to end on FakePerception; M2 SITREP; M3 bleeding machine |
-| P3 | Mouth | Make every line audible at the right moment and every spoken keyword land, offline, with measured latency. | `src/voice/**` | `src/protocol/machines`, `src/perception`, `src/ui`, `src/ai` | M1 correction audible under 1 s; M2 blind line under 2 s; M4 dispatcher sim |
-| P4 | Face and ship | Wire everything into four screens a judge can drive by tap alone, keep it deployed, and get it submitted. | `src/App.tsx`, `src/session.ts`, `src/ui/**` (except P1's three), `src/ai/**`, `src/flags.ts`, `api/**`, `vite.config.ts`, `package.json`, `README.md`, `DECISIONS.md`, `docs/pitch.md`, deploy | `src/perception`, `src/protocol`, `src/voice`, `src/sitrep` | M2 session spine; M4 flags and deploy; M5 submission |
+| P1 | Eyes | Turn camera frames into trustworthy measurements on-device, and say so loudly when they stop being trustworthy. | `src/perception/**` (not `fake.ts`), `public/models`, `scripts/prepare-assets.mjs`, `CameraView`, `Waveform`, `DebugScreen`, `fixtures/**` | `src/protocol`, `src/voice`, `src/ai`, `web/session.ts` | M1 rate within 5 bpm; M2 blind fact within 1.2 s; M3 hands-off fact |
+| P2 | Brain | Be the only source of medical instructions: typed machine data verified against guidelines, executed by a deterministic engine, proven by tests. | `src/types.ts`, `src/protocol/**`, `src/sitrep/**`, `tests/**`, `src/perception/fake.ts` | `src/perception` (except `fake.ts`), `src/voice`, `web/ui`, `src/ai` | M1 cardiac end to end on FakePerception; M2 SITREP; M3 bleeding machine |
+| P3 | Mouth | Make every line audible at the right moment and every spoken keyword land, offline, with measured latency. | `src/voice/**` | `src/protocol/machines`, `src/perception`, `web/ui`, `src/ai` | M1 correction audible under 1 s; M2 blind line under 2 s; M4 dispatcher sim |
+| P4 | Face and ship | Wire everything into four screens a judge can drive by tap alone, keep it deployed, and get it submitted. | `web/App.tsx`, `web/session.ts`, `web/ui/**` (except P1's three), `src/ai/**`, `src/flags.ts`, `api/**`, `vite.config.ts`, `package.json`, `README.md`, `DECISIONS.md`, `docs/pitch.md`, deploy | `src/perception`, `src/protocol`, `src/voice`, `src/sitrep` | M2 session spine; M4 flags and deploy; M5 submission |
 
 ## Clock (EDT), re-based from T0 = Sat 01:00
 
@@ -34,10 +34,10 @@ Last commit before Sun 09:00 ET, no exceptions, not even README fixes.
 
 | Path | Owner |
 |---|---|
-| `src/perception/**` except `src/perception/fake.ts`, `public/models/**`, `scripts/prepare-assets.mjs`, `src/ui/CameraView.tsx`, `src/ui/Waveform.tsx`, `src/ui/DebugScreen.tsx`, `fixtures/**` | P1 |
+| `src/perception/**` except `src/perception/fake.ts`, `public/models/**`, `scripts/prepare-assets.mjs`, `web/ui/CameraView.tsx`, `web/ui/Waveform.tsx`, `web/ui/DebugScreen.tsx`, `fixtures/**` | P1 |
 | `src/types.ts`, `src/protocol/**`, `src/sitrep/**`, `tests/**`, `src/perception/fake.ts` | P2 |
 | `src/voice/**` | P3 |
-| `src/App.tsx`, `src/session.ts`, `src/ui/**` (except P1's three files), `src/ai/**`, `src/flags.ts`, `api/**`, `vite.config.ts`, `package.json`, `README.md`, `DECISIONS.md`, `docs/pitch.md`, deploy config | P4 |
+| `web/App.tsx`, `web/session.ts`, `web/ui/**` (except P1's three files), `src/ai/**`, `src/flags.ts`, `api/**`, `vite.config.ts`, `package.json`, `README.md`, `DECISIONS.md`, `docs/pitch.md`, deploy config | P4 |
 
 Branching: main only. `git pull --rebase` before every commit. Commit at least hourly with a
 message that says what demonstrably works. No PRs; ownership prevents conflicts, process does not.
@@ -125,9 +125,9 @@ export const flags: { elevenLabs: boolean; dispatcherSim: boolean; visionDescrib
 
 **Mission.** Turn camera frames into trustworthy measurements on-device, and say so loudly when they stop being trustworthy.
 
-**You own.** `src/perception/**` except `fake.ts`, `public/models/**`, `scripts/prepare-assets.mjs`, `src/ui/CameraView.tsx`, `src/ui/Waveform.tsx`, `src/ui/DebugScreen.tsx`, `fixtures/**`, the physical rig.
+**You own.** `src/perception/**` except `fake.ts`, `public/models/**`, `scripts/prepare-assets.mjs`, `web/ui/CameraView.tsx`, `web/ui/Waveform.tsx`, `web/ui/DebugScreen.tsx`, `fixtures/**`, the physical rig.
 
-**You never touch.** `src/protocol`, `src/voice`, `src/ai`, `src/session.ts`, the four product screens. If perception needs something from them, ask the owner.
+**You never touch.** `src/protocol`, `src/voice`, `src/ai`, `web/session.ts`, the four product screens. If perception needs something from them, ask the owner.
 
 **Your gates.** M0 (Sat 03:00) on the phone. M1 (Sat 07:00): rate within 5 bpm. M2 (Sat 11:00): low-confidence fact within 1.2 s of covering the lens. M3 (Sat 15:00): hands-off fact within 100 ms of the true moment.
 
@@ -150,7 +150,7 @@ export const flags: { elevenLabs: boolean; dispatcherSim: boolean; visionDescrib
 
 **You own.** `src/types.ts`, `src/protocol/**`, `src/sitrep/**`, `tests/**`, `src/perception/fake.ts`.
 
-**You never touch.** `src/perception` (except `fake.ts`), `src/voice`, `src/ui`, `src/ai`. If a machine needs a new fact, ask P1 for the measurement; if it needs a new sound, ask P3.
+**You never touch.** `src/perception` (except `fake.ts`), `src/voice`, `web/ui`, `src/ai`. If a machine needs a new fact, ask P1 for the measurement; if it needs a new sound, ask P3.
 
 **Your gates.** M1 (Sat 07:00): cardiac runs end to end on FakePerception with buttons only, rules fire with cooldowns. M2 (Sat 11:00): SITREP with coordinates, handoff data. M3 (Sat 15:00): bleeding machine verified and wired.
 
@@ -173,7 +173,7 @@ export const flags: { elevenLabs: boolean; dispatcherSim: boolean; visionDescrib
 
 **You own.** `src/voice/**`: the queue, both speaker providers, the metronome, the keyword listener, the dispatcher sim, the voice tests.
 
-**You never touch.** `src/protocol/machines` (you play lines, you never write them), `src/perception`, `src/ui`, `src/ai`. The text you speak arrives as `CoachingEvent`; if a line is wrong, tell P2.
+**You never touch.** `src/protocol/machines` (you play lines, you never write them), `src/perception`, `web/ui`, `src/ai`. The text you speak arrives as `CoachingEvent`; if a line is wrong, tell P2.
 
 **Your gates.** M1 (Sat 07:00): a correction is audible within 1 s of the triggering fact; metronome never stutters. M2 (Sat 11:00): blind line within 2 s of covering the lens; a keyword spoken by a human routes and the same words spoken by the app do not. M4 (Sat 19:00): dispatcher sim behind its flag, labelled SIMULATED.
 
@@ -193,7 +193,7 @@ export const flags: { elevenLabs: boolean; dispatcherSim: boolean; visionDescrib
 
 **Mission.** Wire everything into four screens a judge can drive by tap alone, keep it deployed, and get it submitted.
 
-**You own.** `src/App.tsx`, `src/session.ts`, `src/ui/**` except P1's three files, `src/ai/**`, `src/flags.ts`, `api/**`, `vite.config.ts`, `package.json`, `README.md`, `DECISIONS.md`, `docs/pitch.md`, deploy config, the Devpost page.
+**You own.** `web/App.tsx`, `web/session.ts`, `web/ui/**` except P1's three files, `src/ai/**`, `src/flags.ts`, `api/**`, `vite.config.ts`, `package.json`, `README.md`, `DECISIONS.md`, `docs/pitch.md`, deploy config, the Devpost page.
 
 **You never touch.** `src/perception`, `src/protocol`, `src/voice`, `src/sitrep`. You call their interfaces; if an interface is missing something, ask the owner and record the seam here.
 
@@ -202,7 +202,7 @@ export const flags: { elevenLabs: boolean; dispatcherSim: boolean; visionDescrib
 **Tasks in order.**
 
 1. **Take over the M0 skeleton now** (Sat 03:00). Run it on the demo phone over LAN, get the HTTPS certificate flow smooth, keep README current. DONE = the M0 gate passes on the phone with P1.
-2. **Session orchestrator** `src/session.ts` (Sat 06:00). Perception -> `engine.onFacts`; engine outputs -> voice, log, metronome; 100 ms tick; listener fed by `engine.keywords()`; on `bleeding.pressure` entry call `setMode('pose+hands')` and `lockRoi()`, back to `pose` on exit; camera guidance spoken at most once per 10 s; SITREP starts and geolocation is requested when the first non-triage machine starts. Zero network calls in this file, enforced by P2's grep test. `?fake=1` swaps in P2's FakePerception. DONE = cardiac runs end to end through the real modules on the laptop.
+2. **Session orchestrator** `web/session.ts` (Sat 06:00). Perception -> `engine.onFacts`; engine outputs -> voice, log, metronome; 100 ms tick; listener fed by `engine.keywords()`; on `bleeding.pressure` entry call `setMode('pose+hands')` and `lockRoi()`, back to `pose` on exit; camera guidance spoken at most once per 10 s; SITREP starts and geolocation is requested when the first non-triage machine starts. Zero network calls in this file, enforced by P2's grep test. `?fake=1` swaps in P2's FakePerception. DONE = cardiac runs end to end through the real modules on the laptop.
 3. **Debug panel** `?debug=1` (Sat 07:00). Engine state, latest facts, voice queue, log tail, flags. DONE = everyone integrates through this and stops adding console.logs.
 4. **AI seams** (Sat 09:00). `src/flags.ts` (all OFF, `?flag=` override). `src/ai` stubs for VisionDescriber and NarrationFlavor with realistic demo data, and the DispatcherSim interface (P3 implements). ESLint `no-restricted-imports`: perception, protocol and voice may not import `src/ai`. Keep the TODO registry in docs/04 current. DONE = lint fails on a forbidden import; every stub returns demo data with its flag off.
 5. **The four screens** (first cut Sat 11:00, iterate until 19:00). LAUNCH: one huge "I NEED HELP" button, dark, thumb reachable, "or just start talking". COACH: instruction text at least 48 px and readable at 1.5 m, live metric (rate or pressure timer), small camera thumbnail with overlay, CALL 911 persistent top, NEXT persistent bottom, red SIMULATED banner when the dispatcher panel is open. SITREP: read-aloud block plus live timeline. HANDOFF: headline metrics, timeline, QR. Plain CSS, portrait and landscape, Screen Wake Lock so a propped phone never sleeps, fullscreen on launch, `navigator.vibrate` on critical events. DONE = the demo script in docs/05 can be walked by tap alone.

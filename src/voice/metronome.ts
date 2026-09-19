@@ -1,6 +1,6 @@
 // Web Audio metronome, docs/04. Independent of speech: nothing pauses it except stop().
 // Uses a lookahead scheduler (ticks are placed on the audio clock ahead of time) so
-// main-thread jank from MediaPipe cannot make the beat stutter. Owned by P2 (docs/07).
+// main-thread jank from MediaPipe cannot make the beat stutter. Owned by P3 (docs/07).
 
 export class Metronome {
   private ctx: AudioContext | null = null;
@@ -52,6 +52,31 @@ export class Metronome {
     if (this.timer === null) return;
     clearInterval(this.timer);
     this.timer = null;
+  }
+
+  /**
+   * Short two-tone attention chirp played before a critical line (docs/07 P3): under
+   * stress the first word of an unannounced sentence goes unheard, so a non-verbal cue
+   * lands first. Distinct from the tick (sine sweep, not square) and independent of the
+   * beat — the metronome itself never pauses for it.
+   */
+  earcon(): void {
+    if (!Metronome.available()) return;
+    const ctx = this.ensureCtx();
+    void ctx.resume();
+    const at = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(700, at);
+    osc.frequency.setValueAtTime(1000, at + 0.04);
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.6, at + 0.005);
+    gain.gain.setValueAtTime(0.6, at + 0.07);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.09);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(at);
+    osc.stop(at + 0.1);
   }
 
   private schedule(): void {
