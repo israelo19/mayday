@@ -11,10 +11,16 @@ import { VitePWA } from 'vite-plugin-pwa';
 // mkcert and asks for your macOS password once. Laptop-only work can skip TLS entirely with
 // `MAYDAY_HTTP=1 npm run dev` because http://localhost is already a secure context.
 // Alternative for phones: ngrok, see README.
+// For the Expo Go shell (`npm run mobile:tunnel`, MAYDAY_VIA_EXPO=1) the page is served
+// behind the Expo dev server, which proxies /app/ here over plain HTTP and whose tunnel
+// terminates TLS: every URL is rooted at /app/, no certificate, and no HMR because the
+// websocket cannot cross Metro's proxy.
+const viaExpo = process.env.MAYDAY_VIA_EXPO === '1';
 const https: PluginOption[] =
-  process.env.MAYDAY_HTTP === '1' ? [] : process.env.MAYDAY_MKCERT === '1' ? [mkcert()] : [basicSsl()];
+  process.env.MAYDAY_HTTP === '1' || viaExpo ? [] : process.env.MAYDAY_MKCERT === '1' ? [mkcert()] : [basicSsl()];
 
 export default defineConfig({
+  base: viaExpo ? '/app/' : '/',
   plugins: [
     react(),
     ...https,
@@ -54,7 +60,7 @@ export default defineConfig({
       },
     }),
   ],
-  server: { host: true, port: 5173, strictPort: true },
+  server: { host: true, port: 5173, strictPort: true, hmr: viaExpo ? false : undefined },
   preview: { host: true, port: 4173 },
   build: { target: 'es2022', sourcemap: true },
 });
