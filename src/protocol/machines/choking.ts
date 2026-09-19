@@ -5,7 +5,7 @@
 // walls); this machine is reached by voice or by button from triage.
 import type { Machine } from '../../types';
 
-const RED_CROSS_CHOKING = 'https://www.redcross.org/take-a-class/resources/learn-first-aid/conscious-choking';
+const RED_CROSS_CHOKING = 'https://www.redcross.org/take-a-class/resources/learn-first-aid/adult-child-choking';
 
 export const choking: Machine = {
   id: 'choking',

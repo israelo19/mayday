@@ -3,6 +3,7 @@
 export { createEngine, GLOBAL_KEYWORDS, STALE_FACTS_MS, type Engine, type EngineOutput } from './engine';
 export { matchKeyword } from './keywords';
 export { lintMachines, type LintIssue } from './lint';
+export { allDiagrams, toMermaid } from './mermaid';
 export { machines, bleeding, cardiac, choking, triage, HANDS_OFF_MS } from './machines';
 export { NO_FACTS } from './rules';
 export { validateNarration, type Validation } from './validate';

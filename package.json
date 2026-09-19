@@ -14,7 +14,8 @@
     "assets": "node scripts/prepare-assets.mjs",
     "postinstall": "node scripts/prepare-assets.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "diagrams": "UPDATE_DIAGRAMS=1 vitest run tests/diagrams.test.ts"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",

@@ -9,6 +9,9 @@ import { BLIND_RULE } from './shared';
 
 const AHA_HANDS_ONLY = 'https://cpr.heart.org/en/cpr-courses-and-kits/hands-only-cpr';
 const AHA_ADULT_CPR = 'https://cpr.heart.org/en/resources/what-is-cpr';
+// 2025 AHA Guidelines Part 7, where the rate and depth numbers this state coaches come from:
+// 100 to 120 compressions a minute, at least 2 inches deep, no deeper than 2.4.
+const AHA_ADULT_BLS = 'https://cpr.heart.org/en/resuscitation-science/cpr-and-ecc-guidelines/adult-basic-life-support';
 
 export const cardiac: Machine = {
   id: 'cardiac',
@@ -73,7 +76,7 @@ export const cardiac: Machine = {
     },
     {
       id: 'compressions',
-      source: AHA_HANDS_ONLY,
+      source: AHA_ADULT_BLS,
       metronome: 110,
       requiredWords: ['push'],
       say: ['Push hard and fast, at least two inches deep.', 'Follow my beat. Do not stop.'],
