@@ -1,6 +1,7 @@
 // LAUNCH screen, docs/05. Zero navigation: one button, the name, one line on what happens
-// next, and the demo label. A judge walking up to the table reads it in three seconds.
-// Owned by P4.
+// next. A judge walking up to the table reads it in three seconds. The SIMULATED label lives
+// on the dispatcher panel itself (docs/05, CLAUDE.md principle 5), where the fake call
+// actually happens, not pre-announced here. Owned by P4.
 
 type Props = { onStart: () => void };
 
@@ -30,9 +31,6 @@ export function LaunchScreen({ onStart }: Props) {
         I NEED HELP
       </button>
       <p style={{ color: 'var(--muted)', fontSize: 18, margin: 0 }}>or just start talking</p>
-      <p style={{ color: 'var(--muted)', fontSize: 12, margin: 0, maxWidth: 420, lineHeight: 1.4 }}>
-        Uses the camera and microphone on this phone. Demo build: the 911 call is simulated and never dials.
-      </p>
     </div>
   );
 }
