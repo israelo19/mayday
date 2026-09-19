@@ -119,8 +119,16 @@ export function handoffJson(report: HandoffReport): string {
   return JSON.stringify(report, null, 2);
 }
 
-/** QR codes top out near 3 KB, so the scanned payload keeps the metrics and trims the timeline. */
-export function handoffQrPayload(report: HandoffReport, maxChars = 2000): string {
+// A 2000-char payload was the original cap ("QR codes top out near 3 KB"), but that's the
+// library's storage ceiling, not what's actually scannable: at that size the QR needs ~130+
+// modules, and jammed into live.css's 180px .live-qr box, it doesn't decode reliably even
+// with crisp per-module rendering (qr.ts) -- verified empirically (jsQR against the actual
+// displayed size): 2000 chars was marginal, 500 decoded reliably. The metrics and location
+// are never trimmed, only the timeline -- they're the fields a paramedic actually needs, and
+// the full timeline is already readable as on-screen text next to the QR either way.
+/** QR must be reliably scannable at its actual on-screen size, not just under the library's
+ * storage ceiling; the timeline trims to fit, metrics and location never do. */
+export function handoffQrPayload(report: HandoffReport, maxChars = 500): string {
   const compact = {
     v: 1,
     at: report.generatedAt,
