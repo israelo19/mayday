@@ -41,6 +41,9 @@ describe('protocol diagrams', () => {
         return '';
       }
     })();
-    expect(found, `${PATH} is stale, run: npm run diagrams`).toBe(wanted);
+    // Git may check this file out with CRLF (core.autocrlf on Windows); compare content, not
+    // line-ending convention.
+    const normalize = (s: string) => s.replace(/\r\n/g, '\n');
+    expect(normalize(found), `${PATH} is stale, run: npm run diagrams`).toBe(normalize(wanted));
   });
 });
