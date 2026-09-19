@@ -28,7 +28,8 @@ export class Metronome {
   async unlock(): Promise<void> {
     if (!Metronome.available()) return;
     const ctx = this.ensureCtx();
-    if (ctx.state !== 'running') await ctx.resume();
+    if (ctx.state === 'running') return;
+    await ctx.resume();
   }
 
   isRunning(): boolean {

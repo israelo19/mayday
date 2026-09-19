@@ -40,6 +40,7 @@ export type { Hand, Roi, RoiState } from './hands';
 export type { Facing } from './camera';
 export type { Sample, Tuning } from './signal';
 export { DEFAULT_TUNING, TUNING_RANGES, GUIDANCE } from './signal';
+export { primeMediaPermissions } from './camera';
 
 export type PerceptionStatus = 'idle' | 'loading-model' | 'starting-camera' | 'running' | 'stopped' | 'error';
 export type PerceptionMode = 'pose' | 'pose+hands';
