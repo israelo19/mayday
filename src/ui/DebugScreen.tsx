@@ -260,7 +260,7 @@ export function DebugScreen({ perception, speaker, metronome }: Props) {
         )}
       </div>
 
-      <section className="strip" aria-live="polite">
+      <section className="strip">
         <div>
           {rate === null ? (
             <div className="rate-value none">{snap.blind ? 'No signal while blind' : active ? 'Counting pushes' : 'Waiting for pushes'}</div>
