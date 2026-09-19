@@ -50,9 +50,25 @@ coach-screen preview. No camera needed.
    while the skeleton is being drawn. Tap **Test voice**: a line is spoken through Web Speech.
 4. Turn wifi off and repeat step 3. Everything keeps working.
 
-DONE means: the waveform wiggles, confidence is on screen, the metronome ticks. M1 (peak
-detection, rate, coaching rules, protocol engine) starts only after a human confirms this on
-a real camera.
+DONE means: the waveform wiggles, confidence is on screen, the metronome ticks. Confirmed on
+an iPhone rear camera at 28 to 31 fps on Sat 01:50.
+
+## M1 check (perception side)
+
+1. Start the beat and do compressions on a pillow with your shoulders in frame. Within five
+   pushes the big number appears and dots mark each counted push on the trace.
+2. Match the beat: the number sits between 100 and 120 and reads mint. Go slow on purpose:
+   it turns amber and drops within a few pushes. Stop: "pushing" becomes "still" within 2 s.
+3. Cover the lens: the red "Can't see your shoulders" banner appears within about a second,
+   the number disappears, and the trace says no signal. Uncover: it recovers within a second.
+4. Walk away or step too close: an amber banner asks you to move the phone.
+5. Open "Hands and the wound region", tap "Track hands", press both hands on a cushion, tap
+   "Lock on the hands", hold still 1.5 s. A circle locks on. Lift your hands: the circle turns
+   red and the counter climbs. Put them back: mint again.
+6. "Tune the detector" changes smoothing, minimum push size and minimum gap live; values
+   persist on the phone. "Replay a clip" runs a recorded video through the same pipeline.
+
+Tests for the pure signal code: `npm test`.
 
 ## Layout
 

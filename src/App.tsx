@@ -16,7 +16,7 @@ export default function App() {
 
 /** The M0 debug screen with its camera, speaker and metronome, created once. */
 function DebugApp() {
-  const perception = useMemo(() => createPerception({ emaAlpha: 0.3 }), []);
+  const perception = useMemo(() => createPerception(), []);
   const speaker = useMemo(() => new WebSpeechProvider(1.05), []);
   const metronome = useMemo(() => new Metronome(), []);
   return <DebugScreen perception={perception} speaker={speaker} metronome={metronome} />;
