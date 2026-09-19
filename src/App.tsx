@@ -1,12 +1,14 @@
-// App root, docs/05 + design proposal (see DECISIONS.md). LAUNCH -> (Yes/talk) CALL PREP ->
-// COACH -> SITREP -> HANDOFF, driven by mock data from src/ui/mockDemoData.ts until
-// src/session.ts and P2's engine exist to drive it for real. `?debug=1` still gets the M0
-// debug view. Owned by P4 (docs/07).
+// App root, docs/05 + design proposal (see DECISIONS.md). `?guide` opens the step guide
+// gallery (src/ui/guide), the local test surface for the protocol pictures (P2/P3). `?debug=1`
+// gets the M0 debug view. Otherwise: LAUNCH -> (Yes/talk) CALL PREP -> COACH -> SITREP ->
+// HANDOFF, driven by mock data from src/ui/mockDemoData.ts until src/session.ts and P2's
+// engine exist to drive it for real. Owned by P4 (docs/07).
 import { useEffect, useMemo, useState } from 'react';
 import { createPerception } from './perception';
 import { WebSpeechProvider } from './voice/out';
 import { Metronome } from './voice/metronome';
 import { DebugScreen } from './ui/DebugScreen';
+import { GuideGallery } from './ui/guide';
 import { LaunchScreen } from './ui/LaunchScreen';
 import { CallPrepScreen } from './ui/CallPrepScreen';
 import { CoachScreen } from './ui/CoachScreen';
@@ -29,7 +31,13 @@ function requestFullscreen(): void {
 }
 
 export default function App() {
-  const perception = useMemo(() => createPerception({ emaAlpha: 0.3 }), []);
+  const guide = new URLSearchParams(window.location.search).get('guide');
+  if (guide !== null) return <GuideGallery initialKey={guide} />;
+  return <MaydayApp />;
+}
+
+function MaydayApp() {
+  const perception = useMemo(() => createPerception(), []);
   const speaker = useMemo(() => new WebSpeechProvider(1.05), []);
   const metronome = useMemo(() => new Metronome(), []);
   const debug = useMemo(() => new URLSearchParams(window.location.search).has('debug'), []);

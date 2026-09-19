@@ -27,3 +27,44 @@ Record a full run as the sub-3-minute Devpost video Saturday night. It is the in
 - Threat model slide: the 6-row table from docs/01.
 - Limits slide, said before asked: coaching aid not a medical device; no depth-in-cm claims from monocular video; real deployment = FDA SaMD pathway + dispatch integration via platforms like RapidSOS.
 - Track: Bloomberg (Most Philanthropic). Opt-ins: ElevenLabs x2, Gemini, DigitalOcean, GoDaddy, SpaceXAI, Auctor if their requirement is light. Select EXACTLY ONE track on Devpost.
+
+## Step guides (pictures for each protocol line)
+
+`src/ui/guide` draws what the current state is asking for, the way a workout app shows
+the movement next to the cue: a pictogram per docs/02 line, a segmented step bar that
+walks the lines in spoken order, and for `cardiac.compressions` a figure that pushes on
+the metronome tick over a scrolling rhythm trace. Browse everything at `?guide=1`, or
+deep-link one state with `?guide=cardiac.position`.
+
+Rules, same weight as the five principles:
+- A guide is keyed by `machine.state` from docs/02 and holds one step per `say` line.
+  Captions are those lines verbatim; `guides.test.ts` checks every caption against
+  docs/02 and every key against the machine's states. The pictures add no instruction.
+- The guide reacts to how the bystander is doing, but never decides what to say. It takes
+  `facts` (PerceptionFacts) for the live rate, the rhythm trace and the "on the beat"
+  ring, and `coaching` (the engine's active CoachingEvent) for the emphasis: `rate-low`
+  and `rate-high` cue the beat ring, `recoil` shows the release line, `stopped` flashes
+  the alarm ring, `blind` shows the voice-only badge, `hands-off` pulls in the "do not
+  lift" picture. The caption is the event's text while it is active, so the screen shows
+  exactly what the voice says.
+- Thresholds in `judge.ts` are the docs/02 numbers. When the engine lands, prefer passing
+  its event over re-deriving anything here.
+
+COACH screen wiring (P4, M2):
+```tsx
+const key = `${machineId}.${state.id}`;
+const guide = guideFor(key);            // null: show text only
+{guide && (
+  <StepGuide
+    guide={guide}
+    step={lineIndex}                    // the line the voice queue is on; omit to auto-advance
+    bpm={metronome.currentBpm()}
+    beatOriginMs={metronomeTickMs}      // a performance.now() of one tick, so the figure lands on the sound
+    facts={latestFacts}
+    coaching={activeCorrection}         // the latest critical/correction event for this state, or null
+    live={{ series: () => perception.debug.series(4000), peaks: () => perception.debug.peaks() }}
+  />
+)}
+```
+The gallery's simulator (`demo.ts`) stands in for perception and the engine until they
+exist; nothing outside the gallery imports it.

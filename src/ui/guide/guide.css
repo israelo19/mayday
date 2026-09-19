@@ -1,0 +1,177 @@
+/* Step guide styles: the player, the segmented step bar, and every pictogram class the
+   scenes use. Pictogram palette: the bystander is warm white, the patient is slate, the
+   target is the app accent red, cues are the warning yellow. Class prefix gd-. */
+
+.gd { --gd-you: #f6f3ea; --gd-you-dark: #0d0d0d; --gd-them: #6f7d8c; --gd-them-fill: #2a323b; --gd-target: var(--accent); --gd-cue: var(--warn); --gd-ok: var(--ok); --gd-ground: #2c2c2c; --gd-bg: #0b0c0e; --gd-ink: #fff;
+  display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+/* ---------- step bar ---------- */
+.gd-steps { display: flex; gap: 6px; }
+.gd-step { flex: 1 1 0; height: 22px; padding: 8px 0; min-height: 0; border: 0; border-radius: 0; background: transparent; cursor: pointer; }
+.gd-step-track { display: block; height: 6px; border-radius: 3px; background: #2a2a2a; overflow: hidden; }
+.gd-step-fill { display: block; height: 100%; background: var(--fg); transform: scaleX(0); transform-origin: left center; }
+.gd-step.is-done .gd-step-fill { transform: scaleX(1); }
+.gd-step.is-held .gd-step-fill { transform: scaleX(1); opacity: 0.55; }
+.gd-step.is-active .gd-step-fill { animation: gd-progress var(--hold, 6s) linear forwards; }
+.gd.is-paused .gd-step-fill { animation-play-state: paused; }
+
+/* ---------- stage ---------- */
+.gd-stage { position: relative; border-radius: 16px; overflow: hidden; aspect-ratio: 5 / 3; background: radial-gradient(120% 90% at 50% 100%, #161a1f 0%, var(--gd-bg) 70%); border: 1px solid var(--border); }
+.gd-stage > .gd-scene { position: absolute; inset: 0; animation: gd-scene-in 320ms ease-out both; }
+.gd-svg { width: 100%; height: 100%; display: block; }
+.gd.is-paused .gd-svg * { animation-play-state: paused; }
+.gd-badge { position: absolute; top: 10px; left: 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.gd-badge.is-critical { color: var(--accent); }
+.gd-badge.is-correction { color: var(--warn); }
+
+/* ---------- caption ---------- */
+.gd-caption { margin: 0; font-size: clamp(22px, 4.8vw, 34px); font-weight: 750; line-height: 1.12; letter-spacing: -0.012em; text-wrap: balance; min-height: 2.3em; transition: color 160ms ease; }
+.gd-caption.is-critical { color: var(--accent); }
+.gd-caption.is-correction { color: var(--warn); }
+.gd.is-compact .gd-caption { font-size: clamp(16px, 3.6vw, 22px); min-height: 0; }
+.gd-meta { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+.gd-controls { display: flex; gap: 8px; }
+.gd-controls button { flex: 1 1 0; min-height: 44px; padding: 8px 12px; font-size: 15px; }
+
+/* ---------- rhythm trace ---------- */
+.gd-trace { display: block; width: 100%; border-radius: 10px; border: 1px solid var(--border); }
+
+/* ============================================================================ */
+/* Pictogram parts                                                              */
+/* ============================================================================ */
+.gd-ground { stroke: var(--gd-ground); stroke-width: 3; stroke-linecap: round; }
+.gd-them { stroke: var(--gd-them); fill: var(--gd-them); stroke-linecap: round; stroke-linejoin: round; }
+.gd-them-fill { fill: var(--gd-them-fill); stroke: var(--gd-them); stroke-width: 3; }
+.gd-you { stroke: var(--gd-you); fill: var(--gd-you); stroke-linecap: round; stroke-linejoin: round; }
+.gd-you-far { stroke: #b9b5aa; }
+.gd-hands { fill: var(--gd-you); stroke: var(--gd-you-dark); stroke-width: 2; }
+.gd-dent { fill: var(--gd-bg); }
+.gd-target { fill: var(--gd-target); stroke: var(--gd-target); }
+.gd-hand rect { fill: var(--gd-you); stroke: var(--gd-you-dark); stroke-width: 2.5; stroke-linejoin: round; }
+.gd-hand-top rect { fill: #e6e1d3; }
+.gd-hand-ghost rect { fill: none; stroke: var(--gd-you); stroke-dasharray: 5 5; opacity: 0.8; }
+.gd-lace line { stroke: var(--gd-you-dark); stroke-width: 2.5; stroke-linecap: round; }
+.gd-heel { fill: var(--gd-target); opacity: 0.95; }
+.gd-cloth { fill: #ece6d6; stroke: #8f8877; stroke-width: 2.5; }
+.gd-cloth-soaked { fill: #7d1116; stroke: #c1262e; stroke-width: 2.5; }
+.gd-cloth-fold { fill: none; stroke: rgba(0, 0, 0, 0.35); stroke-width: 2.5; stroke-linecap: round; }
+.gd-cloth-dark { fill: #1c2026; stroke: #3a424c; stroke-width: 3; }
+.gd-cloth-fill { fill: #ece6d6; stroke: #8f8877; stroke-width: 2; }
+.gd-wound { fill: #d21f2a; }
+.gd-wound-core { fill: #6a0a10; }
+.gd-anim-bleed { fill: none; stroke: #ff3b30; stroke-width: 3; transform-box: fill-box; transform-origin: center; animation: gd-bleed 1s ease-out infinite; }
+.gd-phone { fill: #17181b; stroke: #8a8f98; stroke-width: 2.5; }
+.gd-phone-screen { fill: #0a0b0d; stroke: #2d3138; stroke-width: 1.5; }
+.gd-phone-text { fill: var(--gd-ink); font: 800 18px system-ui, sans-serif; letter-spacing: 0.02em; }
+.gd-speaker { fill: var(--gd-ok); }
+.gd-waves path { fill: none; stroke: var(--gd-ok); stroke-width: 3; stroke-linecap: round; }
+.gd-cross { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; }
+.gd-cross circle { fill: rgba(255, 59, 48, 0.15); stroke-width: 3; }
+.gd-check { fill: none; stroke: var(--gd-ok); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.gd-check circle { fill: rgba(52, 199, 89, 0.15); stroke-width: 3; }
+.gd-cue { fill: none; stroke: var(--gd-cue); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.gd-cue-heavy { stroke-width: 8; }
+.gd-cue-ring { fill: none; stroke: var(--gd-cue); stroke-width: 4; transform-box: fill-box; transform-origin: center; }
+.gd-label { fill: var(--gd-ink); font: 700 15px system-ui, sans-serif; letter-spacing: 0.02em; }
+.gd-label-big { font-size: 34px; font-weight: 800; }
+.gd-label-ok { fill: var(--gd-ok); font-size: 13px; }
+.gd-label-muted { fill: var(--muted); font-weight: 600; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; }
+.gd-bubble path { fill: var(--gd-ink); }
+.gd-bubble text { fill: #000; font: 700 17px system-ui, sans-serif; }
+.gd-gaze { stroke: var(--gd-cue); stroke-width: 3; stroke-dasharray: 8 8; stroke-linecap: round; opacity: 0.9; }
+.gd-hazard path { fill: var(--gd-cue); stroke: var(--gd-cue); stroke-width: 6; stroke-linejoin: round; }
+.gd-hazard line { stroke: #000; stroke-width: 6; stroke-linecap: round; }
+.gd-hazard circle { fill: #000; }
+.gd-ems { stroke: #d9dee5; fill: #d9dee5; stroke-linecap: round; }
+.gd-ems-cross rect { fill: var(--accent); }
+.gd-row-dot { fill: var(--gd-ok); }
+.gd-row-line { fill: #cfd4dc; }
+.gd-chest-scan { fill: none; stroke: var(--gd-cue); stroke-width: 3; stroke-dasharray: 6 8; stroke-linecap: round; }
+.gd-guide-line { stroke: var(--gd-cue); stroke-width: 3; stroke-dasharray: 10 8; stroke-linecap: round; opacity: 0.9; }
+.gd-ring { fill: none; stroke: var(--gd-target); stroke-width: 5; }
+.gd-ring-cue { stroke: var(--gd-cue); }
+.gd-ring-alarm { stroke: var(--accent); stroke-width: 7; animation: gd-alarm 0.5s ease-in-out infinite; }
+.gd-ring-good { stroke: var(--gd-ok); stroke-width: 4; }
+.gd-gauge rect { fill: #23272d; stroke: #3b424b; stroke-width: 2; }
+.gd-gauge line { stroke: var(--gd-target); stroke-width: 4; stroke-linecap: round; }
+.gd-gauge .gd-gauge-marker { fill: var(--gd-you); stroke: var(--gd-you-dark); stroke-width: 1.5; }
+.gd-release line { stroke: var(--gd-ok); stroke-width: 3; stroke-dasharray: 8 6; stroke-linecap: round; }
+.gd-release path { fill: none; stroke: var(--gd-ok); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.gd-blind rect { fill: rgba(255, 204, 0, 0.12); stroke: var(--gd-cue); stroke-width: 2.5; }
+.gd-blind path, .gd-blind line { fill: none; stroke: var(--gd-cue); stroke-width: 3; stroke-linecap: round; }
+.gd-blind circle { fill: var(--gd-cue); }
+.gd-blind text { fill: var(--gd-cue); font: 700 12px system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
+.gd-clock circle { fill: none; stroke: var(--muted); stroke-width: 4; }
+.gd-clock line { stroke: var(--gd-ink); stroke-width: 4; stroke-linecap: round; }
+.gd-scissors circle { fill: none; stroke: var(--gd-ink); stroke-width: 3; }
+.gd-scissors line { stroke: var(--gd-ink); stroke-width: 3.5; stroke-linecap: round; }
+.gd-joint { fill: none; stroke: var(--muted); stroke-width: 3; stroke-dasharray: 6 6; }
+.gd-band { fill: #1a1a1a; stroke: var(--gd-cue); stroke-width: 3; }
+.gd-windlass line { stroke: var(--gd-ink); stroke-width: 6; stroke-linecap: round; transform-box: fill-box; transform-origin: center; }
+.gd-dimension line { stroke: var(--gd-ink); stroke-width: 2.5; stroke-linecap: round; }
+.gd-ghost { transform-box: fill-box; transform-origin: center; }
+.gd-ghost-hot { opacity: 1; }
+.gd-ghost-hot .gd-hand-ghost rect { stroke: var(--accent); }
+
+/* ============================================================================ */
+/* Motion                                                                       */
+/* ============================================================================ */
+.gd-anim-breathe { animation: gd-breathe 3.6s ease-in-out infinite; }
+.gd-anim-tap { animation: gd-tap 1.3s ease-in-out infinite; }
+.gd-anim-pulse { transform-box: fill-box; transform-origin: center; animation: gd-pulse 1.5s ease-out infinite; }
+.gd-anim-wave { animation: gd-wave 1.4s ease-out infinite; }
+.gd-anim-fade { animation: gd-fade 0.6s ease-out 0.5s both; }
+.gd-anim-dash { animation: gd-dash 1.2s linear infinite; }
+.gd-anim-blink { animation: gd-blink 1.1s ease-in-out infinite; }
+.gd-anim-nudge { animation: gd-nudge 1.1s ease-in-out infinite; }
+.gd-anim-nudge-left { animation: gd-nudge-left 1.1s ease-in-out infinite; }
+.gd-anim-nudge-right { animation: gd-nudge-right 1.1s ease-in-out infinite; }
+.gd-anim-rise { animation: gd-rise 0.5s ease-out both; }
+.gd-anim-land-right { animation: gd-land-right 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.gd-anim-land-left { animation: gd-land-left 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.gd-anim-drop { animation: gd-drop 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.gd-anim-press { transform-box: fill-box; transform-origin: center; animation: gd-press 1.3s ease-in-out infinite; }
+.gd-anim-lift { animation: gd-lift 3.2s ease-in-out infinite; }
+.gd-anim-open-left { animation: gd-open-left 4s ease-in-out infinite; }
+.gd-anim-open-right { animation: gd-open-right 4s ease-in-out infinite; }
+.gd-anim-stuff { transform-box: fill-box; transform-origin: 50% 0%; animation: gd-stuff 3.6s ease-in-out infinite; }
+.gd-anim-push { animation: gd-push 3.6s ease-in-out infinite; }
+.gd-anim-bleed-cycle .gd-anim-bleed { animation: gd-bleed-cycle 6s linear infinite; }
+.gd-anim-drop-cycle { animation: gd-drop-cycle 6s cubic-bezier(0.2, 0.8, 0.2, 1) infinite; }
+.gd-anim-twist-cycle { animation: gd-twist-cycle 6s ease-in-out infinite; }
+.gd-anim-spin { transform-box: fill-box; transform-origin: center; animation: gd-spin 8s linear infinite; }
+
+@keyframes gd-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes gd-scene-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes gd-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes gd-tap { 0%, 100% { transform: translateY(0); } 25% { transform: translateY(5px); } 50% { transform: translateY(0); } 75% { transform: translateY(5px); } }
+@keyframes gd-pulse { 0% { transform: scale(0.85); opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
+@keyframes gd-wave { 0% { opacity: 0; transform: translateX(-3px); } 40% { opacity: 1; } 100% { opacity: 0; transform: translateX(4px); } }
+@keyframes gd-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes gd-dash { to { stroke-dashoffset: -32; } }
+@keyframes gd-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+@keyframes gd-nudge { 0%, 100% { transform: translateY(-4px); opacity: 0.6; } 50% { transform: translateY(6px); opacity: 1; } }
+@keyframes gd-nudge-left { 0%, 100% { transform: translateX(4px); opacity: 0.6; } 50% { transform: translateX(-6px); opacity: 1; } }
+@keyframes gd-nudge-right { 0%, 100% { transform: translateX(-4px); opacity: 0.6; } 50% { transform: translateX(6px); opacity: 1; } }
+@keyframes gd-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes gd-land-right { from { opacity: 0; transform: translate(70px, -14px) scale(1.12); } to { opacity: 1; transform: none; } }
+@keyframes gd-land-left { from { opacity: 0; transform: translate(-70px, -14px) scale(1.12); } to { opacity: 1; transform: none; } }
+@keyframes gd-drop { from { opacity: 0; transform: translateY(-46px) scale(1.06); } to { opacity: 1; transform: none; } }
+@keyframes gd-press { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.94); } }
+@keyframes gd-lift { 0%, 15% { opacity: 0; transform: translateY(0); } 45%, 70% { opacity: 0.95; transform: translateY(-34px); } 100% { opacity: 0; transform: translateY(-34px); } }
+@keyframes gd-open-left { 0%, 12% { transform: none; } 45%, 80% { transform: translateX(-52px); } 100% { transform: none; } }
+@keyframes gd-open-right { 0%, 12% { transform: none; } 45%, 80% { transform: translateX(52px); } 100% { transform: none; } }
+@keyframes gd-stuff { 0%, 10% { transform: scaleY(0.15); } 55%, 85% { transform: scaleY(1); } 100% { transform: scaleY(0.15); } }
+@keyframes gd-push { 0%, 10% { transform: translateY(-26px); } 55%, 85% { transform: translateY(0); } 100% { transform: translateY(-26px); } }
+@keyframes gd-bleed { 0% { transform: scale(0.7); opacity: 0.9; } 100% { transform: scale(1.5); opacity: 0; } }
+@keyframes gd-bleed-cycle {
+  0% { transform: scale(0.7); opacity: 0.9; } 9% { transform: scale(1.5); opacity: 0; } 9.01% { transform: scale(0.7); opacity: 0.9; }
+  18% { transform: scale(1.5); opacity: 0; } 18.01% { transform: scale(0.7); opacity: 0.9; } 27% { transform: scale(1.5); opacity: 0; }
+  27.01% { transform: scale(0.7); opacity: 0.9; } 36% { transform: scale(1.5); opacity: 0; } 36.01% { transform: scale(0.7); opacity: 0.9; }
+  45% { transform: scale(1.5); opacity: 0; } 45.01% { transform: scale(0.7); opacity: 0.9; } 54% { transform: scale(1.5); opacity: 0; }
+  54.01%, 100% { opacity: 0; }
+}
+@keyframes gd-drop-cycle { 0%, 12% { opacity: 0; transform: translateY(-50px); } 28%, 100% { opacity: 1; transform: none; } }
+@keyframes gd-twist-cycle { 0%, 32% { transform: rotate(0deg); } 55%, 100% { transform: rotate(180deg); } }
+@keyframes gd-spin { to { transform: rotate(360deg); } }
+@keyframes gd-alarm { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
