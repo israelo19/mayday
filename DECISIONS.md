@@ -47,6 +47,20 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   to `@vitejs/plugin-basic-ssl` (self-signed, zero setup, click through the warning once per
   device); mkcert stays available behind `MAYDAY_MKCERT=1`. Camera works on either because a
   secure context is about the https scheme, not certificate trust.
+- **Sat 02:05 (P4)** docs/07 task 4 calls for ESLint's `no-restricted-imports` to stop
+  perception/protocol/voice from importing `src/ai`. `typescript-eslint` hard-errors on our
+  TypeScript 7 (`typescript-eslint does not support TS 7.0`, no released fix yet) — not a
+  warning, it refuses to run at all. Rather than downgrade TypeScript for the whole team,
+  `npm run lint` is a zero-dependency script (`scripts/check-ai-boundaries.mjs`) that greps
+  guarded dirs for a value import (not `import type`) reaching `src/ai` and fails the build.
+  Same intent, same command, revisit if typescript-eslint ships TS7 support before Sun 09:00.
+- **Sat 02:10 (P4)** `src/flags.ts` and `src/ai/{vision,narration,dispatcher,index}.ts` added
+  per docs/07 task 4: both stubs return hardcoded demo data and never touch the network;
+  `DispatcherSim` is interface-only, P3 implements it in `src/voice`. Pushed to a `face` branch
+  rather than straight to `main` — the team moved to one short-lived branch per role
+  (`eyes`/`brain`/`mouth`/`face`) instead of docs/07's "main only" so four people editing
+  disjoint paths stop stepping on each other's half-finished commits; merge to `main` when a
+  milestone gate goes green, not on every commit.
 - **Sat 02:40** Step guides (`src/ui/guide`) are hand-drawn SVG pictograms keyed by
   `machine.state`, one step per docs/02 line, captions verbatim and tested against
   docs/02. No video, no generated media: a bundled SVG works with wifi off, scales to any

@@ -13,6 +13,7 @@
     "typecheck": "tsc -b",
     "assets": "node scripts/prepare-assets.mjs",
     "postinstall": "node scripts/prepare-assets.mjs",
+    "lint": "node scripts/check-ai-boundaries.mjs",
     "test": "vitest run"
   },
   "dependencies": {
