@@ -1,9 +1,10 @@
-import { defineConfig, type PluginOption } from 'vite';
+import { defineConfig, type PluginOption, type ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import mkcert from 'vite-plugin-mkcert';
 import { VitePWA } from 'vite-plugin-pwa';
 import * as QRCode from 'qrcode';
+import { createKeyProxy, readLocalEnv } from './src/voice/providers/devproxy.mjs';
 
 // HTTPS in dev because getUserMedia needs a secure context on any origin other than
 // localhost (the phone on the LAN hits https://<laptop-ip>:5173).
@@ -48,11 +49,34 @@ function phoneQr(): PluginOption {
   };
 }
 
+/**
+ * Mounts the ElevenLabs key proxy at /api/proxy on the dev and preview servers, the same
+ * path the deployed DigitalOcean Function will own (docs/04 TODO 1), so `ElevenLabsProvider`
+ * and the agent dispatcher need no dev-only base URL. Same origin as the page: an https
+ * page on the phone may call it, which a separate http port could never offer. With no key
+ * in .env.local the mount is skipped and every flagged voice feature falls back locally.
+ */
+function keyProxy(): PluginOption {
+  const apiKey = readLocalEnv('ELEVENLABS_API_KEY');
+  const agentId = readLocalEnv('ELEVENLABS_AGENT_ID');
+  // Dev and preview servers share the connect stack, so one mount serves both hooks.
+  const mount = (server: Pick<ViteDevServer, 'middlewares'>): void => {
+    if (!apiKey) {
+      console.log('  ElevenLabs: off (no ELEVENLABS_API_KEY in .env.local); WebSpeech carries the demo');
+      return;
+    }
+    server.middlewares.use('/api/proxy', createKeyProxy({ apiKey, agentId }));
+    console.log(`  ElevenLabs: key proxy at /api/proxy, dispatcher agent ${agentId ? 'set' : 'NOT set'}`);
+  };
+  return { name: 'mayday-key-proxy', configureServer: mount, configurePreviewServer: mount };
+}
+
 export default defineConfig({
   plugins: [
     react(),
     ...https,
     phoneQr(),
+    keyProxy(),
     // docs/07 P4 task 7: an accidental reload with wifi off must still load. `vite-plugin-pwa`
     // is a pre-approved exception to the no-new-libraries rule (DECISIONS.md).
     VitePWA({
