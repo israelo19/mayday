@@ -1,7 +1,11 @@
 # CLAUDE.md - Mayday
 
 ## What this is
-Mayday is an AI emergency dispatcher with eyes. A bystander opens it on a phone during a medical emergency. It triages by voice, watches through the camera, and coaches the bystander through the correct protocol in real time until EMS arrives, then produces a structured handoff report. Built in ~24 hours at HopHacks 2026 by a team of 4.
+Mayday is an AI emergency dispatcher with eyes. A bystander opens it on a phone during any medical emergency. It triages by voice, watches through the camera, and coaches the bystander through the correct first-aid protocol in real time until EMS arrives, then produces a structured handoff report. Built in ~24 hours at HopHacks 2026 by a team of 4.
+
+A protocol is a state machine written as data (docs/02), one machine per emergency, transcribed from a published guideline. The engine, perception and voice are generic over machines. Adding an emergency means adding a machine file with cited sources, never code in the engine.
+
+The hackathon build ships two machines, hands-only CPR and severe bleeding, and they are the demo cases. They prove the architecture; they are not its ceiling. Choking ships as data only. Every other emergency is out of scope this weekend (see scope walls).
 
 One-liner for every README and pitch surface: "The minutes before the ambulance, coached."
 
@@ -28,20 +32,24 @@ One-liner for every README and pitch surface: "The minutes before the ambulance,
 - Commit small and often; commit messages describe what works, e.g. "compression rate live at 10fps".
 
 ## What we are NOT building (scope walls)
-- No accounts, no database, no ambient always-on listening, no auto-dial, no diagnosis claims, no blood detection via CV, no native app, no choking CV detection (choking machine exists as data only, stretch goal), no stroke module.
+- Machines this weekend: triage, cardiac, bleeding, and choking as data only with detection disabled. Any other emergency (stroke, seizure, overdose, burns) is a future machine file, not hackathon work.
+- No accounts, no database, no ambient always-on listening, no auto-dial, no diagnosis claims, no blood detection via CV, no native app.
 
 ## Repo layout
 ```
 /src
   /perception    MediaPipe wrappers + signal extraction (docs/03)
-  /protocol      state machine engine + machine definitions as data (docs/02)
+  /protocol      state machine engine; /machines holds one data file per emergency (docs/02)
   /voice         speech out (queue, metronome), speech in (keyword router) (docs/04)
   /ai            episodic cloud calls, all stubbed behind interfaces (docs/04)
   /sitrep        event log, SITREP builder, handoff report
   /ui            screens and overlays (docs/05)
-/docs            these context documents
-/public/models   MediaPipe .task model files
+  /ui/guide      step guides: one picture per protocol line, gallery at ?guide=1 (docs/05)
+/docs            these context documents; docs/07 is the four-person work split
+/public/models   MediaPipe .task model files (committed)
+/public/wasm     MediaPipe WASM runtime (generated, gitignored)
+/scripts         prepare-assets.mjs, check-ai-boundaries.mjs
 ```
 
 ## Reading order for a fresh Claude Code session
-1. This file. 2. docs/01-architecture.md. 3. docs/06-plan.md for the current milestone. 4. The doc for the module you are touching.
+1. This file. 2. docs/01-architecture.md. 3. docs/06-plan.md for the current milestone. 4. docs/07-work-split.md for who owns the files you are touching and the seams between owners. 5. The doc for the module you are touching. Decisions the docs did not settle are in DECISIONS.md; add one there instead of asking.

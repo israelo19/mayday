@@ -49,7 +49,7 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   secure context is about the https scheme, not certificate trust.
 - **Sat 02:05 (P4)** docs/07 task 4 calls for ESLint's `no-restricted-imports` to stop
   perception/protocol/voice from importing `src/ai`. `typescript-eslint` hard-errors on our
-  TypeScript 7 (`typescript-eslint does not support TS 7.0`, no released fix yet) — not a
+  TypeScript 7 (`typescript-eslint does not support TS 7.0`, no released fix yet). Not a
   warning, it refuses to run at all. Rather than downgrade TypeScript for the whole team,
   `npm run lint` is a zero-dependency script (`scripts/check-ai-boundaries.mjs`) that greps
   guarded dirs for a value import (not `import type`) reaching `src/ai` and fails the build.
@@ -57,7 +57,7 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
 - **Sat 02:10 (P4)** `src/flags.ts` and `src/ai/{vision,narration,dispatcher,index}.ts` added
   per docs/07 task 4: both stubs return hardcoded demo data and never touch the network;
   `DispatcherSim` is interface-only, P3 implements it in `src/voice`. Pushed to a `face` branch
-  rather than straight to `main` — the team moved to one short-lived branch per role
+  rather than straight to `main`. The team moved to one short-lived branch per role
   (`eyes`/`brain`/`mouth`/`face`) instead of docs/07's "main only" so four people editing
   disjoint paths stop stepping on each other's half-finished commits; merge to `main` when a
   milestone gate goes green, not on every commit.
@@ -96,3 +96,9 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
 - **Sat 02:40** `vitest` added as dev tooling (the plan in docs/07 already calls for it);
   tests live next to their module as `*.test.ts` and type-check through
   `tsconfig.test.json` so Node types stay out of browser code. `npm test` runs them.
+- **Sat 03:05** Mayday is framed as coaching any medical emergency with a published bystander
+  protocol, with one machine data file per emergency and a generic engine. CPR and severe
+  bleeding are the hackathon build and the demo cases, not the product boundary. CLAUDE.md,
+  README, docs/01, docs/02 and the docs/05 pitch notes now say so in one place each; the
+  scope walls list the machines that ship this weekend instead of naming emergencies we
+  skip. START_PROMPT is marked historical since M0 is done.
