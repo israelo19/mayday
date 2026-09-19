@@ -6,7 +6,7 @@
 - Team member B owns verifying every line against the published guideline pages on Saturday and pasting source URLs into the comments. Nothing ships unverified.
 - Canonical text is written to be SPOKEN. Short sentences. Imperative. No medical jargon.
 
-## Engine semantics (implement in /src/protocol/engine.ts, keep under ~120 lines)
+## Engine semantics (/src/protocol/engine.ts, ~240 lines, with rule evaluation split into rules.ts; the original budget was ~120)
 - A machine = `{ id, states: State[] }`. A State = `{ id, say: string[], metronome?: number, coachingRules?: Rule[], transitions: Transition[] }`.
 - Transition triggers: `keyword(k)`, `timerMs(n)`, `fact(predicate)`, `manualAdvance` (big NEXT button, always available as fallback so a demo can never wedge).
 - Coaching rules run every facts tick while in the state: `{ when: predicate, event: CoachingEvent, cooldownMs }`. Cooldown prevents nagging (default 6000ms per dedupeKey).
@@ -65,23 +65,22 @@ States:
 6. `handoff` -> SITREP report screen with continuous-pressure time as the headline metric.
 Note: tourniquets are mentioned ONLY if user says 'tourniquet': respond "If you have a real tourniquet kit, place it two to three inches above the wound, not on a joint, and tighten until the bleeding stops. Otherwise keep pressing." We do not coach improvised belt tourniquets.
 
-## MACHINE: choking (conscious adult; ships as data, camera detection disabled)
-Source: Red Cross adult and child choking (https://www.redcross.org/take-a-class/resources/learn-first-aid/adult-child-choking). Reached by voice or button from triage; a choking gesture from the camera is out of scope (CLAUDE.md scope walls). If he goes unconscious the machine hands off to cardiac.position. The data file is src/protocol/machines/choking.ts; these lines are that file, verbatim.
+## MACHINE: choking (ships as data, camera detection disabled)
+Source: Red Cross conscious choking adult (the live adult/child choking page; the original URL is gone, DECISIONS Sat 02:00). Reached from triage by voice or button; no gesture detection this weekend.
 States:
 1. `confirm` say: ["Can he cough or speak? If he can cough, let him cough.", "If he cannot make a sound, tell me: he can't breathe."]
-   - keyword "can't breathe"|'no sound'|manualAdvance => back_blows
-   - keyword 'coughing' => encourage_cough
-2. `encourage_cough` say: ["Good. Keep him coughing. Do not hit his back while he can cough.", "Stay with him. If he stops making sound, tell me."]
-   - keyword "can't breathe"|manualAdvance => back_blows
-3. `back_blows` say: ["Stand behind him and lean him forward.", "Hit him five times between the shoulder blades with the heel of your hand."]
-   - keyword 'still choking'|manualAdvance => abdominal_thrusts
-   - keyword 'it came out' => resolved
-   - keyword 'he passed out'|'unconscious' => cardiac.position
-4. `abdominal_thrusts` say: ["Stand behind him. Make a fist just above his belly button.", "Grab your fist with your other hand. Pull hard, inward and upward, five times.", "If it does not come out, we go back to back blows."]
-   - keyword 'it came out' => resolved
-   - keyword 'he passed out'|'unconscious' => cardiac.position
-   - manualAdvance => back_blows   // the Red Cross cycle: five back blows, five thrusts, repeat
-5. `resolved` say: ["Good. Stay with him until the ambulance arrives. Keep watching his breathing."] End of machine.
+   - keyword 'can't breathe'|'no sound'|manualAdvance => call_911 ; keyword 'coughing' => encourage_cough
+2. `call_911` say: ["Call 911 now. Put the phone on speaker and set it down where you can hear me."] + CALL 911 button
+   - manualAdvance|timerMs(8000) => back_blows
+3. `encourage_cough` say: ["Good. Keep him coughing. Do not hit his back while he can cough.", "Stay with him. If he stops making sound, tell me."]
+   - keyword 'can't breathe'|manualAdvance => call_911 ; keyword 'it came out' => resolved
+4. `back_blows` say: ["Stand behind him and lean him forward.", "Hit him five times between the shoulder blades with the heel of your hand."]
+   - keyword 'still choking'|manualAdvance => abdominal_thrusts ; 'it came out' => resolved ; 'he passed out'|'unconscious' => cardiac.position
+5. `abdominal_thrusts` say: ["Stand behind him. Make a fist just above his belly button.", "Grab your fist with your other hand. Pull hard, inward and upward, five times.", "If it does not come out, we go back to back blows."]
+   - keyword 'it came out' => resolved ; 'he passed out'|'unconscious' => cardiac.position ; manualAdvance => back_blows
+6. `resolved` say: ["Good. Stay with him until the ambulance arrives. Keep watching his breathing."]
+   - keyword 'not breathing' => cardiac.position ; keyword 'ambulance here'|manualAdvance => handoff
+7. `handoff` say: ["Tell the paramedics what happened and how long it took. It is on my screen."] End of machine.
 
 ## SITREP (built continuously from EventLog)
 Fields: location (geolocation lat/lon + reverse-geocode later, raw coords fine for demo), emergency type, time of collapse/first interaction, CPR started at, average rate, pauses>10s count, continuous pressure time, current state. Render as read-aloud lines at top ("Say this to the dispatcher:") + timeline below. Handoff screen adds QR of the report JSON.

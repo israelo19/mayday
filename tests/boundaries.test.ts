@@ -89,3 +89,18 @@ describe('the engine stays deterministic', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('a human dials 911 (principle 5)', () => {
+  // The app renders a CALL 911 button and a SIMULATED dispatcher. It never places a call:
+  // no tel: link, no telephony API, anywhere in shipped code. Grepped, not remembered.
+  const files = [...sourceFiles('src'), ...sourceFiles('web')];
+
+  it('never links or calls a phone number', () => {
+    const offenders = files.filter((f) => /['"`]tel:|telephony/i.test(code(f)));
+    expect(offenders).toEqual([]);
+  });
+
+  it('labels the dispatcher as simulated on the live screen', () => {
+    expect(readFileSync('web/ui/live/LiveApp.tsx', 'utf8')).toContain('Simulated dispatcher');
+  });
+});

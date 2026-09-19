@@ -24,6 +24,7 @@ import {
   clampTuning,
   isActive,
   meanRecoil,
+  pickRescuer,
   rateByCount,
   rateFromPeaks,
   shoulderConfidence,
@@ -142,6 +143,8 @@ class PerceptionImpl implements Perception {
   private lastHands: Hand[] = [];
   private lastRoi: Roi;
   private rawY: number | null = null;
+  // Where the measured shoulders were last frame, so pickRescuer keeps following the same person.
+  private lastMid: { x: number; y: number } | null = null;
   private rawConfidence = 0;
   private blindNow = false;
   private shouldersSeenAt: number | null = null;
@@ -299,6 +302,7 @@ class PerceptionImpl implements Perception {
     this.shouldersSeenAt = null;
     this.span = null;
     this.rawY = null;
+    this.lastMid = null;
     this.rawConfidence = 0;
     this.lastPose = null;
     this.lastHands = [];
@@ -358,7 +362,7 @@ class PerceptionImpl implements Perception {
       // responsive: the bleeding loop cares about hands, the confidence gate can wait a frame.
       const runPose = !withHands || this.frameIndex % 2 === 0;
       try {
-        if (runPose) pose.detectForVideo(video, ts, (result) => this.onPose(result.landmarks[0], now));
+        if (runPose) pose.detectForVideo(video, ts, (result) => this.onPose(pickRescuer(result.landmarks, this.lastMid), now));
         if (withHands && this.handsModel) {
           this.onHands(toHands(this.handsModel.detectForVideo(video, ts)), now);
         }
@@ -391,6 +395,7 @@ class PerceptionImpl implements Perception {
       this.span = shoulderSpan(lm);
       const y = shoulderMidY(lm);
       this.rawY = y;
+      this.lastMid = { x: shoulderMidX(lm), y };
       if (!blind) {
         const s = this.ema.push(y);
         this.series.push(now, s);
@@ -398,6 +403,7 @@ class PerceptionImpl implements Perception {
       }
     } else {
       this.rawY = null;
+      this.lastMid = null;
       if (!lm) this.span = null;
     }
   }

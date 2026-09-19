@@ -29,10 +29,9 @@ npm install        # also copies the MediaPipe WASM runtime into public/wasm
 npm run dev        # https://localhost:5173 and https://<your-LAN-ip>:5173
 ```
 
-A plain load is the real app: LAUNCH -> CALL PREP -> COACH -> SITREP -> HANDOFF (docs/05),
-running on mock data until `web/session.ts` and P2's engine wire it up for real (see
-`DECISIONS.md`). `?debug=1` gets the M0 sensor/debug view instead -- that's what the M0 and M1
-checks below are walking.
+A plain load is the real app: LAUNCH, then the camera fills the screen and `web/session.ts`
+drives coaching from the protocol engine (docs/10). `?debug=1` gets the M0 sensor/debug view
+instead -- that's what the M0 and M1 checks below are walking.
 
 - Dev serves a self-signed certificate (`@vitejs/plugin-basic-ssl`). No setup, no sudo.
   The browser shows a warning once per device: Advanced, proceed. Camera works after that.
@@ -151,7 +150,7 @@ Open the app, or `?fake=1` on a laptop with no camera. Tap "I NEED HELP".
   /voice         speech out (queue, metronome), speech in (keyword router) (docs/04)
   /ai            episodic cloud calls, all stubbed behind interfaces (docs/04)
   /sitrep        event log, SITREP builder, handoff report
-/web             the browser app: main.tsx, App.tsx, index.css, and session.ts once the engine lands
+/web             the browser app: main.tsx, App.tsx, index.css, session.ts (orchestrator, docs/10)
   /ui            screens and overlays (docs/05)
   /ui/guide      step guides: one picture per protocol line, gallery at ?guide=1 (docs/05)
 /docs            context documents; docs/07 is the four-person work split

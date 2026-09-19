@@ -4,7 +4,7 @@
 // from the protocol engine. Flags (src/flags.ts): `elevenLabs` swaps the speaker for the
 // ElevenLabs voice through the key proxy, `dispatcherSim` makes CALL 911 a live ElevenLabs
 // agent that hears the phone mic; both keep their local stub underneath (web/providers.ts,
-// docs/09). The mock-data screens from the first cut stay in web/ui. Owned by P4 (docs/07).
+// docs/09). The first-cut mock screens are gone; LaunchScreen is the only survivor. Owned by P4 (docs/07).
 import { useMemo } from 'react';
 import { createPerception } from '../src/perception';
 import { Metronome } from '../src/voice/metronome';

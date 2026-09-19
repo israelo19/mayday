@@ -64,10 +64,11 @@ call.hangup();
 
 ## Latency (docs/07 P3 task 4)
 
-`CoachingEvent` currently carries no fact timestamp, so the orchestrator MUST call
-`voice.out.noteFacts(f)` on every perception tick; each coaching line is attributed to the
-newest fact and measured to the moment audio starts. If `types.ts` ever regains `t` on
-`CoachingEvent`, that value wins automatically. Numbers land in `docs/latency.md`.
+`CoachingEvent.t` is the timestamp of the fact that triggered the line and the engine always
+sets it (DECISIONS Sat 02:00). The orchestrator still calls `voice.out.noteFacts(f)` on every
+perception tick: lines without a `t` (read-aloud, dispatcher, the guide gallery) are attributed
+to the newest fact. Latency is measured to the moment audio starts. Numbers land in
+`docs/latency.md`.
 
 ## Echo suppression (the M2 "app never hears itself" gate)
 
@@ -80,7 +81,8 @@ defeats this, the fallback is a HOLD TO TALK button — buttons are the floor re
 
 ## ElevenLabs behind the flag (docs/04 item 2, `flags.elevenLabs`)
 
-Wired in `web/App.tsx` (`createSpeaker`); this is the shape, for session.ts to keep:
+Wired in `web/providers.ts` (`createSpeaker`, `createDispatcher`) and handed to the session by
+`LiveApp` (DECISIONS Sat 05:55); this is the shape:
 
 ```ts
 import { ElevenLabsProvider } from './voice/providers/elevenlabs';
@@ -151,9 +153,7 @@ spotting stops; coaching, metronome, corrections, blind mode and WebSpeech outpu
 working. Say "voice input needs network; coaching and voice output are local" — never a
 flat "works offline". Buttons twin every voice path, so the wifi-off demo stands either way.
 
-## For whoever restores the protocol engine
+## History
 
-P2's engine/machines/SITREP were lost with their deleted branch; `recovered/p2-brain`
-(pushed from a local copy) holds all eight commits. The queue consumes plain
-`CoachingEvent`s and already reads the richer optional fields (`t`, `cooldownMs`) that
-P2's version added, so either restoring their work or rebuilding leaves this module as-is.
+P2's engine was briefly lost with a deleted branch and restored from `recovered/p2-brain`
+(merged to `listen` Sat 04:15, on `main` since PR #14). This module needed no change.

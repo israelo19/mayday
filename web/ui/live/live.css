@@ -16,6 +16,11 @@
 .live-top-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .live-call { background: var(--red); border: none; color: #fff; font-weight: 800; font-size: 18px; min-height: 52px; padding: 10px 18px; border-radius: 14px; box-shadow: 0 6px 24px rgba(255, 69, 58, 0.35); }
 .live-call:disabled { opacity: 0.85; }
+.live-call.urgent { animation: live-call-pulse 1.2s ease-in-out infinite; }
+@keyframes live-call-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); box-shadow: 0 0 0 10px rgba(255, 69, 58, 0.25); }
+}
 .live-sim { font-size: 12px; font-weight: 700; color: var(--red); background: var(--glass); padding: 4px 8px; border-radius: 999px; border: 1px solid var(--red); }
 
 .live-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; font-size: 14px; max-width: 60vw; }

@@ -2,7 +2,9 @@
 //
 // Ships as data so the architecture claim "protocols are plug-in data files, here are three"
 // is literally true. Camera gesture detection for choking is out of scope (CLAUDE.md scope
-// walls); this machine is reached by voice or by button from triage.
+// walls); this machine is reached by voice or by button from triage. Like every medical
+// machine it tells the bystander to call 911 within its first two states (docs/02), and the
+// call is always the human's: the app renders a button and a SIMULATED dispatcher, never a line.
 import type { Machine } from '../../types';
 
 const RED_CROSS_CHOKING = 'https://www.redcross.org/take-a-class/resources/learn-first-aid/adult-child-choking';
@@ -21,19 +23,32 @@ export const choking: Machine = {
         "If he cannot make a sound, tell me: he can't breathe.",
       ],
       transitions: [
-        { on: { kind: 'keyword', keyword: "can't breathe" }, to: 'back_blows', label: 'Cannot breathe' },
-        { on: { kind: 'keyword', keyword: 'no sound' }, to: 'back_blows', label: 'No sound' },
-        { on: { kind: 'keyword', keyword: 'cannot breathe' }, to: 'back_blows', label: 'Cannot breathe' },
-        { on: { kind: 'keyword', keyword: "can't cough" }, to: 'back_blows', label: 'Cannot breathe' },
-        { on: { kind: 'keyword', keyword: 'cannot cough' }, to: 'back_blows', label: 'Cannot breathe' },
-        { on: { kind: 'keyword', keyword: "can't talk" }, to: 'back_blows', label: 'Cannot breathe' },
-        { on: { kind: 'keyword', keyword: "can't speak" }, to: 'back_blows', label: 'Cannot breathe' },
-        { on: { kind: 'keyword', keyword: 'no air' }, to: 'back_blows', label: 'Cannot breathe' },
-        { on: { kind: 'keyword', keyword: 'silent' }, to: 'back_blows', label: 'Cannot breathe' },
+        { on: { kind: 'keyword', keyword: "can't breathe" }, to: 'call_911', label: 'Cannot breathe' },
+        { on: { kind: 'keyword', keyword: 'no sound' }, to: 'call_911', label: 'No sound' },
+        { on: { kind: 'keyword', keyword: 'cannot breathe' }, to: 'call_911', label: 'Cannot breathe' },
+        { on: { kind: 'keyword', keyword: "can't cough" }, to: 'call_911', label: 'Cannot breathe' },
+        { on: { kind: 'keyword', keyword: 'cannot cough' }, to: 'call_911', label: 'Cannot breathe' },
+        { on: { kind: 'keyword', keyword: "can't talk" }, to: 'call_911', label: 'Cannot breathe' },
+        { on: { kind: 'keyword', keyword: "can't speak" }, to: 'call_911', label: 'Cannot breathe' },
+        { on: { kind: 'keyword', keyword: 'no air' }, to: 'call_911', label: 'Cannot breathe' },
+        { on: { kind: 'keyword', keyword: 'silent' }, to: 'call_911', label: 'Cannot breathe' },
         { on: { kind: 'keyword', keyword: 'coughing' }, to: 'encourage_cough', label: 'He is coughing' },
         { on: { kind: 'keyword', keyword: 'he can cough' }, to: 'encourage_cough', label: 'He is coughing' },
         { on: { kind: 'keyword', keyword: 'she can cough' }, to: 'encourage_cough', label: 'He is coughing' },
         { on: { kind: 'keyword', keyword: 'talking' }, to: 'encourage_cough', label: 'He is coughing' },
+        { on: { kind: 'manualAdvance' }, to: 'call_911', label: 'Next' },
+      ],
+    },
+    {
+      // Red Cross: have someone call 911 while care starts. The rescuer stands behind the
+      // patient, so the phone goes down somewhere it can still be heard.
+      id: 'call_911',
+      source: RED_CROSS_CHOKING,
+      call911: true,
+      requiredWords: ['911'],
+      say: ['Call 911 now. Put the phone on speaker and set it down where you can hear me.'],
+      transitions: [
+        { on: { kind: 'timerMs', ms: 8000 }, to: 'back_blows', label: 'Called' },
         { on: { kind: 'manualAdvance' }, to: 'back_blows', label: 'Next' },
       ],
     },
@@ -45,8 +60,13 @@ export const choking: Machine = {
         'Stay with him. If he stops making sound, tell me.',
       ],
       transitions: [
-        { on: { kind: 'keyword', keyword: "can't breathe" }, to: 'back_blows', label: 'He stopped coughing' },
-        { on: { kind: 'manualAdvance' }, to: 'back_blows', label: 'Next' },
+        { on: { kind: 'keyword', keyword: "can't breathe" }, to: 'call_911', label: 'He stopped coughing' },
+        { on: { kind: 'keyword', keyword: 'stopped coughing' }, to: 'call_911', label: 'He stopped coughing' },
+        { on: { kind: 'keyword', keyword: 'no sound' }, to: 'call_911', label: 'He stopped coughing' },
+        { on: { kind: 'keyword', keyword: 'it came out' }, to: 'resolved', label: 'It came out' },
+        { on: { kind: 'keyword', keyword: 'came out' }, to: 'resolved', label: 'It came out' },
+        { on: { kind: 'keyword', keyword: "it's out" }, to: 'resolved', label: 'It came out' },
+        { on: { kind: 'manualAdvance' }, to: 'call_911', label: 'Next' },
       ],
     },
     {
@@ -101,10 +121,26 @@ export const choking: Machine = {
       ],
     },
     {
+      // Not terminal: the object is out, but the bystander stays until EMS takes over, and
+      // "Ambulance is here" must land on a handoff line, not on "wait for the ambulance".
       id: 'resolved',
       source: RED_CROSS_CHOKING,
-      terminal: true,
       say: ['Good. Stay with him until the ambulance arrives. Keep watching his breathing.'],
+      transitions: [
+        { on: { kind: 'keyword', keyword: 'not breathing' }, to: 'cardiac.position', label: 'He stopped breathing' },
+        { on: { kind: 'keyword', keyword: 'ambulance here' }, to: 'handoff', label: 'Ambulance is here' },
+        { on: { kind: 'keyword', keyword: 'ambulance is here' }, to: 'handoff', label: 'Ambulance is here' },
+        { on: { kind: 'keyword', keyword: 'paramedics are here' }, to: 'handoff', label: 'Ambulance is here' },
+        { on: { kind: 'keyword', keyword: 'ems is here' }, to: 'handoff', label: 'Ambulance is here' },
+        { on: { kind: 'keyword', keyword: "they're here" }, to: 'handoff', label: 'Ambulance is here' },
+        { on: { kind: 'manualAdvance' }, to: 'handoff', label: 'Next' },
+      ],
+    },
+    {
+      id: 'handoff',
+      source: RED_CROSS_CHOKING,
+      terminal: true,
+      say: ['Tell the paramedics what happened and how long it took. It is on my screen.'],
       transitions: [],
     },
   ],

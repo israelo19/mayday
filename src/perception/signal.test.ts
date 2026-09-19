@@ -7,6 +7,7 @@ import {
   cameraGuidance,
   isActive,
   meanRecoil,
+  pickRescuer,
   rateByCount,
   rateFromPeaks,
   recoilRatios,
@@ -169,5 +170,50 @@ describe('cameraGuidance', () => {
     expect(cameraGuidance({ now: 1000, shouldersSeenAt: 1000, span: 0.05, luma: 120 })).toBe(GUIDANCE.closer);
     expect(cameraGuidance({ now: 1000, shouldersSeenAt: 1000, span: 0.6, luma: 120 })).toBe(GUIDANCE.back);
     expect(cameraGuidance({ now: 1000, shouldersSeenAt: 1000, span: 0.2, luma: 120 })).toBeNull();
+  });
+});
+
+describe('pickRescuer', () => {
+  type Lm = { x: number; y: number; visibility: number };
+  /** 33 landmarks with shoulders and hips placed; everything else sits at the shoulder midpoint. */
+  function person(o: { x: number; y: number; span?: number; hipDrop?: number; vis?: number }): Lm[] {
+    const span = o.span ?? 0.2;
+    const vis = o.vis ?? 0.9;
+    const lm: Lm[] = Array.from({ length: 33 }, () => ({ x: o.x, y: o.y, visibility: vis }));
+    lm[11] = { x: o.x - span / 2, y: o.y, visibility: vis };
+    lm[12] = { x: o.x + span / 2, y: o.y, visibility: vis };
+    const hipY = o.y + (o.hipDrop ?? 1) * span;
+    lm[23] = { x: o.x - span / 3, y: hipY, visibility: vis };
+    lm[24] = { x: o.x + span / 3, y: hipY, visibility: vis };
+    return lm;
+  }
+
+  it('measures the kneeling rescuer, not the patient lying flat', () => {
+    const patient = person({ x: 0.5, y: 0.7, hipDrop: 0.05 });
+    const rescuer = person({ x: 0.3, y: 0.4, hipDrop: 1.2 });
+    expect(pickRescuer([patient, rescuer], null)).toBe(rescuer);
+    expect(pickRescuer([rescuer, patient], null)).toBe(rescuer);
+  });
+
+  it('keeps the pose it chose last frame while it stays upright and nearby', () => {
+    const a = person({ x: 0.3, y: 0.4, hipDrop: 1.0 });
+    const b = person({ x: 0.7, y: 0.4, hipDrop: 1.3 });
+    // b is more upright, but a is where the rescuer was a frame ago.
+    expect(pickRescuer([a, b], { x: 0.31, y: 0.41 })).toBe(a);
+    // Once a lies down (hips level with shoulders), the pick moves.
+    const aDown = person({ x: 0.3, y: 0.4, hipDrop: 0.1 });
+    expect(pickRescuer([aDown, b], { x: 0.31, y: 0.41 })).toBe(b);
+  });
+
+  it('prefers a pose whose shoulders are visible over a confident-looking ghost', () => {
+    const faint = person({ x: 0.5, y: 0.4, hipDrop: 1.5, vis: 0.2 });
+    const clear = person({ x: 0.5, y: 0.6, hipDrop: 0.8, vis: 0.9 });
+    expect(pickRescuer([faint, clear], null)).toBe(clear);
+  });
+
+  it('passes a single pose through untouched', () => {
+    const only = person({ x: 0.5, y: 0.5, hipDrop: 0.05 });
+    expect(pickRescuer([only], null)).toBe(only);
+    expect(pickRescuer([], null)).toBeUndefined();
   });
 });

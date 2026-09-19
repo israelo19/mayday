@@ -158,7 +158,10 @@ export type Machine = {
 // SITREP and handoff
 // ---------------------------------------------------------------------------
 
-export type GeoFix = { lat: number; lon: number; accuracyM?: number };
+/** `address` arrives later than lat/lon (reverse geocoding is a second, non-blocking network
+ * round trip, web/geocode.ts) and is optional: readAloud() falls back to coordinates if it
+ * never resolves, per "fail loud, never wrong" -- a wrong address is worse than none. */
+export type GeoFix = { lat: number; lon: number; accuracyM?: number; address?: string };
 
 export type SitrepMetrics = {
   cprStartedAt: number | null;

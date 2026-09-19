@@ -194,6 +194,18 @@ const choking: readonly Guide[] = [
     ],
   },
   {
+    key: 'choking.call_911',
+    title: 'Call 911',
+    source: 'docs/02 choking.call_911',
+    steps: [
+      {
+        caption: 'Call 911 now. Put the phone on speaker and set it down where you can hear me.',
+        scene: 'call_911',
+        holdMs: HOLD.long,
+      },
+    ],
+  },
+  {
     key: 'choking.encourage_cough',
     title: 'Let him cough',
     source: 'docs/02 choking.encourage_cough (Red Cross adult choking)',
@@ -227,6 +239,14 @@ const choking: readonly Guide[] = [
     source: 'docs/02 choking.resolved (Red Cross adult choking)',
     steps: [
       { caption: 'Good. Stay with him until the ambulance arrives. Keep watching his breathing.', scene: 'choke_resolved', holdMs: HOLD.long },
+    ],
+  },
+  {
+    key: 'choking.handoff',
+    title: 'Handoff',
+    source: 'docs/02 choking.handoff',
+    steps: [
+      { caption: 'Tell the paramedics what happened and how long it took. It is on my screen.', scene: 'handoff', holdMs: HOLD.long },
     ],
   },
 ];
