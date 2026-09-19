@@ -78,6 +78,33 @@ Two layers, both wired inside `voice.listen()`:
 A bystander's short answer ("not breathing") is never suppressed. If a demo room still
 defeats this, the fallback is a HOLD TO TALK button — buttons are the floor regardless.
 
+## ElevenLabs behind the flag (docs/04 item 2, `flags.elevenLabs`)
+
+```ts
+import { ElevenLabsProvider } from './voice/providers/elevenlabs';
+
+if (flags.elevenLabs) {
+  const el = new ElevenLabsProvider({
+    voiceId: COACH_VOICE_ID,             // pick in the dashboard; calm, low, authoritative
+    dispatcherVoiceId: DISPATCH_VOICE_ID, // clearly different; omit and dispatcher lines
+    fallback: new WebSpeechProvider(1.05),//   use WebSpeech's second voice instead
+    // baseUrl defaults to '/api/proxy' (P4's key proxy). For laptop dev before it exists:
+    //   ELEVENLABS_API_KEY=sk_... node src/voice/providers/devproxy.mjs
+    //   baseUrl: 'http://localhost:8788'
+  });
+  voice.out.setProvider(el);
+  void el.warm(allCanonicalLines); // ~1.8k credits once; replays are then free AND offline
+}
+```
+
+- The key lives in the proxy's environment only. Never `VITE_`-prefix it: Vite inlines
+  `VITE_*` into the public bundle, which is the threat-model row about the demo QR.
+- Model `eleven_flash_v2_5` (lowest latency, 0.5 credits/char), `mp3_22050_32`.
+- No audio within 800 ms -> that line speaks on WebSpeech; three misses in a row -> the
+  session stops trying until a `warm()` succeeds. Pulling wifi mid-demo costs at most one
+  line's gap, and warmed lines keep playing in the ElevenLabs voice with the wifi off.
+- Rehearse with the flag OFF; flip it for the judged run. The cache makes that cheap.
+
 ## Honesty note for the pitch (P4)
 
 Chrome's `SpeechRecognition` sends audio to Google's servers. With wifi off, keyword
