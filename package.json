@@ -6,10 +6,13 @@
   "description": "The minutes before the ambulance, coached.",
   "scripts": {
     "dev": "vite",
+    "predev": "node scripts/prepare-assets.mjs",
     "build": "tsc -b && vite build",
+    "prebuild": "node scripts/prepare-assets.mjs",
     "preview": "vite preview --host",
     "typecheck": "tsc -b",
-    "assets": "node scripts/prepare-assets.mjs"
+    "assets": "node scripts/prepare-assets.mjs",
+    "postinstall": "node scripts/prepare-assets.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",
