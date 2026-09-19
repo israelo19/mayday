@@ -151,9 +151,7 @@ function ListeningChip({ listening, speaking, heard, keyword, error, onRetry }: 
         ? 'Speaking, then listening'
         : on
           ? 'Listening'
-          : listening === 'unavailable'
-            ? `Voice off${error ? ` (${error})` : ''}, tap to retry`
-            : 'Mic off, tap to retry';
+          : `Voice off${error ? ` (${error})` : ''}, tap to retry`;
   // Off states are a button: iOS only grants recognition that starts inside a tap.
   return (
     <button type="button" className={`live-chip${on && !speaking ? ' live-chip-on' : ''}${keyword ? ' live-chip-hit' : ''}`} onClick={off ? onRetry : undefined} disabled={!off}>
