@@ -37,7 +37,7 @@ describe('derived metrics', () => {
     const s = session('cardiac', 'compressions', { rate: 112 });
     s.run(60000);
     const sitrep = buildSitrep(s.log, GEO, s.now());
-    expect(sitrep.metrics.cprStartedAt).toBe(T0 + 500);
+    expect(sitrep.metrics.cprStartedAt).toBe(T0);
     expect(sitrep.metrics.averageRate).toBe(112);
   });
 
@@ -108,6 +108,14 @@ describe('what the bystander reads to the dispatcher', () => {
     const s = session('cardiac', 'compressions', { rate: 110 });
     s.run(30000);
     expect(buildSitrep(s.log, GEO, s.now()).readAloud.join(' ')).toContain('not stopped for more than ten seconds');
+  });
+
+  it('does not claim they never paused before CPR has started', () => {
+    const s = session('cardiac', 'scene_check');
+    s.run(5000);
+    const text = buildSitrep(s.log, GEO, s.now()).readAloud.join(' ');
+    expect(text).not.toContain('not stopped for more than ten seconds');
+    expect(text).not.toContain('I started CPR');
   });
 });
 

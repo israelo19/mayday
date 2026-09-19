@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createVoiceIn,
+  INTERIM_SETTLE_MS,
   isEchoOf,
   KEYWORD_REFIRE_MS,
   normalizeTranscript,
@@ -137,15 +138,28 @@ describe('the keyword listener', () => {
     expect(s.heardKeywords).toEqual(['not breathing', 'not breathing']);
   });
 
-  it('ignores everything while the app is speaking (layer 1)', () => {
-    const s = setup();
+  it('while the app speaks, holds back only a keyword the app itself just said (layer 1)', () => {
+    const s = setup({ echoText: () => ["Say things like: he's not breathing, she's choking, he got shot."] });
     s.setSuppressed(true);
-    s.rec().hear("he's not breathing");
+    s.rec().hear("he's not breathing"); // could be our own prompt coming back through the mic
     expect(s.heardKeywords).toEqual([]);
     expect(s.transcripts).toEqual([]);
+    s.rec().hear('ambulance here'); // nothing the app said: a person talking over the coach
+    expect(s.heardKeywords).toEqual(['ambulance here']);
     s.setSuppressed(false);
-    s.rec().hear("he's not breathing");
-    expect(s.heardKeywords).toEqual(['not breathing']);
+    s.rec().hear("he's not breathing"); // the app is quiet now, so the same words are the person's
+    expect(s.heardKeywords).toEqual(['ambulance here', 'not breathing']);
+  });
+
+  it('shows what it hears while the app speaks but logs nothing from that stretch', () => {
+    const interim: string[] = [];
+    const s = setup({ onInterim: (t) => interim.push(t) });
+    s.setSuppressed(true);
+    s.rec().hear('my dad fell over', false);
+    s.tick(INTERIM_SETTLE_MS + 1);
+    s.runPending();
+    expect(interim).toEqual(['my dad fell over']);
+    expect(s.transcripts).toEqual([]);
   });
 
   it('drops a late echo of the app’s own line (layer 2), keyword and all', () => {
@@ -191,5 +205,61 @@ describe('the keyword listener', () => {
       onStatus: (x) => statuses.push(x),
     });
     expect(statuses).toEqual(['unavailable']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// WebKit (iOS and macOS Safari) in continuous mode: interim results only, each one the whole
+// utterance so far, and no final until the session stops. Chrome sends finals on its own.
+// ---------------------------------------------------------------------------
+
+describe('a recognizer that never sends a final (WebKit continuous mode)', () => {
+  it('still hands the settled sentence to the app once the person pauses', () => {
+    const s = setup();
+    s.rec().hear('he ate something', false);
+    s.tick(300);
+    s.rec().hear("he ate something and now he's silent", false);
+    s.tick(300);
+    s.rec().hear("he ate something and now he's silent and holding his neck", false);
+    expect(s.transcripts).toEqual([]); // still talking
+    s.tick(INTERIM_SETTLE_MS + 1);
+    s.runPending();
+    expect(s.transcripts).toEqual(["he ate something and now he's silent and holding his neck"]);
+  });
+
+  it('flushes an unsettled sentence when the session ends instead of losing it', () => {
+    const s = setup();
+    s.rec().hear('he is choking on food', false);
+    s.rec().stop();
+    expect(s.transcripts).toEqual(['he is choking on food']);
+  });
+
+  it('does not log the same sentence twice when a real final follows the settle', () => {
+    const s = setup();
+    s.rec().hear('there is a lot of blood', false);
+    s.tick(INTERIM_SETTLE_MS + 1);
+    s.runPending();
+    s.rec().hear('there is a lot of blood', true);
+    expect(s.transcripts).toEqual(['there is a lot of blood']);
+  });
+
+  it('fires a keyword once per occurrence, not once per refresh of a growing transcript', () => {
+    const s = setup();
+    s.rec().hear("he's not breathing", false);
+    s.tick(KEYWORD_REFIRE_MS + 500);
+    s.rec().hear("he's not breathing and he is cold", false); // same occurrence, more words
+    expect(s.heardKeywords).toEqual(['not breathing']);
+    s.tick(KEYWORD_REFIRE_MS + 500);
+    s.rec().hear("he's not breathing and he is cold he's still not breathing", false); // a new one
+    expect(s.heardKeywords).toEqual(['not breathing', 'not breathing']);
+  });
+
+  it('shows the person what it is hearing while they speak', () => {
+    const interim: string[] = [];
+    const s = setup({ onInterim: (t) => interim.push(t) });
+    s.rec().hear('my dad', false);
+    s.rec().hear('my dad fell over', false);
+    expect(interim).toEqual(['my dad', 'my dad fell over']);
+    expect(s.transcripts).toEqual([]);
   });
 });

@@ -65,10 +65,8 @@ function readAloud(
   );
   lines.push(emergency);
   if (began !== null) lines.push(`This started ${formatDuration(now - began)} ago.`);
-  if (machine === 'cardiac') {
-    if (metrics.cprStartedAt !== null) {
-      lines.push(`I started CPR ${formatDuration(now - metrics.cprStartedAt)} ago.`);
-    }
+  if (machine === 'cardiac' && metrics.cprStartedAt !== null) {
+    lines.push(`I started CPR ${formatDuration(now - metrics.cprStartedAt)} ago.`);
     if (metrics.averageRate !== null) lines.push(`Compressions are averaging ${metrics.averageRate} a minute.`);
     lines.push(
       metrics.longestPauseMs > 10000
@@ -121,16 +119,32 @@ export function handoffJson(report: HandoffReport): string {
   return JSON.stringify(report, null, 2);
 }
 
-/** QR codes top out near 3 KB, so the scanned payload keeps the metrics and trims the timeline. */
-export function handoffQrPayload(report: HandoffReport, maxChars = 2000): string {
+// A 2000-char payload was the original cap ("QR codes top out near 3 KB"), but that's the
+// library's storage ceiling, not what's actually scannable: at that size the QR needs ~130+
+// modules, and jammed into live.css's 180px .live-qr box, it doesn't decode reliably even
+// with crisp per-module rendering (qr.ts) -- verified empirically (jsQR against the actual
+// displayed size): 2000 chars was marginal, 500 decoded reliably. The metrics and location
+// are never trimmed, only the timeline -- they're the fields a paramedic actually needs, and
+// the full timeline is already readable as on-screen text next to the QR either way.
+/** QR must be reliably scannable at its actual on-screen size, not just under the library's
+ * storage ceiling; the timeline trims to fit, metrics and location never do. `at` is an ISO
+ * string and every other timestamp (`metrics.cprStartedAt`, each timeline entry) is stored
+ * relative to it, not as a raw epoch-ms number: a bare 13-digit number (e.g. 1789817542186)
+ * reads as a phone number to a camera app's own smart-scan overlay, which then offers to dial
+ * it -- not anything this app asked for or has any control over once the phone's OS takes
+ * that number. A receiver reconstructs any absolute time as `Date.parse(at) + relativeMs`;
+ * relative numbers are also shorter than absolute epoch ms, which only helps the density cap
+ * above. */
+export function handoffQrPayload(report: HandoffReport, maxChars = 500): string {
+  const rel = (t: number): number => t - report.generatedAt;
   const compact = {
     v: 1,
-    at: report.generatedAt,
+    at: new Date(report.generatedAt).toISOString(),
     emergency: report.emergency,
     durationMs: report.durationMs,
     location: report.location,
-    metrics: report.metrics,
-    timeline: significant(report.timeline).map((e) => [e.t, e.kind, e.detail] as const),
+    metrics: { ...report.metrics, cprStartedAt: report.metrics.cprStartedAt === null ? null : rel(report.metrics.cprStartedAt) },
+    timeline: significant(report.timeline).map((e) => [rel(e.t), e.kind, e.detail] as const),
   };
   let payload = JSON.stringify(compact);
   while (payload.length > maxChars && compact.timeline.length > 0) {

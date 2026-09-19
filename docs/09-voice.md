@@ -73,7 +73,7 @@ to the newest fact. Latency is measured to the moment audio starts. Numbers land
 ## Echo suppression (the M2 "app never hears itself" gate)
 
 Two layers, both wired inside `voice.listen()`:
-1. results are ignored while the app speaks and for `ECHO_TAIL_MS` (700 ms) after;
+1. while the app speaks and for `ECHO_TAIL_MS` (700 ms) after, a keyword the app itself just said is held back and nothing from that stretch is logged; a keyword the app did not say still routes (the app's own words are the only echo the mic can hear);
 2. a transcript that reads back one of the app's own recent lines nearly verbatim
    (>= 4 words, >= 80% in order) is dropped even later than that.
 A bystander's short answer ("not breathing") is never suppressed. If a demo room still

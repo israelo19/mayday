@@ -413,6 +413,113 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   `start_url`: `vite-plugin-pwa` defaults it to `/`, which made an icon launch drop the
   `?flag=` the phone was added with. Adding the icon from the flagged URL is the phone's
   bookmark; flags still do not persist in storage.
+- **Sat 06:40 (Ricky, `review`)** The CPR beat that "never stops" was a hidden page, not a
+  missed stop(): the session and voice seams already stop the metronome on handoff and restart
+  (tests green), but a backgrounded tab throttles `setInterval` to once a second or less while
+  the audio clock keeps running, so each firing scheduled every missed beat at once, ten at a
+  time, with nobody looking at the screen to end it. `Metronome` now pauses on
+  `visibilitychange` hidden, resumes on visible if it was running, and when the interval falls
+  behind the audio clock it skips the missed beats instead of bursting them. The beat belongs
+  to a screen someone is looking at; the wake lock keeps that screen on during coaching.
+  `src/voice/metronome.test.ts` drives the class on a fake audio clock.
+- **Sat 06:50 (Ricky, `review`)** The camera's work was invisible outside four states, so the
+  live screen now says what the eyes are doing. `SessionSnapshot.eyes` (status, fps, rescuer in
+  view, wound-region state, the last thing the camera did) feeds an eyes chip under the mic
+  chip; a camera that is refused or missing gets a red "Camera off. Coaching by voice and
+  buttons." banner in every phase (principle 4 covered triage only by accident before: a denied
+  camera was a black screen). The engine logs a `fact_transition` when a `fact` trigger moves
+  the machine, and the session speaks `CAMERA_SAW_LINE` ("I can see you pushing.") at
+  correction priority, dedupe `camera-saw`; it is about the camera, never the card's
+  correction. The compression trace finally gets the bystander's real shoulder series and
+  peaks (docs/05's wiring, never passed before); `?fake=1` samples are shifted from `Date.now()`
+  to `performance.now()` in LiveApp only. Camera-sourced suggestions carry an eye icon.
+- **Sat 06:50 (Ricky, `review`)** A correction leaves the card the moment its rule stops
+  holding (`clearResolvedCoaching` re-evaluates the rule's `when` on every fact), not after an
+  8 s timer: "Don't let go!" next to a mint "pressure held" was the screen contradicting
+  itself. The top column (chips, metric, dispatcher panel) is not drawn over the handoff, which
+  it used to cover. The handoff timeline turns state ids into step titles ("CPR: Hand position")
+  and keeps recognizer errors and dispatcher plumbing in the log but off the paramedic's screen.
+  The launch screen names the app, says the camera is about to watch, and labels the demo's
+  simulated 911 call.
+- **Sat 06:55 (Ricky, `review`, from the first iPhone run)** Two things the phone showed. The mic
+  chip read `service-not-allowed`, which is WebKit's code for the OS speech service, not the
+  site permission: Siri & Dictation off, the Speech Recognition privacy toggle denied for
+  Safari, no internet for the recognizer, or a home-screen app, which iOS gives no recognizer
+  at all. The chip now names the fix (`voiceOffLabel` in `web/ui/live/hints.ts`, tested) and
+  the README carries the iPhone caveat: demo voice in Safari itself. And triage put the
+  question card and three buttons over the camera the instant the eyes opened. Triage now
+  opens camera-first for three seconds (`TRIAGE_LOOK_MS`, `isLooking`): the person-down
+  detector needs two seconds of a still pose and the spoken prompt takes about as long, so a
+  "Looking at the scene" card stands in for the question until a tap, a suggestion from the
+  camera or the mic, the timer, or a missing camera ends it. Voice routes throughout, the tap
+  is one, so docs/05's zero-navigation launch still holds. The eyes chip reads "Looking at the
+  scene" or "Someone in view" in triage instead of "Watching you", and "Saw: a person lying
+  still" while the camera's own suggestion is up.
+- **Sat 06:58 (Ricky, `review`)** Three bugs the eyes commit left on the table. (1) `CAMERA_SAW_LINE`
+  was correction-priority, so the voice queue played "I can see you pushing" *before* the
+  remaining "Push hard and fast" line; it is narration now, after the state's own lines, and
+  the chip still shows what the camera did. (2) `matchKeyword` treated "it's not safe" as
+  `safe` and "he's not coughing" as `coughing` because a short keyword is a substring of its
+  negation. A keyword that does not itself start with no/not/never/can't/don't is skipped
+  when that word sits immediately before it; "not breathing" and "can't cough" are unchanged.
+  (3) Idle-before-start was reported as `eyes.status: 'off'`, so the new camera-first triage
+  look flashed the question card for one paint. Idle is `starting`. SITREP also claimed
+  "I have not stopped for more than ten seconds" (and, with the fake rescuer still oscillating,
+  "I started CPR") in `scene_check`: `cprStartedAt` is the compressions state entry, and the
+  pause line only speaks after that.
+- **Sat 07:10 (Ricky, `review`)** The microphone prompt was appearing after the looking card, not
+  on I NEED HELP. CameraView's getUserMedia is video-only and runs in useEffect (after the
+  tap). SpeechRecognition.start raced the triage prompt in the same turn, so iOS dropped it
+  and the next tap (the looking card) was what finally asked. The launch tap now calls
+  `primeMediaPermissions()` (one getUserMedia for audio and video, tracks released so the
+  live camera can reopen them), `unlock()` speaks the silent utterance before waiting for
+  voices, and `listen()` runs before `engine.start()`.
+
+- **Sat 07:40 (Ricky, `review`, second iPhone run)** "Voice only reacts to 'not breathing'" was
+  WebKit's continuous mode: iOS and macOS Safari send interim results only, each one the whole
+  utterance so far, and no final until the session stops, while the listener handed only finals
+  to the app. Keywords still routed (they are spotted on interims); the chip text, the user log
+  line and the "sounds like X?" suggestion, all gated on finals, never happened. `src/voice/in.ts`
+  now treats an interim unchanged for `INTERIM_SETTLE_MS` (1.2 s) as the sentence, flushes an
+  unsettled one on `end`, skips a later identical final, shows interims on the chip through
+  `onInterim`, and fires a keyword once per occurrence by comparing a grown transcript with the
+  words that were already there (a cumulative transcript used to re-fire an old keyword after
+  the 1.5 s window, which could walk a state ahead on words said earlier). The replay is
+  `in.test.ts`, "a recognizer that never sends a final". Also: `?trace=1` (web/trace.ts, the
+  `/__trace` sink in vite.config.ts, `micTrace` on the session) posts every recognizer event, mic
+  status, transcript, speaking state and JS error from a phone to the dev server log, because a
+  phone has no console the laptop can read.
+- **Sat 07:55 (Ricky, `review`, from the first `?trace=1` run on the iPhone)** The trace
+  confirmed the WebKit diagnosis on the device (interim-only, cumulative transcripts; the
+  settle logged "Choking" 1.2 s after the last interim and the chip showed words live) and
+  exposed the bigger loss: the app spoke for 37 of the run's 45 seconds, and the time gate
+  dropped everything said meanwhile. On a phone the person talks over the coach; that is the
+  normal case. The gate is now keyword-level: while the app speaks and for the 700 ms tail,
+  only a keyword the app itself just said is held back (its own words are the only echo the
+  mic can hear), the sentence is shown on the chip but not logged (an echo of our prompt must
+  never become a "sounds like" suggestion), and any other keyword routes. A held-back keyword
+  is judged again once the app is quiet. docs/09 and docs/10 say so; `in.test.ts` holds it.
+- **Sat 08:40 (Ricky, `scene-assessment` worktree)** The scene layer, docs/11 tiers 1 and 2,
+  built as one seam per principle. On-device: `SceneTracker` (`src/perception/scene.ts`) boxes
+  every pose, reads lying or upright from the torso angle, and counts stillness by following
+  box centres across frames; the overlay draws a dashed box and a word per person, and the
+  facts carry `scene`. Cloud, episodic: `src/ai/assess.ts` sends one 640 px frame with a
+  closed-vocabulary question and parses the answer into `SceneAssessment` (label, one
+  sentence, the patient's box, awake/breathing/pain cues, materials); anything outside the set
+  is `unclear`, a sentence that coaches is dropped, a box is read on the 0 to 1000 scale, or in
+  pixels for Qwen2.5-VL. The session sends a frame 1.2 s into triage while facts are fresh,
+  once more after 6 s if the answer was unclear, never a third time; the label earns the same
+  Yes/No suggestion a heard phrase does, spoken from `ASSESSMENT_HINTS` in phrases.ts, and the
+  engine never moves on it. The model's sentence is shown, never spoken. A camera question the
+  person says no to waits the docs/03 30 s before either camera source asks about that route
+  again. The proxy gained `POST /vision/assess` on Featherless (OpenAI-compatible chat
+  completions, the image as a data URL part); development default `Qwen/Qwen2.5-VL-7B-Instruct`
+  (small, warm, answers with boxes), `Qwen/Qwen3-VL-8B-Instruct` or `google/gemma-3-27b-it` for
+  the judged run via `FEATHERLESS_VISION_MODEL`. Gemini would be one more adapter in the same
+  route. Behind `?flag=sceneAssess`; `?fake=1` gets a canned assessor driven by a "model says"
+  control. The prompt lives in TypeScript so `scripts/assess-frame.mjs` runs the app's exact
+  question on a photo. Cards, buttons and NEXT are untouched: the model proposes, the human
+  disposes, and the tap path is the same as before for anyone who prefers it.
 - **Sat 19:45 (Ricky, `11labs-voice-config`)** The coach's ElevenLabs voice is configurable
   next to the key, not in the app. `ELEVENLABS_COACH_VOICE` in `.env.local` takes a voice id or
   a library name; the proxy resolves it once and serves `GET /api/proxy/voice`, the app asks

@@ -2,6 +2,7 @@
 // Pure canvas functions in video pixel space. Owned by P1. The look here is the same one
 // P4 embeds in the COACH screen, so keep it quiet: thin white body, one accent colour.
 import { PoseLandmarker, type NormalizedLandmark } from '@mediapipe/tasks-vision';
+import type { SceneObservation } from '../types';
 import type { Hand, Roi } from './roi';
 import { LEFT_SHOULDER, RIGHT_SHOULDER, shoulderMidX, shoulderMidY } from './signal';
 
@@ -54,6 +55,36 @@ export function drawPose(ctx: CanvasRenderingContext2D, lm: readonly NormalizedL
   ctx.beginPath();
   ctx.arc(shoulderMidX(lm) * w, shoulderMidY(lm) * h, ring * 0.6, 0, Math.PI * 2);
   ctx.fill();
+}
+
+/**
+ * A dashed box and a word per person the pose model sees (docs/11): what the eyes make of
+ * the scene, drawn on the picture. Lying reads red because that is the person triage asks
+ * about; the label is a measurement, never a diagnosis.
+ */
+export function drawPeople(ctx: CanvasRenderingContext2D, scene: SceneObservation, w: number, h: number): void {
+  const font = Math.max(12, Math.round(w / 40));
+  ctx.font = `600 ${font}px system-ui, sans-serif`;
+  ctx.textBaseline = 'top';
+  for (const p of scene.people) {
+    const x = p.box.x * w;
+    const y = p.box.y * h;
+    const lying = p.posture === 'lying';
+    ctx.strokeStyle = lying ? OVERLAY.warn : OVERLAY.body;
+    ctx.lineWidth = Math.max(1.5, w / 360);
+    ctx.setLineDash([8, 6]);
+    ctx.strokeRect(x, y, p.box.w * w, p.box.h * h);
+    ctx.setLineDash([]);
+    const posture = p.posture === 'unknown' ? 'person' : p.posture;
+    const label = p.stillMs >= 1000 ? `${posture} · still ${Math.floor(p.stillMs / 1000)}s` : `${posture} · moving`;
+    const pad = font * 0.4;
+    const width = ctx.measureText(label).width + pad * 2;
+    const top = Math.max(0, y - font - pad * 2);
+    ctx.fillStyle = lying ? OVERLAY.warn : 'rgba(0,0,0,0.6)';
+    ctx.fillRect(x, top, width, font + pad * 2);
+    ctx.fillStyle = lying ? '#fff' : OVERLAY.joint;
+    ctx.fillText(label, x + pad, top + pad);
+  }
 }
 
 export function drawHands(ctx: CanvasRenderingContext2D, hands: readonly Hand[], w: number, h: number, roi: Roi): void {

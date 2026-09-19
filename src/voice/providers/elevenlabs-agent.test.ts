@@ -3,7 +3,7 @@
 // speaker, pings are answered, and any failure to get live hands the call to the scripted
 // dispatcher so the SIMULATED exchange always happens. Socket, mic, player and fetch are
 // fakes, so it all runs in node.
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DispatcherSim } from '../../ai/dispatcher';
 import {
   createAgentDispatcher,
@@ -97,7 +97,12 @@ const LIVE = {
   },
 };
 
-const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+// Fake timers so the connectTimeoutMs race against the fake socket's async handshake is
+// decided by virtual time, not wall clock: under CI/suite-wide contention a real setTimeout
+// budget can elapse before the promise chain below it resolves, tripping fallBack() when the
+// test means for the socket to win. advanceTimersByTimeAsync also flushes pending microtasks,
+// so it doubles as the "let the open() promise chain settle" tick.
+const tick = () => vi.advanceTimersByTimeAsync(0);
 
 function build(fetchScript: () => Promise<Response>, extra?: { connectTimeoutMs?: number }) {
   const sockets: FakeSocket[] = [];
@@ -137,6 +142,14 @@ async function goLive(b: ReturnType<typeof build>): Promise<FakeSocket> {
 }
 
 describe('createAgentDispatcher', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('opens the signed socket the proxy hands out, never the agent id itself', async () => {
     const b = build(sessionOk);
     const socket = await goLive(b);
@@ -197,7 +210,7 @@ describe('createAgentDispatcher', () => {
     await tick();
     b.sockets[0].onopen?.(); // the mic is already running; the agent never sends its metadata
     b.call.sayToDispatcher('Hello?');
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await vi.advanceTimersByTimeAsync(30);
     expect(b.scripted.connects()).toBe(1);
     expect(b.scripted.replies).toEqual(['Hello?']);
     expect(b.sockets[0].closed).toBe(1);

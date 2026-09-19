@@ -8,6 +8,9 @@ export class Metronome {
   private nextBeatAt = 0; // audio-clock seconds
   private beat = 0;
   private bpm = 110;
+  /** Running, but the page is hidden: the interval is cleared and start() resumes it on return. */
+  private pausedByPage = false;
+  private visibilityHook: (() => void) | null = null;
 
   private static readonly LOOKAHEAD_S = 0.2;
   private static readonly INTERVAL_MS = 25;
@@ -25,11 +28,12 @@ export class Metronome {
   async unlock(): Promise<void> {
     if (!Metronome.available()) return;
     const ctx = this.ensureCtx();
-    if (ctx.state !== 'running') await ctx.resume();
+    if (ctx.state === 'running') return;
+    await ctx.resume();
   }
 
   isRunning(): boolean {
-    return this.timer !== null;
+    return this.timer !== null || this.pausedByPage;
   }
 
   currentBpm(): number {
@@ -40,7 +44,14 @@ export class Metronome {
   start(bpm = 110): void {
     if (!Metronome.available()) return;
     this.bpm = bpm;
+    this.watchPage();
     if (this.timer !== null) return;
+    if (this.pageHidden()) {
+      // The beat belongs to a screen someone is looking at; it starts when the page shows.
+      this.pausedByPage = true;
+      return;
+    }
+    this.pausedByPage = false;
     const ctx = this.ensureCtx();
     void ctx.resume();
     this.beat = 0;
@@ -49,6 +60,8 @@ export class Metronome {
   }
 
   stop(): void {
+    this.pausedByPage = false;
+    this.unwatchPage();
     if (this.timer === null) return;
     clearInterval(this.timer);
     this.timer = null;
@@ -79,10 +92,47 @@ export class Metronome {
     osc.stop(at + 0.1);
   }
 
+  // ---- page visibility ----------------------------------------------------------------
+  // A hidden page throttles setInterval to once a second or less while the audio clock keeps
+  // running, so every firing would dump every missed beat at once, and with nobody looking at
+  // the screen nothing ever stops it. Pause while hidden, resume on return.
+
+  private pageHidden(): boolean {
+    return typeof document !== 'undefined' && document.visibilityState === 'hidden';
+  }
+
+  private watchPage(): void {
+    if (this.visibilityHook || typeof document === 'undefined') return;
+    this.visibilityHook = () => {
+      if (this.pageHidden()) {
+        if (this.timer === null) return;
+        clearInterval(this.timer);
+        this.timer = null;
+        this.pausedByPage = true;
+      } else if (this.pausedByPage) {
+        this.pausedByPage = false;
+        this.start(this.bpm);
+      }
+    };
+    document.addEventListener('visibilitychange', this.visibilityHook);
+  }
+
+  private unwatchPage(): void {
+    if (!this.visibilityHook || typeof document === 'undefined') return;
+    document.removeEventListener('visibilitychange', this.visibilityHook);
+    this.visibilityHook = null;
+  }
+
   private schedule(): void {
     const ctx = this.ctx;
     if (!ctx) return;
     const period = 60 / this.bpm;
+    if (this.nextBeatAt < ctx.currentTime) {
+      // The interval fell behind the audio clock (a throttled tab, a long main-thread stall).
+      // Missed beats are gone; a burst of them now would be noise, not a rhythm.
+      this.nextBeatAt = ctx.currentTime + 0.05;
+      this.beat = 0;
+    }
     while (this.nextBeatAt < ctx.currentTime + Metronome.LOOKAHEAD_S) {
       this.tick(ctx, this.nextBeatAt, this.beat % 4 === 0);
       this.nextBeatAt += period;

@@ -24,6 +24,11 @@
 //                                    by ELEVENLABS_AGENT_ID; 404 when no agent is configured.
 //                                    firstMessage is the agent's configured opening line: the
 //                                    socket delivers it as audio only, so the panel needs it here.
+//   POST /vision/assess              { image, mime, system, user, maxTokens } -> one frame to the
+//                                    scene model on Featherless (docs/04 item 7, docs/11); the
+//                                    answer comes back as { text, model, provider, latencyMs } and
+//                                    src/ai/assess.ts decides what, if anything, it means. The
+//                                    model is FEATHERLESS_VISION_MODEL; 404 without a key.
 // Nothing else is forwarded: the proxy exposes exactly what the app calls, not the API.
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
@@ -32,6 +37,12 @@ const UPSTREAM = 'https://api.elevenlabs.io';
 const TTS_PREFIX = '/v1/text-to-speech/';
 const SESSION_ROUTE = '/dispatcher/session';
 const VOICE_ROUTE = '/voice';
+const VISION_ROUTE = '/vision/assess';
+const FEATHERLESS_CHAT = 'https://api.featherless.ai/v1/chat/completions';
+/** Cheap and warm, and it answers with boxes: the development default. Qwen3-VL-8B for the demo. */
+export const DEFAULT_VISION_MODEL = 'Qwen/Qwen2.5-VL-7B-Instruct';
+/** A 640 px JPEG is well under this; anything bigger is not a frame from the app. */
+const MAX_IMAGE_CHARS = 2_000_000;
 const ENV_LOCAL = new URL('../../../.env.local', import.meta.url);
 
 /** Value of `name` from the environment, else from .env.local, else null. */
@@ -48,6 +59,39 @@ export function readLocalEnv(name) {
   }
 }
 
+/**
+ * One frame and the app's question to a Featherless vision model, OpenAI chat-completions
+ * style: the image rides along as a data URL content part (featherless.ai/docs/vision).
+ * Returns the model's text untouched; the client parses and validates it.
+ */
+export async function assessWithFeatherless({ key, model, image, mime = 'image/jpeg', system, user, maxTokens = 320 }) {
+  const started = Date.now();
+  const upstream = await fetch(FEATHERLESS_CHAT, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      temperature: 0,
+      max_tokens: maxTokens,
+      messages: [
+        { role: 'system', content: system },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: user },
+            { type: 'image_url', image_url: { url: `data:${mime};base64,${image}` } },
+          ],
+        },
+      ],
+    }),
+  });
+  if (!upstream.ok) throw new Error(`featherless ${upstream.status}: ${(await upstream.text()).slice(0, 300)}`);
+  const json = await upstream.json();
+  const content = json.choices?.[0]?.message?.content;
+  const text = typeof content === 'string' ? content : Array.isArray(content) ? content.map((c) => c?.text ?? '').join('') : '';
+  return { text, model: json.model ?? model, provider: 'featherless', latencyMs: Date.now() - started };
+}
+
 function sendJson(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json' });
   res.end(JSON.stringify(body));
@@ -62,13 +106,13 @@ function readBody(req) {
 }
 
 /**
- * Request handler that adds the key to the allowed ElevenLabs calls. `agentId` may be null:
- * the TTS route still works and the dispatcher route answers 404 so the app keeps its
- * scripted dispatcher (docs/07 P3 task 7). `coachVoice` may be null: /voice answers
+ * Request handler that adds the keys to the allowed upstream calls. Every key may be null: a
+ * route whose key is missing answers 404 and the app keeps its local stub (the scripted
+ * dispatcher, WebSpeech, no scene assessment). `coachVoice` may be null too: /voice answers
  * `{ coach: null }` and the browser keeps its default voice.
  */
-export function createKeyProxy({ apiKey, agentId = null, coachVoice = null }) {
-  if (!apiKey) throw new Error('createKeyProxy needs `apiKey`; set ELEVENLABS_API_KEY in .env.local.');
+export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = null, visionKey = null, visionModel = DEFAULT_VISION_MODEL }) {
+  if (!apiKey && !visionKey) throw new Error('createKeyProxy needs a key: ELEVENLABS_API_KEY or FEATHERLESS_API_KEY in .env.local.');
 
   const forward = async (path, init) => {
     const upstream = await fetch(UPSTREAM + path, {
@@ -93,7 +137,7 @@ export function createKeyProxy({ apiKey, agentId = null, coachVoice = null }) {
   // logged once and answered as null, never as a silent different voice. The promise is what
   // is kept, so two page loads racing the first answer share one library call.
   const lookupCoachVoice = async () => {
-    if (!coachVoice?.trim()) return null;
+    if (!apiKey || !coachVoice?.trim()) return null; // no key: nothing to resolve against
     const wanted = coachVoice.trim();
     const upstream = await forward('/v1/voices', { method: 'GET', headers: {} });
     const voices = upstream.ok ? ((await upstream.json()).voices ?? []) : [];
@@ -116,7 +160,31 @@ export function createKeyProxy({ apiKey, agentId = null, coachVoice = null }) {
       if (req.method === 'GET' && url.pathname === VOICE_ROUTE) {
         return sendJson(res, 200, { coach: await resolveCoachVoice() });
       }
+      if (req.method === 'POST' && url.pathname === VISION_ROUTE) {
+        if (!visionKey) return sendJson(res, 404, { error: 'No FEATHERLESS_API_KEY configured' });
+        const raw = await readBody(req);
+        let body;
+        try {
+          body = JSON.parse(raw?.toString('utf8') ?? '');
+        } catch {
+          return sendJson(res, 400, { error: 'body is not JSON' });
+        }
+        const { image, mime, system, user, maxTokens } = body ?? {};
+        if (typeof image !== 'string' || image.length === 0 || image.length > MAX_IMAGE_CHARS) return sendJson(res, 400, { error: 'image must be a base64 string of a small JPEG' });
+        if (typeof system !== 'string' || typeof user !== 'string') return sendJson(res, 400, { error: 'system and user prompts are required' });
+        const reply = await assessWithFeatherless({
+          key: visionKey,
+          model: visionModel,
+          image,
+          mime: mime === 'image/png' ? 'image/png' : 'image/jpeg',
+          system,
+          user,
+          maxTokens: typeof maxTokens === 'number' ? Math.min(600, Math.max(64, maxTokens)) : undefined,
+        });
+        return sendJson(res, 200, reply);
+      }
       if (req.method === 'GET' && url.pathname === SESSION_ROUTE) {
+        if (!apiKey) return sendJson(res, 404, { error: 'No ELEVENLABS_API_KEY configured' });
         if (!agentId) return sendJson(res, 404, { error: 'No ELEVENLABS_AGENT_ID configured' });
         const upstream = await forward(
           `/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
@@ -127,6 +195,7 @@ export function createKeyProxy({ apiKey, agentId = null, coachVoice = null }) {
         return sendJson(res, 200, { signedUrl, firstMessage: await agentFirstMessage() });
       }
       if (req.method === 'POST' && url.pathname.startsWith(TTS_PREFIX)) {
+        if (!apiKey) return sendJson(res, 404, { error: 'No ELEVENLABS_API_KEY configured' });
         const upstream = await forward(url.pathname + url.search, {
           method: 'POST',
           headers: { 'content-type': req.headers['content-type'] ?? 'application/json' },
@@ -148,13 +217,15 @@ export function createKeyProxy({ apiKey, agentId = null, coachVoice = null }) {
 const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/^.*\//, '/'));
 if (isMain) {
   const apiKey = readLocalEnv('ELEVENLABS_API_KEY');
-  if (!apiKey) {
-    console.error('No key. Set ELEVENLABS_API_KEY in the environment or .env.local.');
+  const visionKey = readLocalEnv('FEATHERLESS_API_KEY');
+  if (!apiKey && !visionKey) {
+    console.error('No key. Set ELEVENLABS_API_KEY or FEATHERLESS_API_KEY in the environment or .env.local.');
     process.exit(1);
   }
   const agentId = readLocalEnv('ELEVENLABS_AGENT_ID');
   const coachVoice = readLocalEnv('ELEVENLABS_COACH_VOICE');
-  const handle = createKeyProxy({ apiKey, agentId, coachVoice });
+  const visionModel = readLocalEnv('FEATHERLESS_VISION_MODEL') ?? DEFAULT_VISION_MODEL;
+  const handle = createKeyProxy({ apiKey, agentId, coachVoice, visionKey, visionModel });
   const port = Number(process.argv[2] ?? 8788);
   createServer((req, res) => {
     // Dev CORS: a page on another port calls this directly. Under Vite it is same-origin.
@@ -165,7 +236,7 @@ if (isMain) {
     void handle(req, res);
   }).listen(port, () => {
     console.log(
-      `elevenlabs dev proxy on http://localhost:${port} -> ${UPSTREAM} (key loaded, agent ${agentId ? 'set' : 'not set'})`,
+      `dev proxy on http://localhost:${port}: elevenlabs ${apiKey ? `on, agent ${agentId ? 'set' : 'not set'}` : 'off'}; vision ${visionKey ? `on (${visionModel})` : 'off'}`,
     );
   });
 }

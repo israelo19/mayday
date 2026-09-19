@@ -3,8 +3,10 @@
 // SpeakerProvider through createVoice({ provider }), and the dispatcher panel takes any
 // DispatcherSim. Defaults stay local; every upgrade keeps its offline stub underneath.
 // Owned by P4 (docs/07).
+import { createSceneAssessor, createStubSceneAssessor, type SceneAssessor } from '../src/ai/assess';
 import type { DispatcherSim } from '../src/ai/dispatcher';
 import { flags } from '../src/flags';
+import type { SceneLabel } from '../src/types';
 import { WebSpeechProvider, type SpeakerProvider } from '../src/voice/out';
 import { ElevenLabsProvider } from '../src/voice/providers/elevenlabs';
 import { createAgentDispatcher, type AgentDispatcherStatus } from '../src/voice/providers/elevenlabs-agent';
@@ -40,6 +42,15 @@ export function createDispatcher(
 ): { dispatcher: DispatcherSim; status: 'scripted' | 'connecting' } {
   if (!flags.dispatcherSim) return { dispatcher: scripted, status: 'scripted' };
   return { dispatcher: createAgentDispatcher({ fallback: scripted, ...hooks }), status: 'connecting' };
+}
+
+/**
+ * One frame to a scene model behind its flag (docs/04 item 7, docs/11). `?fake=1` gets the
+ * canned assessor driven by the fake controls, so the flow demos with no key.
+ */
+export function createAssessor(fake: { pick: () => SceneLabel } | null): SceneAssessor | undefined {
+  if (!flags.sceneAssess) return undefined;
+  return fake ? createStubSceneAssessor(fake.pick) : createSceneAssessor();
 }
 
 /** Warm the ElevenLabs cache with every line the machines can say, so replays are free and offline (docs/09). */

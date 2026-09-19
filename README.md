@@ -56,7 +56,11 @@ coach-screen preview. No camera needed.
 
 The phone runs the web app itself, as a PWA. No store, no account, no shell: Chrome on
 Android has the camera, Web Speech, vibrate and wake lock the app needs, and Safari on iOS
-has all but vibrate.
+has all but vibrate. Two iPhone caveats for voice input, both said on the mic chip when they
+bite: WebKit gives a home-screen app no speech recognizer at all, so demo voice in Safari
+itself and use the icon only when the buttons will do; and the recognizer is the OS speech
+service, so Siri & Dictation must be on (Settings, General, Keyboard, Enable Dictation) and the
+phone needs internet for it. Coaching, the beat and speech output need neither.
 
 1. `npm run dev` (or `npm run preview` for the production build). Under Vite's URL list it
    prints a QR of the LAN address. Scan it with the phone's camera app.
@@ -88,6 +92,25 @@ local stub underneath and fall back to it on any miss, so the wifi-off demo is u
    unavailable)" means it fell back: no agent id, mic refused, or no session within 4 s.
 5. To hear the difference without the flow: `?debug=1&flag=elevenLabs`, the voice chip reads
    "ElevenLabs Brian", and "Speak a test line" goes through the proxy.
+
+### The scene model on the phone
+
+One camera frame goes to a vision model at the start of triage, and its answer becomes a
+question the person confirms (docs/04 item 7, docs/11). Behind a flag; the cards and buttons
+stay for anyone who prefers to tap.
+
+1. Put `FEATHERLESS_API_KEY=...` in `.env.local`. `npm run dev` then mounts `/api/proxy/vision/assess`
+   and prints `Scene model: <model> via /api/proxy/vision/assess`. `FEATHERLESS_VISION_MODEL`
+   picks the model; the default is the small `Qwen/Qwen2.5-VL-7B-Instruct`, try
+   `Qwen/Qwen3-VL-8B-Instruct` for the judged run.
+2. Open the phone URL with `?flag=sceneAssess`. After "I NEED HELP" the look card reads "One
+   picture is with the model", then the eyes chip reads "Saw: …", a box lands on the person,
+   and the app asks "It looks like someone is bleeding badly. Say yes, or tap."
+3. No key, or no answer within four seconds: nothing happens, and the camera's own cues carry on.
+
+`node scripts/assess-frame.mjs photo.jpg [model]` runs the app's exact question on a photo.
+`?fake=1&flag=sceneAssess` demos the flow with a canned model: pick what it says in the fake controls,
+then "Start over", since the frame goes out about a second into triage.
 
 ## M0 demo check
 
@@ -177,3 +200,12 @@ integration once those keys are ready.
 - [Bryce Biyeba](https://www.linkedin.com/in/bryce-biyeba/)
 - [Ricky Chen](https://www.linkedin.com/in/ricky-ch3n/)
 - [Israel Ogwu](https://www.linkedin.com/in/israelogwu/)
+
+## License
+
+Apache License 2.0, full text in `LICENSE`. Attribution and the redistribution notice are in
+`NOTICE`; keep that file with any copy or derivative you ship.
+
+Mayday is a demonstration, not a certified medical device and not a substitute for emergency
+medical services. The simulated dispatcher is never connected to a real emergency line. The
+software is provided "as is", without warranty of any kind (LICENSE, Sections 7 and 8).

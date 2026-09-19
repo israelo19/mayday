@@ -19,9 +19,11 @@ decides every medical line; the session moves data between modules and keeps the
 ## What happens when someone speaks
 
 1. `voice.listen()` spots keywords from `engine.keywords()`, the current state's list plus
-   `next` and `repeat`. Echo suppression is inside the voice module: results are ignored
-   while the app speaks and for 700 ms after, and a transcript that reads back one of the
-   app's own lines is dropped. Nothing else about the transcript is used.
+   `next` and `repeat`. Echo suppression is inside the voice module: while the app speaks
+   and for 700 ms after, a keyword the app itself just said is held back and nothing from
+   that stretch is logged; a transcript that reads back one of the app's own lines is
+   dropped. WebKit never sends a final, so an interim unchanged for 1.2 s is the sentence.
+   Nothing else about the transcript is used.
 2. `engine.onKeyword(k)` runs the machine data. In `triage.listening`, "he's not breathing"
    resolves to `not breathing` and enters `cardiac.scene_check`; "he got shot" enters
    `bleeding.scene_safety`; "she's choking" enters `choking.confirm`. Inside a machine the

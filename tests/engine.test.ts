@@ -102,6 +102,14 @@ describe('transitions', () => {
     expect(h.stateKey()).toBe('cardiac.compressions');
   });
 
+  it('logs a fact transition so the session can say the camera moved the machine', () => {
+    const h = harness('cardiac', 'position');
+    h.run(0, 500);
+    const entry = h.log().find((e) => e.data?.type === 'fact_transition');
+    expect(entry?.data).toEqual({ type: 'fact_transition', label: 'Started compressions' });
+    expect(entry?.kind).toBe('system');
+  });
+
   it('will not take a fact transition while blind', () => {
     const h = harness('cardiac', 'position', { cameraCovered: true });
     h.run(0, 2000);

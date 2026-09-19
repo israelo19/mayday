@@ -23,8 +23,10 @@ export function deriveMetrics(entries: readonly EventLogEntry[], now: number): S
   const intervals = toIntervals(entries, now);
   if (intervals.length === 0) return { ...EMPTY_METRICS, cprStartedAt: compressionsEnteredAt(entries) };
 
-  const cprStartedAt =
-    intervals.find((i) => i.compressionActive)?.t ?? compressionsEnteredAt(entries);
+  // The compressions state is when we started coaching CPR. Oscillation during scene_check
+  // or position is not a start: telling a dispatcher "I started CPR" before that state is a
+  // false claim.
+  const cprStartedAt = compressionsEnteredAt(entries);
 
   const rates = intervals.filter((i) => i.compressionActive && i.rate !== null).map((i) => i.rate as number);
   const averageRate = rates.length > 0 ? Math.round(rates.reduce((a, b) => a + b, 0) / rates.length) : null;

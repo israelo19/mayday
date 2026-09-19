@@ -18,9 +18,53 @@ export type PerceptionFacts = {
    * A cue, never a route; the session asks and the human confirms (docs/03 "Scene hint").
    */
   sceneHint?: SceneHint | null;
+  /** Every person the pose model sees, boxed and characterised (docs/11). Facts, never advice. */
+  scene?: SceneObservation | null;
 };
 
 export type SceneHint = 'person_down';
+
+// ---------------------------------------------------------------------------
+// Scene observation (on-device pose, docs/11) and assessment (one frame to a model, docs/04 item 7)
+// ---------------------------------------------------------------------------
+
+/** A box in normalized image coordinates, 0..1 from the top left. */
+export type Box = { x: number; y: number; w: number; h: number };
+
+export type Posture = 'lying' | 'upright' | 'unknown';
+
+/** One person the pose model can see: where, how they lie, how long they have held still. */
+export type PersonObservation = {
+  box: Box;
+  posture: Posture;
+  /** Continuous ms the person has moved slower than the stillness threshold. */
+  stillMs: number;
+  /** Min visibility across shoulders and hips, 0..1. */
+  confidence: number;
+};
+
+export type SceneObservation = { people: readonly PersonObservation[] };
+
+/** The closed label set a scene model may answer with. Anything else is `unclear`. */
+export type SceneLabel = 'collapsed' | 'bleeding' | 'choking' | 'unclear';
+export type Tri = 'yes' | 'no' | 'unclear';
+
+/**
+ * One frame's assessment by a vision model (src/ai/assess.ts). A cue that earns a question,
+ * never a route: the session asks, the human answers by voice or tap.
+ */
+export type SceneAssessment = {
+  label: SceneLabel;
+  confidence: 'low' | 'medium' | 'high';
+  /** One sentence about what is visible, for the screen. Never spoken, never an instruction. */
+  scene: string;
+  patient: Box | null;
+  cues: { awake: Tri; breathing: Tri; pain: Tri; bleedingVisible: Tri };
+  /** Cloth or material in view that could press on a wound. */
+  materials: readonly string[];
+  model: string;
+  latencyMs: number;
+};
 
 /** Below this, perception is not trustworthy and the engine coaches by voice alone (docs/03). */
 export const BLIND_CONFIDENCE = 0.5;
@@ -63,7 +107,9 @@ export type EventData =
       poseConfidence: number;
       blind: boolean;
     }
-  | { type: 'coach'; priority: CoachingPriority; dedupeKey?: string };
+  | { type: 'coach'; priority: CoachingPriority; dedupeKey?: string }
+  /** The camera moved the machine: a `fact` transition fired. `label` is the transition's button text. */
+  | { type: 'fact_transition'; label: string };
 
 export type EventLogEntry = {
   t: number;

@@ -4,7 +4,8 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 import mkcert from 'vite-plugin-mkcert';
 import { VitePWA } from 'vite-plugin-pwa';
 import * as QRCode from 'qrcode';
-import { createKeyProxy, readLocalEnv } from './src/voice/providers/devproxy.mjs';
+import { appendFileSync } from 'node:fs';
+import { createKeyProxy, DEFAULT_VISION_MODEL, readLocalEnv } from './src/voice/providers/devproxy.mjs';
 
 // HTTPS in dev because getUserMedia needs a secure context on any origin other than
 // localhost (the phone on the LAN hits https://<laptop-ip>:5173).
@@ -60,18 +61,53 @@ function keyProxy(): PluginOption {
   const apiKey = readLocalEnv('ELEVENLABS_API_KEY');
   const agentId = readLocalEnv('ELEVENLABS_AGENT_ID');
   const coachVoice = readLocalEnv('ELEVENLABS_COACH_VOICE');
+  const visionKey = readLocalEnv('FEATHERLESS_API_KEY');
+  const visionModel = readLocalEnv('FEATHERLESS_VISION_MODEL') ?? DEFAULT_VISION_MODEL;
   // Dev and preview servers share the connect stack, so one mount serves both hooks.
   const mount = (server: Pick<ViteDevServer, 'middlewares'>): void => {
-    if (!apiKey) {
-      console.log('  ElevenLabs: off (no ELEVENLABS_API_KEY in .env.local); WebSpeech carries the demo');
+    if (!apiKey && !visionKey) {
+      console.log('  Keys: none in .env.local; WebSpeech carries the demo and the camera keeps its own cues');
       return;
     }
-    server.middlewares.use('/api/proxy', createKeyProxy({ apiKey, agentId, coachVoice }));
+    server.middlewares.use('/api/proxy', createKeyProxy({ apiKey, agentId, coachVoice, visionKey, visionModel }));
     console.log(
-      `  ElevenLabs: key proxy at /api/proxy, dispatcher agent ${agentId ? 'set' : 'NOT set'}, coach voice ${coachVoice ? `"${coachVoice}"` : 'default'}`,
+      `  ElevenLabs: ${apiKey ? `key proxy at /api/proxy, dispatcher agent ${agentId ? 'set' : 'NOT set'}, coach voice ${coachVoice ? `"${coachVoice}"` : 'default'}` : 'off (no ELEVENLABS_API_KEY)'}`,
     );
+    console.log(`  Scene model: ${visionKey ? `${visionModel} via /api/proxy/vision/assess, on with ?flag=sceneAssess` : 'off (no FEATHERLESS_API_KEY)'}`);
   };
   return { name: 'mayday-key-proxy', configureServer: mount, configurePreviewServer: mount };
+}
+
+/**
+ * Dev-only sink for the phone trace (web/trace.ts, `?trace=1`): the page posts JSON lines to
+ * /__trace and they print here under [trace], and append to MAYDAY_TRACE_FILE when set. A
+ * phone has no console a laptop can read; this is how a mic or camera problem on the phone
+ * gets debugged from the laptop. Never mounted on the preview or the deploy.
+ */
+function traceSink(): PluginOption {
+  return {
+    name: 'mayday-trace',
+    configureServer(server) {
+      const file = process.env.MAYDAY_TRACE_FILE;
+      server.middlewares.use('/__trace', (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end();
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk: Buffer | string) => {
+          body += chunk.toString();
+        });
+        req.on('end', () => {
+          for (const line of body.split('\n')) if (line.trim()) console.log(`  [trace] ${line}`);
+          if (file) appendFileSync(file, body.endsWith('\n') ? body : `${body}\n`);
+          res.statusCode = 204;
+          res.end();
+        });
+      });
+    },
+  };
 }
 
 export default defineConfig({
@@ -80,6 +116,7 @@ export default defineConfig({
     ...https,
     phoneQr(),
     keyProxy(),
+    traceSink(),
     // docs/07 P4 task 7: an accidental reload with wifi off must still load. `vite-plugin-pwa`
     // is a pre-approved exception to the no-new-libraries rule (DECISIONS.md).
     VitePWA({

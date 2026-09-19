@@ -8,12 +8,13 @@
 //                                 -> confidence -> ConfidenceGate -> blind (metrics nulled)
 //   in 'pose+hands' mode:  -> HandLandmarker -> palm centres -> RoiTracker -> handsOn / handsOffMs
 import type { HandLandmarker, NormalizedLandmark, PoseLandmarker } from '@mediapipe/tasks-vision';
-import type { PerceptionFacts } from '../types';
+import type { PerceptionFacts, SceneObservation } from '../types';
 import { openCamera, openReplay, type CameraHandle, type Facing } from './camera';
 import { ChokingGestureDetector, RoiTracker, loadHandLandmarker, toHands, type Hand, type Roi } from './hands';
 import { LumaSampler } from './luma';
-import { drawHands, drawPose, drawRoi } from './overlay';
+import { drawHands, drawPeople, drawPose, drawRoi } from './overlay';
 import { loadPoseLandmarker, type Delegate } from './pose';
+import { SceneTracker } from './scene';
 import {
   ConfidenceGate,
   DEFAULT_TUNING,
@@ -40,6 +41,7 @@ export type { Hand, Roi, RoiState } from './hands';
 export type { Facing } from './camera';
 export type { Sample, Tuning } from './signal';
 export { DEFAULT_TUNING, TUNING_RANGES, GUIDANCE } from './signal';
+export { primeMediaPermissions } from './camera';
 
 export type PerceptionStatus = 'idle' | 'loading-model' | 'starting-camera' | 'running' | 'stopped' | 'error';
 export type PerceptionMode = 'pose' | 'pose+hands';
@@ -140,6 +142,8 @@ class PerceptionImpl implements Perception {
   private readonly choking = new ChokingGestureDetector();
   private readonly personDown = new PersonDownDetector();
   private personDownNow = false;
+  private readonly sceneTracker = new SceneTracker();
+  private scene: SceneObservation = { people: [] };
   private readonly subs = new Set<(f: PerceptionFacts) => void>();
 
   private lastPose: readonly NormalizedLandmark[] | null = null;
@@ -312,6 +316,8 @@ class PerceptionImpl implements Perception {
     this.guidance = null;
     this.personDownNow = false;
     this.personDown.reset();
+    this.sceneTracker.reset();
+    this.scene = { people: [] };
     this.frameIndex = 0;
     this.frameTimes = [];
   }
@@ -367,7 +373,12 @@ class PerceptionImpl implements Perception {
       // responsive: the bleeding loop cares about hands, the confidence gate can wait a frame.
       const runPose = !withHands || this.frameIndex % 2 === 0;
       try {
-        if (runPose) pose.detectForVideo(video, ts, (result) => this.onPose(pickRescuer(result.landmarks, this.lastMid), now));
+        if (runPose) {
+          pose.detectForVideo(video, ts, (result) => {
+            this.scene = this.sceneTracker.update(result.landmarks, now);
+            this.onPose(pickRescuer(result.landmarks, this.lastMid), now);
+          });
+        }
         if (withHands && this.handsModel) {
           this.onHands(toHands(this.handsModel.detectForVideo(video, ts)), now);
         }
@@ -438,6 +449,7 @@ class PerceptionImpl implements Perception {
       handsOnRegion: locked ? this.lastRoi.handsOn : null,
       handsOffMs: locked ? this.lastRoi.handsOffMs : null,
       sceneHint: this.personDownNow ? 'person_down' : null,
+      scene: this.scene,
     };
     this.facts = facts;
     for (const cb of this.subs) cb(facts);
@@ -456,6 +468,7 @@ class PerceptionImpl implements Perception {
     const w = canvas.width;
     const h = canvas.height;
     ctx.clearRect(0, 0, w, h);
+    drawPeople(ctx, this.scene, w, h);
     if (this.lastPose) drawPose(ctx, this.lastPose, w, h, this.blindNow);
     if (this.modeValue === 'pose+hands') {
       drawRoi(ctx, this.lastRoi, w, h);
