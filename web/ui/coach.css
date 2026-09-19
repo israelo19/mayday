@@ -77,6 +77,22 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 .coach-voice-fab svg { width: 24px; height: 24px; }
+.coach-voice-heard {
+  position: absolute;
+  top: -22px;
+  right: 80px;
+  max-width: 55%;
+  background: rgba(14, 21, 23, 0.9);
+  border: 1px solid var(--ok);
+  color: var(--ok);
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .coach-reticle {
   position: absolute;

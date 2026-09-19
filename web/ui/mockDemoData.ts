@@ -3,15 +3,47 @@
 // Delete this file once session.ts replaces it -- the screen components take these same shapes
 // as props either way.
 
+/** Secondary branching buttons, borrowed pattern (see DECISIONS.md): report something without
+ * leaving the current step, distinct from NEXT's linear advance. Mock only -- once the real
+ * engine exists these become availableTransitions() entries, not free text. */
+export type MockBranch = { label: string; onSelect: 'restart' | 'handoff' };
+
 export type MockCoachStep =
-  | { kind: 'diagram'; line: string; caption: string; nextLabel: string }
-  | { kind: 'ring'; line: string; count: number; total: number; rateBpm: number; pace: string };
+  | { kind: 'diagram'; line: string; caption: string; nextLabel: string; branches?: MockBranch[] }
+  | { kind: 'ring'; line: string; count: number; total: number; rateBpm: number; pace: string; branches?: MockBranch[] };
 
 /** Stands in for a stream of CoachingEvent-driven state changes (src/types.ts). */
 export const MOCK_COACH_STEPS: MockCoachStep[] = [
-  { kind: 'diagram', line: 'Kneel beside them. Place the heel of one hand right on the marker, center of the chest.', caption: 'Hand placement', nextLabel: 'Begin compressions' },
-  { kind: 'ring', line: "Keep going, you're doing great. 2 rescue breaths after this cycle.", count: 24, total: 30, rateBpm: 112, pace: 'good pace' },
-  { kind: 'ring', line: 'Push a little faster to get into range.', count: 30, total: 30, rateBpm: 96, pace: 'a bit slow' },
+  {
+    kind: 'diagram',
+    line: 'Kneel beside them. Place the heel of one hand right on the marker, center of the chest.',
+    caption: 'Hand placement',
+    nextLabel: 'Begin compressions',
+  },
+  {
+    kind: 'ring',
+    line: "Keep going, you're doing great. 2 rescue breaths after this cycle.",
+    count: 24,
+    total: 30,
+    rateBpm: 112,
+    pace: 'good pace',
+    branches: [
+      { label: 'Patient started breathing', onSelect: 'handoff' },
+      { label: 'AED arrived', onSelect: 'restart' },
+    ],
+  },
+  {
+    kind: 'ring',
+    line: 'Push a little faster to get into range.',
+    count: 30,
+    total: 30,
+    rateBpm: 96,
+    pace: 'a bit slow',
+    branches: [
+      { label: 'Patient started breathing', onSelect: 'handoff' },
+      { label: 'EMS arrived', onSelect: 'handoff' },
+    ],
+  },
 ];
 
 export type MockTimelineEntry = { t: number; label: string };

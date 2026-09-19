@@ -1,7 +1,9 @@
 // SITREP screen, docs/05. Read-aloud block for the dispatcher call plus the live timeline.
 // `sitrep` will come from P2's buildSitrep() (docs/07 seam); App.tsx feeds mock data for now.
 // The read-aloud button already talks to the real WebSpeechProvider (P3, exists since M0) --
-// nothing fake about that part. Owned by P4.
+// nothing fake about that part. Copy/download (borrowed pattern, see DECISIONS.md): a bystander
+// handing the phone to a paramedic can hand over text instead of reading it live. Owned by P4.
+import { useState } from 'react';
 import type { SpeakerProvider } from '../../src/voice/out';
 
 type Sitrep = {
@@ -18,6 +20,40 @@ type Props = {
 export function SitrepScreen({ speaker, sitrep, onNext }: Props) {
   const { location, emergency, status } = sitrep.sayToDispatcher;
   const readAloudText = `Location: ${location}. Emergency: ${emergency}. Status: ${status}.`;
+  const [copied, setCopied] = useState(false);
+
+  function reportText(): string {
+    const lines = [
+      'MAYDAY SITREP',
+      `Location: ${location}`,
+      `Emergency: ${emergency}`,
+      `Status: ${status}`,
+      '',
+      'Timeline:',
+      ...sitrep.timeline.map((e) => `  ${formatTimestamp(e.t)} — ${e.label}`),
+    ];
+    return lines.join('\n');
+  }
+
+  function copyReport(): void {
+    navigator.clipboard
+      .writeText(reportText())
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {});
+  }
+
+  function downloadReport(): void {
+    const blob = new Blob([reportText()], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mayday-sitrep-${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', padding: 16, gap: 16 }}>
@@ -45,6 +81,15 @@ export function SitrepScreen({ speaker, sitrep, onNext }: Props) {
             </li>
           ))}
         </ul>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button className="branch-btn" style={{ flex: 1, minHeight: 48, textAlign: 'center' }} onClick={copyReport}>
+          {copied ? '✓ Copied' : 'Copy report'}
+        </button>
+        <button className="branch-btn" style={{ flex: 1, minHeight: 48, textAlign: 'center' }} onClick={downloadReport}>
+          Download
+        </button>
       </div>
 
       <button className="primary" onClick={onNext} style={{ minHeight: 64, fontSize: 20 }}>
