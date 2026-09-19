@@ -405,3 +405,11 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   the acknowledgement offer nothing, which is what folds the panel. Before this the panel
   offered the same four read-aloud lines under every question, so the address came up again
   after "what happened" and nothing answered the status question.
+- **Sat 17:55 (P4)** iPhone runs the PWA fullscreen from the home screen, not a Simulator or
+  a WKWebView shell. The Simulator has no camera and a WKWebView has no SpeechRecognition,
+  and Sat 05:00 already dropped the shell. `index.html` carries the three Apple meta tags
+  (iOS before 16.4 ignores the manifest's `display`) and a PNG `apple-touch-icon`, because
+  Safari ignores SVG there and would screenshot the page for the icon. The manifest sets no
+  `start_url`: `vite-plugin-pwa` defaults it to `/`, which made an icon launch drop the
+  `?flag=` the phone was added with. Adding the icon from the flagged URL is the phone's
+  bookmark; flags still do not persist in storage.

@@ -89,7 +89,14 @@ export default defineConfig({
         background_color: '#000000',
         display: 'standalone',
         orientation: 'portrait',
-        icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }],
+        // No start_url on purpose: the plugin would default it to '/', and then a home screen
+        // launch drops the `?flag=` the demo phone was added with. Left unset, Safari and
+        // Chrome install the URL the page was on, query string included.
+        start_url: undefined,
+        icons: [
+          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+        ],
       },
       workbox: {
         // Precache only the app shell. The MediaPipe WASM runtime and models are large (each
