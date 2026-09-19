@@ -139,3 +139,38 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   SITREP -> HANDOFF instead of the bare debug view. These were never actually competing —
   the guide gallery is a dev preview surface for protocol pictures (same category as
   `?debug=1`), not a default end-to-end flow, so nothing here overrides anyone's work.
+- **Sat 03:40 (P4)** The phone runs Mayday through Expo Go as a shell, not a port. Expo Go
+  runs React Native only, and the eyes and voice are browser APIs (MediaPipe WASM,
+  getUserMedia, Web Audio, Web Speech), so `mobile/` is a full-screen WebView around the same
+  web app plus what a WebView cannot do: speech on the phone's own engine (a WebView has no
+  usable Web Speech API; Android's object exists and never speaks), haptics on iOS (no
+  vibrate API), keep-awake, and camera, microphone and location granted to the page because
+  the app holds them. The shell holds no screens, no protocol and no instruction text; the
+  CLAUDE.md scope wall now reads "no native app logic" and names this exception. The page
+  and the shell share one protocol file, `src/platform/bridge.ts`; the page side is
+  `src/platform/shell.ts`, which installs nothing outside the shell. Speech reaches the
+  shell as a `SpeakerProvider` (`ShellSpeakerProvider`) handed to the voice queue through the
+  docs/07 `setProvider()` seam, chosen by shell identity, never by capability sniffing, for
+  the Android reason above. Voice in stays off in the shell: WebViews have no
+  SpeechRecognition and native recognition needs a development build, not Expo Go. Buttons
+  carry the demo there, which docs/04 already requires.
+- **Sat 03:40 (P4)** The page reaches the phone through Expo's own tunnel. WebViews refuse
+  self-signed certificates on both platforms (Android cancels the load, iOS trusts only what
+  the system trusts) and the camera needs a secure context, so the LAN address that Chrome
+  accepts after a warning is no use to the shell. `npm run mobile:tunnel` builds the web app
+  with `base: '/app/'` (`MAYDAY_VIA_EXPO=1`, plain http, no HMR), serves the build locally
+  with `vite preview`, and starts `expo start --tunnel`; `mobile/metro.config.js` proxies
+  `/app/*` to that server through Metro's `enhanceMiddleware`, so the same
+  `https://*.exp.direct` URL Expo Go loads the shell from serves the page over a real
+  certificate. `mobile:tunnel:dev` swaps in the Vite dev server for iteration (reload the
+  phone by hand; the HMR websocket cannot cross Metro's proxy). The proxy only wins because
+  the shell declares `platforms: ['ios', 'android']`: with web listed, Expo's dev server
+  answers every unknown path with its own web index before any config middleware runs. A
+  static copy of the build under `mobile/public` was tried and rejected for the same reason.
+  `expo login` is required once because both Expo tunnel backends sign the URL with the
+  account. `EXPO_PUBLIC_MAYDAY_WEB_URL` points the shell at the deployed site instead. The
+  default is a production build on purpose: the demo runs the bundle the deploy ships.
+- **Sat 03:40 (P4)** `src/platform` is guarded by `npm run lint` like perception, protocol and
+  voice: the bridge is a reflex path and may never import `src/ai`. `mobile/` has its own
+  `package.json` and lockfile rather than an npm workspace so the root install stays what it
+  was for the three people who never touch the phone; `npm run mobile:install` is opt-in.

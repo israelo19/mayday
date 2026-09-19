@@ -51,6 +51,23 @@ Other scripts: `npm run typecheck`, `npm test` (vitest), `npm run build` (output
 guide gallery: every protocol picture, a simulated bystander to watch the guide react, and a
 coach-screen preview. No camera needed.
 
+## Run it on a phone with Expo Go
+
+`mobile/` is an Expo Go shell around the same web app: a full-screen WebView plus the
+phone's own speech, haptics, keep-awake and camera permission. Nothing medical lives in it.
+Once per laptop: `npm run mobile:install`, then `npx --prefix mobile expo login` (free
+account, Expo signs the tunnel URL with it). Then, every session:
+
+```sh
+npm run mobile:tunnel
+```
+
+That builds the web app, serves the build locally, and starts the Expo dev server with its
+tunnel; Metro proxies `/app/` to the build. Scan the QR with Expo Go. The page arrives over
+the tunnel's real certificate, so the camera works without touching the phone's trust store.
+`npm run mobile:tunnel:dev` serves the Vite dev server instead. Details, what falls back
+inside the shell, and the deployed-site variant: `mobile/README.md`.
+
 ## M0 demo check
 
 1. Open `?debug=1`. The footer reads `status: running`, fps is above 10, the pose skeleton is
@@ -93,10 +110,12 @@ Tests for the pure signal code: `npm test`.
   /sitrep        event log, SITREP builder, handoff report
   /ui            screens and overlays (docs/05)
   /ui/guide      step guides: one picture per protocol line, gallery at ?guide=1 (docs/05)
+  /platform      the Expo Go shell bridge: wire protocol (shared with mobile/) and the page adapter
+/mobile          Expo Go shell around the web app, own package.json (mobile/README.md)
 /docs            context documents; docs/07 is the four-person work split
 /public/models   MediaPipe .task model files (committed)
 /public/wasm     MediaPipe WASM runtime (generated, gitignored)
-/scripts         prepare-assets.mjs
+/scripts         prepare-assets.mjs, check-ai-boundaries.mjs, mobile-tunnel.mjs
 ```
 
 Decisions the docs did not settle are logged in `DECISIONS.md`.

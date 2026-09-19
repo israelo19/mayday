@@ -33,7 +33,8 @@ One-liner for every README and pitch surface: "The minutes before the ambulance,
 
 ## What we are NOT building (scope walls)
 - Machines this weekend: triage, cardiac, bleeding, and choking as data only with detection disabled. Any other emergency (stroke, seizure, overdose, burns) is a future machine file, not hackathon work.
-- No accounts, no database, no ambient always-on listening, no auto-dial, no diagnosis claims, no blood detection via CV, no native app.
+- No accounts, no database, no ambient always-on listening, no auto-dial, no diagnosis claims, no blood detection via CV, no native app logic.
+- The one native piece is `mobile/`, an Expo Go shell that loads the web app in a WebView and lends it the phone's speech, haptics and permissions over `src/platform/bridge.ts`. It holds no screens, no protocol and no instruction text; if it ever needs any, that is the wrong place (DECISIONS.md, Sat 03:40).
 
 ## Repo layout
 ```
@@ -45,10 +46,12 @@ One-liner for every README and pitch surface: "The minutes before the ambulance,
   /sitrep        event log, SITREP builder, handoff report
   /ui            screens and overlays (docs/05)
   /ui/guide      step guides: one picture per protocol line, gallery at ?guide=1 (docs/05)
+  /platform      Expo Go shell bridge: the wire protocol shared with /mobile and the page-side adapter
+/mobile          Expo Go shell around the web app (WebView + native speech, haptics, permissions), own package.json
 /docs            these context documents; docs/07 is the four-person work split
 /public/models   MediaPipe .task model files (committed)
 /public/wasm     MediaPipe WASM runtime (generated, gitignored)
-/scripts         prepare-assets.mjs, check-ai-boundaries.mjs
+/scripts         prepare-assets.mjs, check-ai-boundaries.mjs, mobile-tunnel.mjs
 ```
 
 ## Reading order for a fresh Claude Code session
