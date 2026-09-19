@@ -34,7 +34,10 @@ npm run dev        # https://localhost:5173 and https://<your-LAN-ip>:5173
 - The MediaPipe model files are committed in `public/models`. `scripts/prepare-assets.mjs`
   only downloads them if they are missing. Nothing is fetched from a CDN at runtime.
 
-Other scripts: `npm run typecheck`, `npm run build` (output in `dist/`), `npm run preview`.
+Other scripts: `npm run typecheck`, `npm test` (vitest), `npm run build` (output in `dist/`),
+`npm run preview`. Open `http://localhost:5173/?guide=1` (any of the dev modes) for the step
+guide gallery: every protocol picture, a simulated bystander to watch the guide react, and a
+coach-screen preview. No camera needed.
 
 ## M0 demo check
 
@@ -77,6 +80,7 @@ Tests for the pure signal code: `npm test`.
   /ai            episodic cloud calls, all stubbed behind interfaces (docs/04)
   /sitrep        event log, SITREP builder, handoff report
   /ui            screens and overlays (docs/05)
+  /ui/guide      step guides: one picture per protocol line, gallery at ?guide=1 (docs/05)
 /docs            context documents; docs/07 is the four-person work split
 /public/models   MediaPipe .task model files (committed)
 /public/wasm     MediaPipe WASM runtime (generated, gitignored)

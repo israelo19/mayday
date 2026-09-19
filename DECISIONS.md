@@ -87,3 +87,12 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
 - **Sat 02:40 (P1)** WebSpeechProvider gained a watchdog (P3 to keep or replace): on the demo
   iPhone an utterance sometimes never fires end/error, which left the M0 button stuck on
   "Speaking". Speech is also started synchronously inside the tap, which iOS requires.
+- **Sat 02:40** Step guides (`src/ui/guide`) are hand-drawn SVG pictograms keyed by
+  `machine.state`, one step per docs/02 line, captions verbatim and tested against
+  docs/02. No video, no generated media: a bundled SVG works with wifi off, scales to any
+  screen, and cannot drift from the guideline text. Choking has no guide until docs/02
+  names its states. The compression figure and the rhythm trace read one beat clock
+  (`beat.ts`), so a `beatOriginMs` from the metronome puts the picture on the sound.
+- **Sat 02:40** `vitest` added as dev tooling (the plan in docs/07 already calls for it);
+  tests live next to their module as `*.test.ts` and type-check through
+  `tsconfig.test.json` so Node types stay out of browser code. `npm test` runs them.
