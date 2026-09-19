@@ -43,6 +43,8 @@ checks below are walking.
 - Laptop only, no certificate at all: `MAYDAY_HTTP=1 npm run dev` and open `http://localhost:5173`
   (localhost is a secure context, so the camera works). Phones cannot use this one.
 - Can't do either: `npx ngrok http https://localhost:5173` and open the ngrok URL on the phone.
+- Every environment variable the repo reads is listed in `.env.example` with its usage. The
+  browser bundle reads none; keys stay in `.env.local` for the dev proxy (docs/09).
 - The MediaPipe model files are committed in `public/models`. `scripts/prepare-assets.mjs`
   only downloads them if they are missing. Nothing is fetched from a CDN at runtime.
 
