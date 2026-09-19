@@ -11,7 +11,7 @@
 //      talks to the same https origin it loaded the page from, so there is no mixed-content
 //      block and no CORS. This is why `npm run dev` is the only command the demo needs.
 //   2. Standalone, for a laptop console session or another dev server:
-//        ELEVENLABS_API_KEY=sk_... node src/voice/providers/devproxy.mjs [port, default 8788]
+//        GEMINI_API_KEY=... node src/voice/providers/devproxy.mjs [port, default 8788]
 //
 // Routes, relative to the mount point:
 //   POST /v1/text-to-speech/*        forwarded to ElevenLabs with the key header added
@@ -20,10 +20,11 @@
 //                                    firstMessage is the agent's configured opening line: the
 //                                    socket delivers it as audio only, so the panel needs it here.
 //   POST /vision/assess              { image, mime, system, user, maxTokens } -> one frame to the
-//                                    scene model on Featherless (docs/04 item 7, docs/11); the
-//                                    answer comes back as { text, model, provider, latencyMs } and
+//                                    scene model (docs/04 items 4 and 7, docs/11); the answer comes
+//                                    back as { text, model, provider, latencyMs } and
 //                                    src/ai/assess.ts decides what, if anything, it means. The
-//                                    model is FEATHERLESS_VISION_MODEL; 404 without a key.
+//                                    provider is Gemini when GEMINI_API_KEY is set, else
+//                                    Featherless; 404 when neither key is there.
 // Nothing else is forwarded: the proxy exposes exactly what the app calls, not the API.
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
@@ -32,9 +33,33 @@ const UPSTREAM = 'https://api.elevenlabs.io';
 const TTS_PREFIX = '/v1/text-to-speech/';
 const SESSION_ROUTE = '/dispatcher/session';
 const VISION_ROUTE = '/vision/assess';
-const FEATHERLESS_CHAT = 'https://api.featherless.ai/v1/chat/completions';
-/** Cheap and warm, and it answers with boxes: the development default. Qwen3-VL-8B for the demo. */
-export const DEFAULT_VISION_MODEL = 'Qwen/Qwen2.5-VL-7B-Instruct';
+/**
+ * The scene-model providers. Both speak OpenAI chat completions, so one request body serves
+ * both and only the URL, the key and the model name differ: Gemini through its
+ * OpenAI-compatible endpoint (ai.google.dev/gemini-api/docs/openai), Featherless natively.
+ * Adding a third is a row here, not a branch anywhere else.
+ */
+export const VISION_PROVIDERS = {
+  gemini: {
+    chat: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    keyEnv: 'GEMINI_API_KEY',
+    modelEnv: 'GEMINI_VISION_MODEL',
+    // Flash speed with the spatial reasoning the patient box needs, and it answers on the
+    // 0 to 1000 scale src/ai/assess.ts already reads. gemini-3.5-flash-lite is quicker and
+    // weaker; compare them on a real photo with scripts/assess-frame.mjs before the judged run.
+    defaultModel: 'gemini-3.6-flash',
+  },
+  featherless: {
+    chat: 'https://api.featherless.ai/v1/chat/completions',
+    keyEnv: 'FEATHERLESS_API_KEY',
+    modelEnv: 'FEATHERLESS_VISION_MODEL',
+    /** Small, warm, and it answers with boxes. Qwen/Qwen3-VL-8B-Instruct for a sharper run. */
+    defaultModel: 'Qwen/Qwen2.5-VL-7B-Instruct',
+  },
+};
+
+/** Gemini first: it is the sponsor track (docs/04 items 4 and 7) and the boxes come back better. */
+export const DEFAULT_VISION_PROVIDER = 'gemini';
 /** A 640 px JPEG is well under this; anything bigger is not a frame from the app. */
 const MAX_IMAGE_CHARS = 2_000_000;
 const ENV_LOCAL = new URL('../../../.env.local', import.meta.url);
@@ -54,13 +79,30 @@ export function readLocalEnv(name) {
 }
 
 /**
- * One frame and the app's question to a Featherless vision model, OpenAI chat-completions
- * style: the image rides along as a data URL content part (featherless.ai/docs/vision).
- * Returns the model's text untouched; the client parses and validates it.
+ * The scene model this machine can actually reach: the provider named by VISION_PROVIDER if
+ * it has a key, else Gemini, else Featherless, else null. One resolver so the Vite mount, the
+ * standalone server and scripts/assess-frame.mjs can never disagree about which model ran.
  */
-export async function assessWithFeatherless({ key, model, image, mime = 'image/jpeg', system, user, maxTokens = 320 }) {
+export function resolveVisionProvider(name = readLocalEnv('VISION_PROVIDER')) {
+  const wanted = name && VISION_PROVIDERS[name] ? [name] : [DEFAULT_VISION_PROVIDER, 'featherless'];
+  for (const id of wanted) {
+    const provider = VISION_PROVIDERS[id];
+    const key = readLocalEnv(provider.keyEnv);
+    if (key) return { id, key, chat: provider.chat, model: readLocalEnv(provider.modelEnv) ?? provider.defaultModel };
+  }
+  return null;
+}
+
+/**
+ * One frame and the app's question to a vision model, OpenAI chat-completions style: the
+ * image rides along as a data URL content part. Returns the model's text untouched; the
+ * client parses and validates it.
+ */
+export async function assessWithVisionModel({ provider = DEFAULT_VISION_PROVIDER, chat, key, model, image, mime = 'image/jpeg', system, user, maxTokens = 320 }) {
+  const endpoint = chat ?? VISION_PROVIDERS[provider]?.chat;
+  if (!endpoint) throw new Error(`unknown vision provider: ${provider}`);
   const started = Date.now();
-  const upstream = await fetch(FEATHERLESS_CHAT, {
+  const upstream = await fetch(endpoint, {
     method: 'POST',
     headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -79,11 +121,11 @@ export async function assessWithFeatherless({ key, model, image, mime = 'image/j
       ],
     }),
   });
-  if (!upstream.ok) throw new Error(`featherless ${upstream.status}: ${(await upstream.text()).slice(0, 300)}`);
+  if (!upstream.ok) throw new Error(`${provider} ${upstream.status}: ${(await upstream.text()).slice(0, 300)}`);
   const json = await upstream.json();
   const content = json.choices?.[0]?.message?.content;
   const text = typeof content === 'string' ? content : Array.isArray(content) ? content.map((c) => c?.text ?? '').join('') : '';
-  return { text, model: json.model ?? model, provider: 'featherless', latencyMs: Date.now() - started };
+  return { text, model: json.model ?? model, provider, latencyMs: Date.now() - started };
 }
 
 function sendJson(res, status, body) {
@@ -104,8 +146,8 @@ function readBody(req) {
  * route whose key is missing answers 404 and the app keeps its local stub (the scripted
  * dispatcher, WebSpeech, no scene assessment).
  */
-export function createKeyProxy({ apiKey = null, agentId = null, visionKey = null, visionModel = DEFAULT_VISION_MODEL }) {
-  if (!apiKey && !visionKey) throw new Error('createKeyProxy needs a key: ELEVENLABS_API_KEY or FEATHERLESS_API_KEY in .env.local.');
+export function createKeyProxy({ apiKey = null, agentId = null, vision = null }) {
+  if (!apiKey && !vision) throw new Error('createKeyProxy needs a key: ELEVENLABS_API_KEY, GEMINI_API_KEY or FEATHERLESS_API_KEY in .env.local.');
 
   const forward = async (path, init) => {
     const upstream = await fetch(UPSTREAM + path, {
@@ -129,7 +171,7 @@ export function createKeyProxy({ apiKey = null, agentId = null, visionKey = null
     const url = new URL(req.url ?? '/', 'http://proxy');
     try {
       if (req.method === 'POST' && url.pathname === VISION_ROUTE) {
-        if (!visionKey) return sendJson(res, 404, { error: 'No FEATHERLESS_API_KEY configured' });
+        if (!vision) return sendJson(res, 404, { error: 'No scene model key configured: GEMINI_API_KEY or FEATHERLESS_API_KEY' });
         const raw = await readBody(req);
         let body;
         try {
@@ -140,9 +182,11 @@ export function createKeyProxy({ apiKey = null, agentId = null, visionKey = null
         const { image, mime, system, user, maxTokens } = body ?? {};
         if (typeof image !== 'string' || image.length === 0 || image.length > MAX_IMAGE_CHARS) return sendJson(res, 400, { error: 'image must be a base64 string of a small JPEG' });
         if (typeof system !== 'string' || typeof user !== 'string') return sendJson(res, 400, { error: 'system and user prompts are required' });
-        const reply = await assessWithFeatherless({
-          key: visionKey,
-          model: visionModel,
+        const reply = await assessWithVisionModel({
+          provider: vision.id,
+          chat: vision.chat,
+          key: vision.key,
+          model: vision.model,
           image,
           mime: mime === 'image/png' ? 'image/png' : 'image/jpeg',
           system,
@@ -185,14 +229,13 @@ export function createKeyProxy({ apiKey = null, agentId = null, visionKey = null
 const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/^.*\//, '/'));
 if (isMain) {
   const apiKey = readLocalEnv('ELEVENLABS_API_KEY');
-  const visionKey = readLocalEnv('FEATHERLESS_API_KEY');
-  if (!apiKey && !visionKey) {
-    console.error('No key. Set ELEVENLABS_API_KEY or FEATHERLESS_API_KEY in the environment or .env.local.');
+  const vision = resolveVisionProvider();
+  if (!apiKey && !vision) {
+    console.error('No key. Set ELEVENLABS_API_KEY, GEMINI_API_KEY or FEATHERLESS_API_KEY in the environment or .env.local.');
     process.exit(1);
   }
   const agentId = readLocalEnv('ELEVENLABS_AGENT_ID');
-  const visionModel = readLocalEnv('FEATHERLESS_VISION_MODEL') ?? DEFAULT_VISION_MODEL;
-  const handle = createKeyProxy({ apiKey, agentId, visionKey, visionModel });
+  const handle = createKeyProxy({ apiKey, agentId, vision });
   const port = Number(process.argv[2] ?? 8788);
   createServer((req, res) => {
     // Dev CORS: a page on another port calls this directly. Under Vite it is same-origin.
@@ -203,7 +246,7 @@ if (isMain) {
     void handle(req, res);
   }).listen(port, () => {
     console.log(
-      `dev proxy on http://localhost:${port}: elevenlabs ${apiKey ? `on, agent ${agentId ? 'set' : 'not set'}` : 'off'}; vision ${visionKey ? `on (${visionModel})` : 'off'}`,
+      `dev proxy on http://localhost:${port}: elevenlabs ${apiKey ? `on, agent ${agentId ? 'set' : 'not set'}` : 'off'}; vision ${vision ? `on (${vision.id} ${vision.model})` : 'off'}`,
     );
   });
 }

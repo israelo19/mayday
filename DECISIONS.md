@@ -520,3 +520,15 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   control. The prompt lives in TypeScript so `scripts/assess-frame.mjs` runs the app's exact
   question on a photo. Cards, buttons and NEXT are untouched: the model proposes, the human
   disposes, and the tap path is the same as before for anyone who prefers it.
+- **Sat 19:40 (Ricky, `gemini-api` worktree)** Gemini is the scene model, the adapter DECISIONS
+  Sat 08:40 said would be one more row in the same route. `devproxy.mjs` now holds a
+  `VISION_PROVIDERS` table instead of a Featherless constant: both providers speak OpenAI chat
+  completions, so one request body serves both and only the URL, the key and the model name
+  differ (Gemini through `v1beta/openai/chat/completions`, ai.google.dev/gemini-api/docs/openai).
+  `resolveVisionProvider()` picks one, and the Vite mount, the standalone server and
+  `scripts/assess-frame.mjs` all call it, so they can never disagree about which model ran.
+  Order: `VISION_PROVIDER` if it names one with a key, else Gemini, else Featherless, else
+  nothing and the route 404s as before. Default `gemini-3.6-flash`, overridable by
+  `GEMINI_VISION_MODEL`. Not one line of `src/ai/assess.ts` changed: it already asked for boxes
+  on the 0 to 1000 scale, which is Gemini's own convention, and it already collapsed every
+  failure to null. The LM seams (docs/04 items 5 and 8) are untouched and still stubs.

@@ -5,7 +5,7 @@ import mkcert from 'vite-plugin-mkcert';
 import { VitePWA } from 'vite-plugin-pwa';
 import * as QRCode from 'qrcode';
 import { appendFileSync } from 'node:fs';
-import { createKeyProxy, DEFAULT_VISION_MODEL, readLocalEnv } from './src/voice/providers/devproxy.mjs';
+import { createKeyProxy, readLocalEnv, resolveVisionProvider } from './src/voice/providers/devproxy.mjs';
 
 // HTTPS in dev because getUserMedia needs a secure context on any origin other than
 // localhost (the phone on the LAN hits https://<laptop-ip>:5173).
@@ -60,17 +60,16 @@ function phoneQr(): PluginOption {
 function keyProxy(): PluginOption {
   const apiKey = readLocalEnv('ELEVENLABS_API_KEY');
   const agentId = readLocalEnv('ELEVENLABS_AGENT_ID');
-  const visionKey = readLocalEnv('FEATHERLESS_API_KEY');
-  const visionModel = readLocalEnv('FEATHERLESS_VISION_MODEL') ?? DEFAULT_VISION_MODEL;
+  const vision = resolveVisionProvider();
   // Dev and preview servers share the connect stack, so one mount serves both hooks.
   const mount = (server: Pick<ViteDevServer, 'middlewares'>): void => {
-    if (!apiKey && !visionKey) {
+    if (!apiKey && !vision) {
       console.log('  Keys: none in .env.local; WebSpeech carries the demo and the camera keeps its own cues');
       return;
     }
-    server.middlewares.use('/api/proxy', createKeyProxy({ apiKey, agentId, visionKey, visionModel }));
+    server.middlewares.use('/api/proxy', createKeyProxy({ apiKey, agentId, vision }));
     console.log(`  ElevenLabs: ${apiKey ? `key proxy at /api/proxy, dispatcher agent ${agentId ? 'set' : 'NOT set'}` : 'off (no ELEVENLABS_API_KEY)'}`);
-    console.log(`  Scene model: ${visionKey ? `${visionModel} via /api/proxy/vision/assess, on with ?flag=sceneAssess` : 'off (no FEATHERLESS_API_KEY)'}`);
+    console.log(`  Scene model: ${vision ? `${vision.model} (${vision.id}) via /api/proxy/vision/assess, on with ?flag=sceneAssess` : 'off (no GEMINI_API_KEY or FEATHERLESS_API_KEY)'}`);
   };
   return { name: 'mayday-key-proxy', configureServer: mount, configurePreviewServer: mount };
 }

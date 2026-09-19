@@ -99,16 +99,18 @@ One camera frame goes to a vision model at the start of triage, and its answer b
 question the person confirms (docs/04 item 7, docs/11). Behind a flag; the cards and buttons
 stay for anyone who prefers to tap.
 
-1. Put `FEATHERLESS_API_KEY=...` in `.env.local`. `npm run dev` then mounts `/api/proxy/vision/assess`
-   and prints `Scene model: <model> via /api/proxy/vision/assess`. `FEATHERLESS_VISION_MODEL`
-   picks the model; the default is the small `Qwen/Qwen2.5-VL-7B-Instruct`, try
-   `Qwen/Qwen3-VL-8B-Instruct` for the judged run.
+1. Put `GEMINI_API_KEY=...` in `.env.local` (a free key from [AI Studio](https://aistudio.google.com/apikey)).
+   `npm run dev` then mounts `/api/proxy/vision/assess` and prints
+   `Scene model: gemini-3.6-flash (gemini) via /api/proxy/vision/assess`. `GEMINI_VISION_MODEL`
+   picks another model; `gemini-3.5-flash-lite` is quicker and weaker. `FEATHERLESS_API_KEY`
+   is the fallback provider, used when there is no Gemini key or when `VISION_PROVIDER=featherless`.
 2. Open the phone URL with `?flag=sceneAssess`. After "I NEED HELP" the look card reads "One
    picture is with the model", then the eyes chip reads "Saw: …", a box lands on the person,
    and the app asks "It looks like someone is bleeding badly. Say yes, or tap."
 3. No key, or no answer within four seconds: nothing happens, and the camera's own cues carry on.
 
-`node scripts/assess-frame.mjs photo.jpg [model]` runs the app's exact question on a photo.
+`node scripts/assess-frame.mjs photo.jpg [model]` runs the app's exact question on a photo, which is
+how two models get compared before the judged run.
 `?fake=1&flag=sceneAssess` demos the flow with a canned model: pick what it says in the fake controls,
 then "Start over", since the frame goes out about a second into triage.
 

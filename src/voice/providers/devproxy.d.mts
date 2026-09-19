@@ -5,11 +5,29 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 /** Value of `name` from the environment, else from .env.local, else null. */
 export function readLocalEnv(name: string): string | null;
 
-/** The vision model the proxy uses when FEATHERLESS_VISION_MODEL is unset. */
-export const DEFAULT_VISION_MODEL: string;
+export type VisionProviderId = 'gemini' | 'featherless';
 
-/** One frame and the app's question to a Featherless vision model; the raw reply text comes back. */
-export function assessWithFeatherless(o: {
+/** The scene-model providers, keyed by id: endpoint, which env vars name the key and model. */
+export const VISION_PROVIDERS: Record<
+  VisionProviderId,
+  { chat: string; keyEnv: string; modelEnv: string; defaultModel: string }
+>;
+
+/** The provider used when VISION_PROVIDER is unset and both keys are present. */
+export const DEFAULT_VISION_PROVIDER: VisionProviderId;
+
+/** The scene model this machine can reach, or null when no vision key is configured. */
+export function resolveVisionProvider(name?: string | null): {
+  id: VisionProviderId;
+  key: string;
+  chat: string;
+  model: string;
+} | null;
+
+/** One frame and the app's question to a vision model; the raw reply text comes back. */
+export function assessWithVisionModel(o: {
+  provider?: VisionProviderId;
+  chat?: string;
   key: string;
   model: string;
   image: string;
@@ -17,12 +35,11 @@ export function assessWithFeatherless(o: {
   system: string;
   user: string;
   maxTokens?: number;
-}): Promise<{ text: string; model: string; provider: 'featherless'; latencyMs: number }>;
+}): Promise<{ text: string; model: string; provider: VisionProviderId; latencyMs: number }>;
 
 /** Node request handler that adds the keys to the allowed upstream calls; a route without its key answers 404. */
 export function createKeyProxy(o: {
   apiKey?: string | null;
   agentId?: string | null;
-  visionKey?: string | null;
-  visionModel?: string;
+  vision?: { id: VisionProviderId; key: string; chat: string; model: string } | null;
 }): (req: IncomingMessage, res: ServerResponse) => Promise<void>;
