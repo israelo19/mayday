@@ -1,14 +1,18 @@
-// COACH screen, design proposal (see DECISIONS.md) implementing docs/05's spec: giant
-// instruction, live metric, camera thumbnail with P1's pose overlay, CALL 911 persistent top,
-// NEXT persistent bottom (manual-advance fallback so any voice transition has a button twin).
+// COACH screen, design proposal (see DECISIONS.md), camera-app layout: the live camera fills
+// the screen like a viewfinder, with controls floating on top and bottom, instead of a small
+// thumbnail. Reasoning: this app's whole differentiator is on-device vision (CLAUDE.md
+// principle 2), and a bystander reading pose/hand-placement guidance benefits from actually
+// seeing the patient large, not a postage-stamp preview. The hand-placement step now overlays
+// a target reticle on the real camera feed instead of an abstract stick-figure illustration --
+// once the real body is visible, a cartoon of one is redundant.
 // The dispatcher indicator is ALWAYS labeled SIMULATED, including once "connected" -- CLAUDE.md
-// principle 5 / docs/05 require the sim to never read as a real 911 line at any point, which is
-// the one thing the pasted design mockup got wrong on its equivalent screen.
+// principle 5 / docs/05 require the sim to never read as a real 911 line at any point.
 // `step` will come from session.ts/P2's engine (CoachingEvent) once it exists; App.tsx feeds
 // mock data (src/ui/mockDemoData.ts) for now. Owned by P4.
 import { CameraView } from './CameraView';
 import type { Perception } from '../perception';
 import type { MockCoachStep } from './mockDemoData';
+import './coach.css';
 
 type Props = {
   perception: Perception;
@@ -21,52 +25,47 @@ type Props = {
 
 export function CoachScreen({ perception, step, dispatcherOpen, callSeconds, onCall911, onNext }: Props) {
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', padding: 16, gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button className="primary" onClick={onCall911} style={{ fontSize: 18, flex: 1 }}>
-          📞 CALL 911
-        </button>
-        <div style={{ width: 100 }}>
-          <CameraView perception={perception} mirror={false} />
+    <div className="coach-fullscreen">
+      <CameraView perception={perception} mirror={false}>
+        <div className="coach-top-bar">
+          <button className="primary coach-call-btn" onClick={onCall911}>
+            📞 CALL 911
+          </button>
+          {dispatcherOpen && (
+            <div role="status" className="coach-call-pill">
+              SIMULATED · {formatClock(callSeconds)}
+            </div>
+          )}
         </div>
-      </div>
 
-      {dispatcherOpen && (
-        <div
-          role="status"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            background: 'var(--panel)',
-            border: `1px solid var(--ok)`,
-            color: 'var(--ok)',
-            fontWeight: 700,
-            fontSize: 13,
-            padding: '8px 12px',
-            borderRadius: 999,
-          }}
-        >
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ok)' }} />
-          SIMULATED CALL CONNECTED · {formatClock(callSeconds)}
+        {step.kind === 'diagram' && (
+          <>
+            <div className="coach-reticle" aria-hidden="true" />
+            <span className="coach-reticle-label">{step.caption}</span>
+          </>
+        )}
+
+        <div className="coach-bottom-panel">
+          <button className="coach-voice-fab" aria-label="Voice input (say what's happening)" onClick={() => {}}>
+            <MicIcon />
+          </button>
+
+          {step.kind === 'ring' && (
+            <div className="coach-ring-wrap">
+              <CompressionRing count={step.count} total={step.total} rateBpm={step.rateBpm} pace={step.pace} />
+            </div>
+          )}
+
+          <div className="coach-caption">
+            <div className="coach-caption-label">▂▄▆ MAYDAY SPEAKING</div>
+            <p>{step.line}</p>
+          </div>
+
+          <button className="coach-next-btn" onClick={onNext}>
+            {step.kind === 'diagram' ? step.nextLabel : 'NEXT'}
+          </button>
         </div>
-      )}
-
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-        {step.kind === 'diagram' ? <HandPlacementDiagram caption={step.caption} /> : <CompressionRing count={step.count} total={step.total} rateBpm={step.rateBpm} pace={step.pace} />}
-      </div>
-
-      <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 12, padding: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--ok)', fontSize: 12, fontWeight: 800, letterSpacing: 1, marginBottom: 6 }}>
-          ▂▄▆ MAYDAY SPEAKING
-        </div>
-        <p style={{ margin: 0, fontSize: 'clamp(18px, 4.5vw, 24px)', fontWeight: 600, lineHeight: 1.35 }}>{step.line}</p>
-      </div>
-
-      <button onClick={onNext} style={{ minHeight: 60, fontSize: 18, fontWeight: 700 }}>
-        {step.kind === 'diagram' ? step.nextLabel : 'NEXT'}
-      </button>
+      </CameraView>
     </div>
   );
 }
@@ -77,42 +76,17 @@ function formatClock(totalSeconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function HandPlacementDiagram({ caption }: { caption: string }) {
+function MicIcon() {
   return (
-    <div style={{ position: 'relative', width: '100%', maxWidth: 280 }}>
-      <svg viewBox="0 0 280 200" width="100%" role="img" aria-label="Patient lying down with a hand-placement marker over the chest">
-        <ellipse cx="140" cy="120" rx="70" ry="34" fill="var(--panel)" stroke="var(--border)" />
-        <circle cx="60" cy="120" r="20" fill="var(--panel)" stroke="var(--border)" />
-        <line x1="150" y1="95" x2="200" y2="70" stroke="var(--border)" strokeWidth="8" strokeLinecap="round" />
-        <line x1="150" y1="145" x2="200" y2="170" stroke="var(--border)" strokeWidth="8" strokeLinecap="round" />
-        <line x1="200" y1="105" x2="240" y2="80" stroke="var(--border)" strokeWidth="8" strokeLinecap="round" />
-        <line x1="200" y1="135" x2="240" y2="160" stroke="var(--border)" strokeWidth="8" strokeLinecap="round" />
-        <circle cx="140" cy="90" r="10" fill="var(--ok)" opacity="0.25" />
-        <circle cx="140" cy="90" r="5" fill="var(--ok)" />
-      </svg>
-      <span
-        style={{
-          position: 'absolute',
-          top: 30,
-          left: '58%',
-          background: 'var(--panel)',
-          border: '1px solid var(--ok)',
-          color: 'var(--ok)',
-          fontSize: 12,
-          fontWeight: 700,
-          padding: '4px 10px',
-          borderRadius: 999,
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {caption}
-      </span>
-    </div>
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" fill="#04110d" />
+      <path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke="#04110d" strokeWidth="2" strokeLinecap="round" />
+    </svg>
   );
 }
 
 function CompressionRing({ count, total, rateBpm, pace }: { count: number; total: number; rateBpm: number; pace: string }) {
-  const r = 80;
+  const r = 60;
   const c = 2 * Math.PI * r;
   const pct = Math.min(1, count / total);
   const targetLow = 100;
@@ -122,36 +96,36 @@ function CompressionRing({ count, total, rateBpm, pace }: { count: number; total
   const ratePct = Math.max(0, Math.min(1, (rateBpm - rateMin) / (rateMax - rateMin)));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, width: '100%', maxWidth: 300 }}>
-      <svg viewBox="0 0 200 200" width="200" height="200">
-        <circle cx="100" cy="100" r={r} fill="none" stroke="var(--border)" strokeWidth="14" />
+    <>
+      <svg viewBox="0 0 160 160" width="140" height="140">
+        <circle cx="80" cy="80" r={r} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="12" />
         <circle
-          cx="100"
-          cy="100"
+          cx="80"
+          cy="80"
           r={r}
           fill="none"
           stroke="var(--ok)"
-          strokeWidth="14"
+          strokeWidth="12"
           strokeLinecap="round"
           strokeDasharray={`${c * pct} ${c}`}
-          transform="rotate(-90 100 100)"
+          transform="rotate(-90 80 80)"
         />
-        <text x="100" y="94" textAnchor="middle" fontSize="40" fontWeight="800" fill="var(--fg)">
+        <text x="80" y="76" textAnchor="middle" fontSize="32" fontWeight="800" fill="#fff">
           {count}
         </text>
-        <text x="100" y="118" textAnchor="middle" fontSize="12" fill="var(--muted)">
-          of {total} compressions
+        <text x="80" y="98" textAnchor="middle" fontSize="11" fill="rgba(255,255,255,0.7)">
+          of {total}
         </text>
       </svg>
 
       <div style={{ width: '100%' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
-          <span style={{ color: 'var(--muted)' }}>Compression rate</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6, color: '#fff' }}>
+          <span style={{ opacity: 0.7 }}>Rate</span>
           <span>
-            <strong style={{ color: 'var(--ok)', fontSize: 16 }}>{rateBpm}</strong> BPM · {pace}
+            <strong style={{ color: 'var(--ok)', fontSize: 15 }}>{rateBpm}</strong> BPM · {pace}
           </span>
         </div>
-        <div style={{ position: 'relative', height: 6, background: 'var(--border)', borderRadius: 999 }}>
+        <div style={{ position: 'relative', height: 6, background: 'rgba(255,255,255,0.18)', borderRadius: 999 }}>
           <div
             style={{
               position: 'absolute',
@@ -159,7 +133,7 @@ function CompressionRing({ count, total, rateBpm, pace }: { count: number; total
               width: `${((targetHigh - targetLow) / (rateMax - rateMin)) * 100}%`,
               top: 0,
               bottom: 0,
-              background: 'rgba(47, 230, 192, 0.25)',
+              background: 'rgba(47, 230, 192, 0.35)',
               borderRadius: 999,
             }}
           />
@@ -175,14 +149,7 @@ function CompressionRing({ count, total, rateBpm, pace }: { count: number; total
             }}
           />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
-          <span>{rateMin}</span>
-          <span>
-            Target {targetLow}–{targetHigh}
-          </span>
-          <span>{rateMax}</span>
-        </div>
       </div>
-    </div>
+    </>
   );
 }
