@@ -68,3 +68,10 @@ a real camera.
 ```
 
 Decisions the docs did not settle are logged in `DECISIONS.md`.
+
+## Team
+
+- Emmanuel Adedeji
+- Bryce Biyeba
+- Ricky Chen
+- Israel Ogwu
