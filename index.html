@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
+    <!-- iOS before 16.4 ignores the manifest's display: standalone; these two make "Add to
+         Home Screen" launch fullscreen with the status bar drawn over the page. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Mayday" />
     <meta name="description" content="Mayday. The minutes before the ambulance, coached." />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <title>Mayday</title>
