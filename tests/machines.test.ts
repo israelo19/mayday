@@ -46,7 +46,7 @@ describe('machine data', () => {
   });
 
   it('tells the bystander to call 911 early in every medical machine', () => {
-    for (const machine of machines.filter((m) => m.medical && m.id !== 'choking')) {
+    for (const machine of machines.filter((m) => m.medical)) {
       const index = machine.states.findIndex((s) => s.call911);
       expect(index, `${machine.id} never shows CALL 911`).toBeGreaterThanOrEqual(0);
       expect(index, `${machine.id} shows CALL 911 too late`).toBeLessThanOrEqual(2);
