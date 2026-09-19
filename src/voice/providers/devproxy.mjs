@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // LOCAL stand-in for P4's /api/proxy (docs/04 TODO item 1), so the ElevenLabs voice and
 // dispatcher can be built and measured before the real DigitalOcean Function exists. The
-// API key, the agent id and the coach voice pick live HERE, server-side, read from the
-// environment or .env.local; they never reach the browser bundle (docs/01 threat model). Node only, never imported by
-// app code, and outside the *.ts globs so neither the test suite nor the bundle sees it.
+// API key, the agent id and the coach voice live HERE, server-side, read from the environment
+// or .env.local; they never reach the browser bundle (docs/01 threat model). Node only, never
+// imported by app code, and outside the *.ts globs so neither the test suite nor the bundle
+// sees it.
 //
 // Two ways to run it:
 //   1. In-process under Vite (the default): vite.config.ts mounts `createKeyProxy()` at
@@ -89,26 +90,25 @@ export function createKeyProxy({ apiKey, agentId = null, coachVoice = null }) {
 
   // The coach voice is configuration, fixed for the process: resolved once against the
   // account's library, so a human can write "Daniel" instead of copying an id. A miss is
-  // logged once and answered as null, never as a silent different voice.
-  let resolvedCoach;
-  const resolveCoachVoice = async () => {
-    if (resolvedCoach !== undefined) return resolvedCoach;
-    if (!coachVoice) return (resolvedCoach = null);
+  // logged once and answered as null, never as a silent different voice. The promise is what
+  // is kept, so two page loads racing the first answer share one library call.
+  const lookupCoachVoice = async () => {
+    if (!coachVoice?.trim()) return null;
+    const wanted = coachVoice.trim();
     const upstream = await forward('/v1/voices', { method: 'GET', headers: {} });
-    const voices = upstream.ok ? (await upstream.json()).voices ?? [] : [];
-    const wanted = coachVoice.trim().toLowerCase();
+    const voices = upstream.ok ? ((await upstream.json()).voices ?? []) : [];
+    const byName = (test) => voices.find((v) => test(String(v.name).toLowerCase(), wanted.toLowerCase()));
     const hit =
-      voices.find((v) => v.voice_id === coachVoice.trim()) ??
-      voices.find((v) => String(v.name).toLowerCase() === wanted) ??
-      voices.find((v) => String(v.name).toLowerCase().startsWith(wanted));
+      voices.find((v) => v.voice_id === wanted) ?? byName((name, w) => name === w) ?? byName((name, w) => name.startsWith(w));
     if (!hit) {
       console.warn(`  ElevenLabs: no voice matching ELEVENLABS_COACH_VOICE="${coachVoice}" in this account; the default coach voice speaks`);
-      return (resolvedCoach = null);
+      return null;
     }
-    resolvedCoach = { voiceId: hit.voice_id, voiceName: hit.name };
     console.log(`  ElevenLabs: coach voice ${hit.name} (${hit.voice_id})`);
-    return resolvedCoach;
+    return { voiceId: hit.voice_id, voiceName: hit.name };
   };
+  let coachLookup;
+  const resolveCoachVoice = () => (coachLookup ??= lookupCoachVoice());
 
   return async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://proxy');

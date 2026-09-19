@@ -98,7 +98,7 @@ function webAudioPlayer(): AudioPlayer {
 
 export class ElevenLabsProvider implements SpeakerProvider {
   readonly name = 'elevenlabs';
-  // Not readonly: setVoice() swaps the coach voice when the rescuer picks another one.
+  // Not readonly: setVoice() swaps in the configured coach voice once the proxy answers.
   private o: Required<Omit<ElevenLabsOptions, 'dispatcherVoiceId' | 'voiceName' | 'fetchFn' | 'player'>> &
     Pick<ElevenLabsOptions, 'dispatcherVoiceId' | 'voiceName'>;
   private readonly fetchFn: typeof fetch;
@@ -124,14 +124,14 @@ export class ElevenLabsProvider implements SpeakerProvider {
     return this.cache.size;
   }
 
-  /** The coach voice in use, for the picker and the debug panel. */
+  /** The coach voice in use, for the debug panel. */
   voice(): { voiceId: string; voiceName: string } {
     return { voiceId: this.o.voiceId, voiceName: this.o.voiceName ?? this.o.voiceId };
   }
 
   /**
-   * Swap the coach voice (the rescuer's pick from the voice library). The cache is keyed by
-   * voice, so lines warmed for the old voice stay and the new one warms on its own; the
+   * Swap the coach voice (ELEVENLABS_COACH_VOICE, resolved by the proxy). The cache is keyed
+   * by voice, so lines warmed for the old voice stay and the new one warms on its own; the
    * dispatcher voice and the fallback are untouched.
    */
   setVoice(voice: { voiceId: string; voiceName?: string }): void {
