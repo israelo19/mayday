@@ -27,7 +27,8 @@ type NominatimReverse = {
 function formatAddress(a: NonNullable<NominatimReverse['address']>): string | null {
   const street = [a.house_number, a.road].filter(Boolean).join(' ');
   const place = a.city ?? a.town ?? a.village;
-  const line = [street || null, place, a.state].filter(Boolean).join(', ');
+  const stateZip = [a.state, a.postcode].filter(Boolean).join(' '); // "Maryland 21218", not "Maryland, 21218"
+  const line = [street || null, place, stateZip || null].filter(Boolean).join(', ');
   return line.length > 0 ? line : null;
 }
 
