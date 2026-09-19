@@ -57,6 +57,6 @@ export type EventLogEntry = {
 | Prompt injection via panicked speech / bystander audio | Speech is keyword-spotted data to the engine; LLM has no authority over next-step selection; narration output validated against current state's approved set | /src/voice/in, /src/ai/narrate |
 | Privacy: filming a medical emergency | Frames processed in-browser and discarded; only derived metrics persist; nothing leaves device except episodic single frames (feature-flagged) and SITREP text | /src/perception |
 | Perception failure -> wrong coaching | Confidence gate: below threshold, facts are null and engine runs audio-only branch, announced out loud | /src/perception, engine guards |
-| Swatting / false 911 reports | No autonomous dialing anywhere in the codebase; simulated dispatcher clearly labeled | /src/ui, /src/sitrep |
+| Swatting / false 911 reports | No autonomous dialing anywhere in the codebase; simulated dispatcher clearly labeled | /web/ui, /src/sitrep |
 | Tampering with medical content | Machines are static typed data compiled into the bundle, never fetched at runtime | /src/protocol/machines |
 | API key theft from demo QR | Keys only in serverless proxy with per-IP rate limit (when APIs are added) | /src/ai, TODO registry |

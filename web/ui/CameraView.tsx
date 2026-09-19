@@ -3,7 +3,7 @@
 // real aspect ratio (portrait on phones), and hosts HUD children that are never mirrored.
 // Owned by P1. P4 embeds this in the COACH screen with a smaller maxHeight.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { Perception } from '../perception';
+import type { Perception } from '../../src/perception';
 
 type Props = {
   perception: Perception;

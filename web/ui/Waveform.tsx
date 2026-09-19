@@ -1,7 +1,7 @@
 // Live scrolling trace of the smoothed shoulder-y signal with confirmed peaks marked.
 // Plain canvas, no chart library. The M0 deliverable and a pitch-deck figure. Owned by P1.
 import { useEffect, useRef } from 'react';
-import type { Sample } from '../perception/signal';
+import type { Sample } from '../../src/perception/signal';
 
 type Props = {
   /** Called every animation frame; returns the samples to draw (trailing window). */

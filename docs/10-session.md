@@ -1,6 +1,6 @@
 # 10 - The session: voice in, instructions out
 
-`src/session.ts` is where the modules meet. It is the only file that knows perception, the
+`web/session.ts` is where the modules meet. It is the only file that knows perception, the
 protocol engine, the voice module and the event log all exist. The engine (docs/02, docs/08)
 decides every medical line; the session moves data between modules and keeps the clock.
 
@@ -31,7 +31,7 @@ decides every medical line; the session moves data between modules and keeps the
    `bleeding.pack` (back to `pose` on the way out), requests a geolocation fix once when the
    first medical machine starts, and sets the phase (`triage`, `coaching`, `handoff`).
 4. The state's `say` lines are enqueued at narration priority and appear on screen. The
-   picture for the state comes from `src/ui/guide` (`guideFor('cardiac.position')`), keyed
+   picture for the state comes from `web/ui/guide` (`guideFor('cardiac.position')`), keyed
    by the same `machine.state` string the engine emits.
 
 Every keyword has a button twin (docs/05). `snapshot().twins` lists them per state, one per
@@ -55,7 +55,7 @@ state's lines and which one the voice is on, the button twins, the metronome rat
 latest facts, the active correction, blind, guidance, the listening chip, the dispatcher
 transcript, and the SITREP and handoff reports rebuilt every second from the log.
 
-`src/ui/live/LiveApp.tsx` is the first cut of the camera-fills-the-screen layout with
+`web/ui/live/LiveApp.tsx` is the first cut of the camera-fills-the-screen layout with
 floating elements. P4 owns its look; the data seam is the snapshot and the eight actions on
 `Session` (`start`, `advance`, `say`, `heard`, `finish`, `call911`, `replyToDispatcher`,
 `hangUp`, plus `readSitrepAloud`, `qr`, `restart`).
@@ -66,7 +66,7 @@ floating elements. P4 owns its look; the data seam is the snapshot and the eight
   cover lens, lift hands. The whole loop runs on a laptop.
 - `window.mayday` is the session. `mayday.log.entries()` shows exactly what was heard and
   said, with timestamps; `mayday.say('not breathing')` routes like speech.
-- `src/session.test.ts` covers routing, twins, metronome, facts to correction, camera mode
+- `web/session.test.ts` covers routing, twins, metronome, facts to correction, camera mode
   switching, the hands-never-settled line, SITREP with a location, the dispatcher, restart.
 
 ## Honesty notes for the demo

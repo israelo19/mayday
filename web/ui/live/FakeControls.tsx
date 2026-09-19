@@ -1,7 +1,7 @@
 // Controls for ?fake=1: drive the pretend rescuer so the whole loop demos on a laptop with no
 // camera and no one on a pillow. Dev surface only. Owned by P2 (fake) / P4 (screen).
 import { useState } from 'react';
-import type { FakePerceptionHandle } from '../../perception/fake';
+import type { FakePerceptionHandle } from '../../../src/perception/fake';
 
 export function FakeControls({ perception }: { perception: FakePerceptionHandle }) {
   const [, force] = useState(0);

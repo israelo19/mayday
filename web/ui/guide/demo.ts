@@ -3,7 +3,7 @@
 // shoulder signal, and the docs/02 coaching rules evaluated without cooldowns. Nothing
 // outside GuideGallery may import this file; the coach screen gets its facts from
 // src/perception and its events from src/protocol. Owned by P4.
-import type { CoachingEvent, PerceptionFacts } from '../../types';
+import type { CoachingEvent, PerceptionFacts } from '../../../src/types';
 import type { LiveSample } from './RhythmTrace';
 
 // =============================================================================

@@ -3,10 +3,10 @@
 // read from the session snapshot; nothing here decides what to say. Owned by P4 (docs/07);
 // first cut by P1 on the `listen` branch so the voice -> engine -> screen loop is demoable.
 import { useEffect, useMemo } from 'react';
-import { createPerception, type Perception } from '../../perception';
-import { createFakePerception, isFakeRequested, type FakePerceptionHandle } from '../../perception/fake';
+import { createPerception, type Perception } from '../../../src/perception';
+import { createFakePerception, isFakeRequested, type FakePerceptionHandle } from '../../../src/perception/fake';
 import { createSession, WATCHING_STATES } from '../../session';
-import { createVoice } from '../../voice';
+import { createVoice } from '../../../src/voice';
 import { CameraView } from '../CameraView';
 import { LaunchScreen } from '../LaunchScreen';
 import { StepGuide, guideFor } from '../guide';

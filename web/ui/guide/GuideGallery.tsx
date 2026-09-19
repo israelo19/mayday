@@ -3,7 +3,7 @@
 // layout on a phone frame. It is the local test surface for this module, not a product
 // screen (docs/05 has four and this is not a fifth). Owned by P4.
 import { useEffect, useMemo, useState } from 'react';
-import type { CoachingEvent, PerceptionFacts } from '../../types';
+import type { CoachingEvent, PerceptionFacts } from '../../../src/types';
 import { DemoBystander, demoCoaching, type DemoControls } from './demo';
 import { COMPRESSION_BPM, GUIDES, guideFor } from './guides';
 import type { LiveSource } from './RhythmTrace';

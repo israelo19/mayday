@@ -1,7 +1,7 @@
 // The rhythm trace under the compression loop: the target compression wave scrolling
 // toward a "now" line, beat ticks, and, when the coach screen passes it, the bystander's
 // own shoulder signal and detected pushes drawn underneath for comparison. Plain canvas,
-// same conventions as src/ui/Waveform.tsx (pushes point up). Owned by P4.
+// same conventions as web/ui/Waveform.tsx (pushes point up). Owned by P4.
 import { useEffect, useRef } from 'react';
 import { beatPeriodMs, beatPhase, compressionDepth } from './beat';
 import type { Judgement, RateBand } from './judge';

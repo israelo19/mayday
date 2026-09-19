@@ -1,12 +1,12 @@
-// App root, docs/05. `?guide` opens the step guide gallery (src/ui/guide), `?debug=1` the M0
+// App root, docs/05. `?guide` opens the step guide gallery (web/ui/guide), `?debug=1` the M0
 // eyes screen, `?fake=1` the live app on a pretend rescuer. Otherwise the live app: LAUNCH,
-// then the camera fills the screen and the session (src/session.ts) drives everything on it
-// from the protocol engine. The mock-data screens from the first cut stay in src/ui for P4 to
+// then the camera fills the screen and the session (web/session.ts) drives everything on it
+// from the protocol engine. The mock-data screens from the first cut stay in web/ui for P4 to
 // fold into the live layout. Owned by P4 (docs/07).
 import { useMemo } from 'react';
-import { createPerception } from './perception';
-import { WebSpeechProvider } from './voice/out';
-import { Metronome } from './voice/metronome';
+import { createPerception } from '../src/perception';
+import { WebSpeechProvider } from '../src/voice/out';
+import { Metronome } from '../src/voice/metronome';
 import { DebugScreen } from './ui/DebugScreen';
 import { GuideGallery } from './ui/guide';
 import { LiveApp } from './ui/live/LiveApp';

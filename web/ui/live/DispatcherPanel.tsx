@@ -1,7 +1,7 @@
 // The SIMULATED dispatcher, floating over the camera. The bystander answers by tapping a
 // SITREP line (or types nothing: any reply advances the script). Never a real line. Owned by P4.
 import { useState } from 'react';
-import type { Sitrep } from '../../types';
+import type { Sitrep } from '../../../src/types';
 
 type Props = {
   lines: readonly string[];

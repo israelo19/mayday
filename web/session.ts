@@ -9,13 +9,14 @@
 // and the camera mode (hands are tracked only while a bleeding state needs them). It never
 // decides what to say: every spoken line comes out of the machine data, and the few lines that
 // originate here are about the phone and the camera, never about the patient.
+// Lives in web/ because it owns the clock, geolocation and the DOM; src/ stays the engine.
 // Zero network calls. Owned by P4 (docs/07); built by P1 on the `listen` branch.
-import type { CoachingEvent, GeoFix, HandoffReport, PerceptionFacts, Sitrep, State } from './types';
-import type { Perception } from './perception';
-import { GUIDANCE } from './perception';
-import type { Voice, VoiceInStatus } from './voice';
-import { createEngine, machines, STALE_FACTS_MS, type Engine } from './protocol';
-import { buildHandoff, buildSitrep, createEventLog, handoffQrPayload, qrDataUrl, type EventLog } from './sitrep';
+import type { CoachingEvent, GeoFix, HandoffReport, PerceptionFacts, Sitrep, State } from '../src/types';
+import type { Perception } from '../src/perception';
+import { GUIDANCE } from '../src/perception';
+import type { Voice, VoiceInStatus } from '../src/voice';
+import { createEngine, machines, STALE_FACTS_MS, type Engine } from '../src/protocol';
+import { buildHandoff, buildSitrep, createEventLog, handoffQrPayload, qrDataUrl, type EventLog } from '../src/sitrep';
 
 export type SessionPhase = 'idle' | 'triage' | 'coaching' | 'handoff';
 

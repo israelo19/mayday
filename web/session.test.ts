@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { createFakePerception } from './perception/fake';
+import { createFakePerception } from '../src/perception/fake';
 import { createSession, ROI_FAILED_LINE, type Session } from './session';
-import type { Voice, VoiceInOptions, VoiceInStatus } from './voice';
-import type { CoachingEvent } from './types';
+import type { Voice, VoiceInOptions, VoiceInStatus } from '../src/voice';
+import type { CoachingEvent } from '../src/types';
 
 const T0 = 1_700_000_000_000;
 
