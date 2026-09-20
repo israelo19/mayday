@@ -133,7 +133,9 @@ gets the sentence and the buttons that are on the screen right now (docs/04 item
    "Sounds like Not breathing?" bar appears, and yes or a tap enters the state.
 3. The model answers with the NUMBER of a button, never with words, so it cannot name a step the
    state is not already offering. Anything else, or low confidence, or no answer in three seconds:
-   nothing happens and the buttons carry the demo.
+   the machine does not move and the buttons carry the demo. The app does say one line when it
+   heard a sentence it could not place ("I heard you. If something has changed, say it simply,
+   or tap a button"), at most once every twenty seconds.
 
 `?fake=1&flag=intentRoute` uses a word overlap stub, so the yes/no flow demos with no key.
 
@@ -152,10 +154,25 @@ the machine decides (docs/04 items 5 and 8, DECISIONS.md Sat 20:40 and 21:55).
    is canonical the first time and, on its repeat, opens with what you said and what the camera
    measures. Every rewording passes `src/protocol/validate.ts` or the line speaks as written;
    `mayday.log.entries()` shows `said as:` and `rewording refused` lines.
-3. Grok: put `XAI_API_KEY=...` in `.env.local` (the HopHacks credits). It is picked when it is
-   the only model key, or with `MODEL_PROVIDER=xai`; the dev server prints
-   `Model: grok-4-1-fast-non-reasoning (xai)`. No key, or wifi off: both flags do nothing and
-   the matcher, the buttons and the canonical lines carry the demo.
+3. Grok: put `XAI_API_KEY=...` in `.env.local` or `.env` (the HopHacks credits), and
+   `MODEL_PROVIDER=xai` to give it the text routes. The dev server prints a line per route:
+   `Text model: grok-4.20-0309-non-reasoning (xai)` and `Frame model: gemini-3.6-flash
+   (gemini)`. The frame never goes to xAI, which has not been tried on one, so keep a Gemini
+   key beside it. No key, or wifi off: both flags do nothing and the matcher, the buttons and
+   the canonical lines carry the demo.
+
+   Use the model id the account actually lists. `grok-4-1-fast-non-reasoning` is not one of
+   them, and xAI serves `grok-4.3` in its place without saying so: on the intent prompt that
+   is 3/5 right with a median of 4.8 s, every call past the router's 3 s budget, against 4/5
+   at 580 ms for the id above.
+
+**Before recording, decide about `narrationFlavor`.** The other flags keep the model away from
+the words: the router picks the NUMBER of a button and a human still says yes, and an answer is
+a cited line the machine already owns. Rewording is the one place a model writes what is spoken,
+and `validate.ts` is a lexical gate: it checks numbers, negation, units, comparators, places,
+urgency, length and a list of terms we never coach. It cannot read meaning, and a paraphrase
+that keeps all of those and still changes the instruction will pass. `tests/narration-attacks.test.ts`
+holds fourteen of them. The flag is off by default; leaving it off is the safe recording.
 
 ## M0 demo check
 
