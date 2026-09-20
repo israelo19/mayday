@@ -23,11 +23,13 @@ another is adding one file.
 
 ## 🚨 The problem
 
-A man collapses in a hallway. The woman next to him has never done CPR. The 911 dispatcher
-tells her to push on his chest, hard and fast, but cannot see whether she is, and she cannot
-tell. The ambulance is seven minutes away. If he is bleeding instead, she presses a cloth on
-the wound and, within seconds, lifts it to look, which is the one thing that lets the bleeding
-start again.
+When someone collapses or starts bleeding badly, the people around them are the only help
+there is until the ambulance arrives, and that takes seven minutes in most of the country and
+thirteen in rural areas. Almost none of them are trained. The 911 dispatcher coaching them by
+voice cannot see what they are doing, and they cannot tell whether they are doing it right. So
+the minutes that decide whether the person lives are spent panicking, waiting, or doing the
+right thing wrong. There is no real-time support for the person standing there, and that
+person is the one who could be saving a life.
 
 <p align="center">
   <img src="docs/images/gap-timeline.svg" width="100%" alt="Timeline from a collapse to the ambulance: the gap Mayday covers, severe bleeding can kill in five minutes, the median ambulance arrives at seven, thirteen in rural areas">
