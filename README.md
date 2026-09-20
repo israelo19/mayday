@@ -119,21 +119,11 @@ The numbers behind that: 347 tests, four scripts with every medical step citing 
 guideline page, an engine of 279 lines with no dependencies, and zero network calls in the
 coaching loop.
 
-## 📜 Where every step comes from
-
-Each emergency is one script file: the steps in order, the exact words to say for each, the
-beat, the correction rules, and which answer leads where. Every medical step cites the guideline
-page it was transcribed from, and the build fails if one does not. The engine that walks the
-script knows nothing about any particular emergency, so a new emergency is a new file, not new
-code.
-
-<p align="center">
-  <img src="docs/images/cardiac-script.svg" width="100%" alt="The cardiac arrest script in six steps, each with its spoken line and what you say to move on: check the scene, check breathing, call 911, get in position, push to the beat, hand off. A side branch holds if the person is breathing.">
-</p>
-
-Every "you say" is also a button, and NEXT always moves on, so the whole script can be driven by
-tapping. Untrained bystanders get hands-only CPR, no rescue breaths, as the AHA teaches. The
-bleeding and choking scripts have the same shape.
+Each emergency is one script file: the steps in order, the exact words for each, the beat, the
+correction rules, and which answer leads where, with the guideline page each step came from.
+The engine knows nothing about any particular emergency, so a new one is a new file, and the
+build fails on a step with no citation. All four scripts are drawn from their data in
+[docs/protocol-diagrams.md](docs/protocol-diagrams.md).
 
 ## 👀 What the camera measures
 
@@ -174,22 +164,19 @@ paramedic the headline numbers, the timeline, and a QR code that carries the rep
 not a link, so it scans with no signal. Time the camera could not see is printed as not
 measured, never as a pause.
 
-## 🧰 Tech stack
+## 🧰 Under the hood
 
-| Part | Technology | What it does |
-|---|---|---|
-| The app | Vite, React 19, TypeScript, installable as a PWA | one page, no store, caches itself for wifi off |
-| Eyes, on the phone | MediaPipe Pose and Hand Landmarker, WASM in the browser | boxes, posture, stillness, compression rate, hands on the wound |
-| Eyes, in the cloud | Gemini API, `gemini-3.6-flash`, key from Google AI Studio | one photo to a closed label and a box; a missed sentence to a button |
-| Ears | Web Speech recognition as keyword spotting; Grok or Gemini for a sentence no phrase matched | what you said, turned into the answer the script needs |
-| Brain | a hand-rolled state machine engine in TypeScript, scripts as data | the guideline, one line at a time, no dependencies |
-| Voice | Web Speech synthesis and a Web Audio metronome; ElevenLabs Flash v2.5 and ElevenLabs Agents; Grok or Gemini to reword a line, checked before it is spoken | speech, the beat, the human voice, the call-taker |
-| Handoff | Geolocation with reverse geocoding, the event log, `qrcode` | the SITREP, the timeline, the QR |
-| Keys | a small proxy the dev server mounts at `/api/proxy` | every cloud key stays on the server |
+<p align="center">
+  <img src="docs/images/tech-stack.svg" width="100%" alt="The Mayday stack: a PWA in the browser; on the device with no network calls, MediaPipe pose and hand tracking as WebAssembly, signal extraction, a state machine engine running four scripts as data, a voice queue with a Web Audio metronome, keyword spotting, and an event log that becomes the SITREP and the handoff; a key proxy on the same origin; behind it Gemini, xAI Grok and ElevenLabs">
+</p>
 
-Camera and microphone feed the on-device models, the engine turns their output into the
-guideline's words, and speech and the screen deliver them. The cloud hangs off the side of that
-loop and never sits inside it.
+Everything in the coaching loop is browser code: pose and hand tracking as WebAssembly, signal
+extraction, a hand-rolled state machine engine that runs four scripts written as data, a voice
+queue with a metronome on the audio clock, and the browser's own speech in and out. It installs
+as a PWA and caches its models, so it opens with wifi off. The cloud sits behind a small key
+proxy on the same origin and behind a flag: Gemini for the photo, Grok for a sentence and a
+rewording, ElevenLabs for the voices and the live call-taker. Keys never reach the browser, and
+a test fails the build if a network call appears inside the loop.
 
 ## 🤝 Sponsor challenges
 
