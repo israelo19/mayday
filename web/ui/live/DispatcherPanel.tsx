@@ -43,7 +43,7 @@ export function DispatcherPanel({ status, lines, sitrep, onReply, onHangUp }: Pr
   return (
     <div className={`live-dispatch${open ? '' : ' collapsed'}`}>
       <div className="live-dispatch-head" onClick={() => setOpen((o) => !o)}>
-        <span className="live-sim-tag">911</span>
+        <span className="live-dispatch-tag">911</span>
         <span className="live-dispatch-toggle">
           {done && status !== 'ended' ? 'On the line' : STATUS_LABEL[status]} · {open ? 'Hide' : 'Show'}
         </span>
@@ -55,7 +55,7 @@ export function DispatcherPanel({ status, lines, sitrep, onReply, onHangUp }: Pr
               screen was most crowded. */}
           <div className="live-dispatch-scroll">
             <div className="live-dispatch-lines">
-            {recent.length === 0 && <p className="live-dispatch-line muted">Connecting you to a call-taker</p>}
+              {recent.length === 0 && <p className="live-dispatch-line muted">Connecting you to a call-taker</p>}
               {recent.map((l, i) => (
                 <p key={`${i}-${l.text}`} className={`live-dispatch-line${l.who === 'you' ? ' you' : ''}`}>
                   <b>{l.who === 'you' ? 'You' : 'Dispatcher'}</b> {l.text}

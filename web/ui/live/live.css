@@ -146,7 +146,7 @@
 .live-dispatch > .live-dispatch-head, .live-dispatch > .live-ghost { flex: none; }
 .live-dispatch.collapsed { padding-bottom: 6px; }
 .live-dispatch-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 32px; cursor: pointer; }
-.live-sim-tag { color: var(--red); font-weight: 800; font-size: 13px; }
+.live-dispatch-tag { color: var(--red); font-weight: 800; font-size: clamp(13px, 3.6vw, 15px); }
 .live-dispatch-toggle { font-size: 13px; color: var(--ink-2); }
 .live-dispatch-lines { display: flex; flex-direction: column; gap: 4px; }
 .live-dispatch-line { margin: 0; font-size: 16px; font-weight: 600; }
