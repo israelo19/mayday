@@ -114,7 +114,7 @@ the helper's hands and shoulders, which is where the corrections come from.
 ## 🧰 Under the hood
 
 <p align="center">
-  <img src="docs/images/stack.svg" width="100%" alt="The Mayday stack: a PWA in the browser; on the device with no network calls, MediaPipe pose and hand tracking as WebAssembly, signal extraction, a state machine engine running four scripts as data, a voice queue with a Web Audio metronome, keyword spotting, and an event log that becomes the SITREP and the handoff; a key proxy on the same origin; behind it Gemini, xAI Grok and ElevenLabs">
+  <img src="docs/images/stack-layers.svg" width="100%" alt="The Mayday stack: a PWA in the browser; on the device with no network calls, MediaPipe pose and hand tracking as WebAssembly, signal extraction, a state machine engine running four scripts as data, a voice queue with a Web Audio metronome, keyword spotting, and an event log that becomes the SITREP and the handoff; a key proxy on the same origin; behind it Gemini, xAI Grok and ElevenLabs">
 </p>
 
 ## 🏆 Tracks and challenges

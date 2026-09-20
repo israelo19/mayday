@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 668" width="1200" height="668" role="img" aria-label="The Mayday stack. A browser app installed as a PWA. On the device, with no network calls: MediaPipe pose and hand tracking as WebAssembly, signal extraction, a state machine engine running four scripts written as data, a voice queue with a Web Audio metronome and the browser's speech, keyword spotting from the microphone, and an event log that becomes the SITREP, the handoff and a QR. A key proxy on the same origin holds every key. Behind it, Gemini for one photo, xAI Grok for a sentence and a rewording, ElevenLabs for the voices and the live call-taker.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 716" width="1200" height="716" role="img" aria-label="The Mayday stack. A browser app installed as a PWA. On the device, with no network calls: MediaPipe pose and hand tracking as WebAssembly, signal extraction, a state machine engine running four scripts written as data, a voice queue with a Web Audio metronome and the browser's speech, keyword spotting from the microphone, and an event log that becomes the SITREP, the handoff and a QR. A key proxy on the same origin holds every key. Behind it, Gemini for one photo, xAI Grok for a sentence and a rewording, ElevenLabs for the voices and the live call-taker.">
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#9aa3b2"/>
@@ -19,7 +19,7 @@
     .stat { font-size: 14px; fill: #e8eaed; }
     .mint { fill: #34d399; } .red { fill: #ff3b30; } .blue { fill: #60a5fa; } .amber { fill: #fbbf24; } .violet { fill: #c084fc; }
   </style>
-  <rect width="1200" height="668" rx="18" fill="#0b0d10"/>
+  <rect width="1200" height="716" rx="18" fill="#0b0d10"/>
   <g transform="translate(0,-72)">
 
   <!-- browser band -->
@@ -91,33 +91,33 @@
   <text class="b" x="938" y="417">Geolocation, address, a QR code.</text>
 
   <!-- proxy band -->
-  <line x1="600" y1="486" x2="600" y2="506" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowblue)"/>
-  <rect x="48" y="508" width="1104" height="54" rx="12" fill="#0f1a2c" stroke="#60a5fa"/>
-  <text class="band blue" x="68" y="541">KEY PROXY</text>
-  <text class="bandnote" x="190" y="533">Same origin as the page, so the phone reaches it over its own HTTPS. Holds every key; the browser bundle reads none.</text>
-  <text class="mono" x="190" y="553">/vision/assess   /intent/route   /text/complete   /v1/text-to-speech   /dispatcher/session</text>
+  <line x1="600" y1="486" x2="600" y2="530" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowblue)"/>
+  <rect x="48" y="532" width="1104" height="54" rx="12" fill="#0f1a2c" stroke="#60a5fa"/>
+  <text class="band blue" x="68" y="565">KEY PROXY</text>
+  <text class="bandnote" x="190" y="557">Same origin as the page, so the phone reaches it over its own HTTPS. Holds every key; the browser bundle reads none.</text>
+  <text class="mono" x="190" y="577">/vision/assess   /intent/route   /text/complete   /v1/text-to-speech   /dispatcher/session</text>
 
   <!-- cloud row -->
-  <line x1="600" y1="564" x2="600" y2="584" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowblue)"/>
-  <rect x="48" y="586" width="356" height="96" rx="12" fill="#0f1a2c" stroke="#60a5fa" stroke-dasharray="8 6"/>
-  <text class="bt blue" x="68" y="612">Gemini API</text>
-  <text class="mono" x="68" y="632">gemini-3.6-flash, Google AI Studio</text>
-  <text class="b" x="68" y="654">One photo in, a closed label and a box out.</text>
-  <text class="b" x="68" y="671">Thinking off: classification, not reasoning.</text>
+  <line x1="600" y1="588" x2="600" y2="632" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowblue)"/>
+  <rect x="48" y="634" width="356" height="96" rx="12" fill="#0f1a2c" stroke="#60a5fa" stroke-dasharray="8 6"/>
+  <text class="bt blue" x="68" y="660">Gemini API</text>
+  <text class="mono" x="68" y="680">gemini-3.6-flash, Google AI Studio</text>
+  <text class="b" x="68" y="702">One photo in, a closed label and a box out.</text>
+  <text class="b" x="68" y="719">Thinking off: classification, not reasoning.</text>
 
-  <rect x="422" y="586" width="356" height="96" rx="12" fill="#0f1a2c" stroke="#60a5fa" stroke-dasharray="8 6"/>
-  <text class="bt blue" x="442" y="612">xAI Grok API</text>
-  <text class="mono" x="442" y="632">grok-4-1-fast-non-reasoning</text>
-  <text class="b" x="442" y="654">A sentence in, the button or answer it meant out.</text>
-  <text class="b" x="442" y="671">Rewords one line for the moment, validated first.</text>
+  <rect x="422" y="634" width="356" height="96" rx="12" fill="#0f1a2c" stroke="#60a5fa" stroke-dasharray="8 6"/>
+  <text class="bt blue" x="442" y="660">xAI Grok API</text>
+  <text class="mono" x="442" y="680">grok-4-1-fast-non-reasoning</text>
+  <text class="b" x="442" y="702">A sentence in, the button or answer it meant out.</text>
+  <text class="b" x="442" y="719">Rewords one line for the moment, validated first.</text>
 
-  <rect x="796" y="586" width="356" height="96" rx="12" fill="#0f1a2c" stroke="#60a5fa" stroke-dasharray="8 6"/>
-  <text class="bt blue" x="816" y="612">ElevenLabs</text>
-  <text class="mono" x="816" y="632">eleven_flash_v2_5, ElevenLabs Agents</text>
-  <text class="b" x="816" y="654">Coach and call-taker voices, cached at launch.</text>
-  <text class="b" x="816" y="671">A live call-taker over WebSocket, PCM16 at 16 kHz.</text>
+  <rect x="796" y="634" width="356" height="96" rx="12" fill="#0f1a2c" stroke="#60a5fa" stroke-dasharray="8 6"/>
+  <text class="bt blue" x="816" y="660">ElevenLabs</text>
+  <text class="mono" x="816" y="680">eleven_flash_v2_5, ElevenLabs Agents</text>
+  <text class="b" x="816" y="702">Coach and call-taker voices, cached at launch.</text>
+  <text class="b" x="816" y="719">A live call-taker over WebSocket, PCM16 at 16 kHz.</text>
 
   <!-- stats -->
-  <text class="stat" x="48" y="722"><tspan class="mint" font-weight="700">347</tspan> tests, under a second   <tspan class="mint" font-weight="700">·</tspan>   <tspan class="mint" font-weight="700">4</tspan> scripts, every medical step cited   <tspan class="mint" font-weight="700">·</tspan>   <tspan class="mint" font-weight="700">0</tspan> network calls in the coaching loop   <tspan class="mint" font-weight="700">·</tspan>   every cloud helper off by default, with a local fallback</text>
+  <text class="stat" x="48" y="770"><tspan class="mint" font-weight="700">347</tspan> tests, under a second   <tspan class="mint" font-weight="700">·</tspan>   <tspan class="mint" font-weight="700">4</tspan> scripts, every medical step cited   <tspan class="mint" font-weight="700">·</tspan>   <tspan class="mint" font-weight="700">0</tspan> network calls in the coaching loop   <tspan class="mint" font-weight="700">·</tspan>   every cloud helper off by default, with a local fallback</text>
   </g>
 </svg>
