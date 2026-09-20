@@ -14,7 +14,10 @@ describe('intentPrompt', () => {
     expect(prompt).toContain('1. Not breathing');
     expect(prompt).toContain('3. Choking');
     expect(prompt).toContain("he won't wake up");
-    expect(prompt).toContain('or 0 if none of them fit');
+    expect(prompt).toContain('or 0 if the sentence is not about any of them');
+    // Two stacked abstention mechanisms made the model answer 0 to the sentences this exists
+    // to catch: the prompt asks only "is it one of these", the parser owns the doubt.
+    expect(prompt).not.toContain('rather than guess');
     expect(INTENT_SYSTEM).toContain('never give advice');
   });
 });

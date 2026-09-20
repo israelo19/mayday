@@ -53,6 +53,11 @@ export const MODEL_PROVIDERS = {
     // 0 to 1000 scale src/ai/assess.ts already reads. gemini-3.5-flash-lite is quicker and
     // weaker; compare them on a real photo with scripts/assess-frame.mjs before the judged run.
     defaultModel: 'gemini-3.6-flash',
+    // Gemini 3.x thinks before it answers and the thinking tokens come out of max_tokens, so
+    // at this app's budgets the reply arrived truncated or empty. Both calls here are
+    // classification against a closed list, not reasoning. Off: 907 ms and 88 tokens for the
+    // intent call instead of 3.4 s and 471, which also stretches a tight free tier much further.
+    body: { reasoning_effort: 'none' },
   },
   featherless: {
     chat: 'https://api.featherless.ai/v1/chat/completions',
@@ -116,6 +121,7 @@ export async function askModel({ provider = DEFAULT_PROVIDER, chat, key, model, 
       model,
       temperature: 0,
       max_tokens: maxTokens,
+      ...(MODEL_PROVIDERS[provider]?.body ?? {}),
       messages: [
         { role: 'system', content: system },
         {

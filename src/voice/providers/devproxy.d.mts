@@ -10,7 +10,7 @@ export type ProviderId = 'gemini' | 'featherless';
 /** The scene-model providers, keyed by id: endpoint, which env vars name the key and model. */
 export const MODEL_PROVIDERS: Record<
   ProviderId,
-  { chat: string; keyEnv: string; modelEnv: string; defaultModel: string }
+  { chat: string; keyEnv: string; modelEnv: string; defaultModel: string; body?: Record<string, unknown> }
 >;
 
 /** The provider used when MODEL_PROVIDER is unset and both keys are present. */

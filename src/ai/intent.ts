@@ -31,7 +31,15 @@ export interface IntentRouter {
 export const INTENT_SYSTEM =
   'You are reading one sentence from a panicking bystander at a medical emergency and deciding which of a fixed list of options it means. You never give advice, instructions or a diagnosis, and you never suggest anything outside the list.';
 
-/** The list is numbered from 1 so that 0, the default of a confused model, means "none". */
+/**
+ * The list is numbered from 1 so that 0, the default of a confused model, means "none".
+ *
+ * Abstaining and being unsure are asked for separately on purpose. An earlier draft said
+ * "pick 0 rather than guess" AND had the parser drop low confidence, and two abstention
+ * mechanisms stacked made Gemini answer 0 to "the poor man went down in the hallway and he is
+ * grey", which is the exact sentence this feature exists to catch. So 0 now means only "not
+ * about any of these", doubt goes in `confidence`, and `parseIntent` is the single gate.
+ */
 export function intentPrompt(transcript: string, options: readonly IntentOption[]): string {
   return [
     'Options:',
@@ -40,9 +48,9 @@ export function intentPrompt(transcript: string, options: readonly IntentOption[
     `The bystander said: "${transcript}"`,
     '',
     'Answer with one JSON object and nothing else, with exactly these keys:',
-    '"choice": the number of the option the sentence means, or 0 if none of them fit or you are unsure.',
-    '"confidence": "low", "medium" or "high".',
-    'Pick 0 rather than guess. No advice, no explanation, no extra keys.',
+    '"choice": the number of the option the sentence is describing, or 0 if the sentence is not about any of them.',
+    '"confidence": "low", "medium" or "high". Use "low" if the sentence could just as easily be another option.',
+    'No advice, no explanation, no extra keys.',
   ].join('\n');
 }
 
@@ -101,7 +109,7 @@ export function createIntentRouter(opts: IntentRouterOptions = {}): IntentRouter
         const res = await doFetch(endpoint, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ system: INTENT_SYSTEM, user: intentPrompt(req.transcript, req.options), maxTokens: 64 }),
+          body: JSON.stringify({ system: INTENT_SYSTEM, user: intentPrompt(req.transcript, req.options), maxTokens: 128 }),
           signal: controller.signal,
         });
         if (!res.ok) return null;

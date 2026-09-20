@@ -552,3 +552,18 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   provider. A blind rename also rewrote the `/vision/assess` route constant, which the tests
   did not catch because nothing tests the proxy. Caught by curling both routes against the real
   upstream with a bad key, which is now the check to run after any edit to devproxy.mjs.
+- **Sat 20:15 (Ricky, `gemini-api` worktree)** Three things a real Gemini key found that no test
+  could. One: gemini-3.x thinks before it answers and the thinking tokens come out of
+  `max_tokens`, so at this app's budgets the reply arrived truncated (`completion_tokens: 3`,
+  `finish_reason: length`) or empty. Both calls here are classification against a closed list,
+  not reasoning, so the gemini row carries `body: { reasoning_effort: 'none' }`, which the
+  request spreads in per provider; Featherless never sees a field it might reject. 907 ms and 88
+  tokens for the intent call, down from 3.4 s and 471. Two: `ASSESS_TIMEOUT_MS` 4 s to 6 s, since
+  one 640 px frame measured 2.7 s on a laptop and a phone on venue wifi gets to be twice that;
+  nothing waits on that call. Three: the intent prompt stacked two abstention mechanisms, "pick 0
+  rather than guess" in the prompt AND the parser dropping low confidence, and Gemini answered 0
+  to "the poor man went down in the hallway and he is grey", the exact sentence the feature
+  exists to catch. Now 0 means only "not about any of these" and doubt goes in `confidence`, so
+  `parseIntent` is the single gate: 4 of 4 on three emergencies plus one genuinely ambiguous
+  sentence. The free tier 429s after roughly six calls a minute, which is the demo's real
+  constraint, not cost; both routes already return null on a 429 and the app carries on.
