@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 740" width="1200" height="740" role="img" aria-label="The Mayday stack. A browser app installed as a PWA. On the device, with no network calls: MediaPipe pose and hand tracking as WebAssembly, signal extraction, a state machine engine running four scripts written as data, a voice queue with a Web Audio metronome and the browser's speech, keyword spotting from the microphone, and an event log that becomes the SITREP, the handoff and a QR. A key proxy on the same origin holds every key. Behind it, Gemini for one photo, xAI Grok for a sentence and a rewording, ElevenLabs for the voices and the live call-taker.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 668" width="1200" height="668" role="img" aria-label="The Mayday stack. A browser app installed as a PWA. On the device, with no network calls: MediaPipe pose and hand tracking as WebAssembly, signal extraction, a state machine engine running four scripts written as data, a voice queue with a Web Audio metronome and the browser's speech, keyword spotting from the microphone, and an event log that becomes the SITREP, the handoff and a QR. A key proxy on the same origin holds every key. Behind it, Gemini for one photo, xAI Grok for a sentence and a rewording, ElevenLabs for the voices and the live call-taker.">
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#9aa3b2"/>
@@ -19,10 +19,8 @@
     .stat { font-size: 14px; fill: #e8eaed; }
     .mint { fill: #34d399; } .red { fill: #ff3b30; } .blue { fill: #60a5fa; } .amber { fill: #fbbf24; } .violet { fill: #c084fc; }
   </style>
-  <rect width="1200" height="740" rx="18" fill="#0b0d10"/>
-
-  <text class="h" x="48" y="56">Under the hood</text>
-  <text class="sub" x="48" y="84">Everything in the coaching loop is browser code. The cloud sits behind a key proxy and a flag, and the app is complete without it.</text>
+  <rect width="1200" height="668" rx="18" fill="#0b0d10"/>
+  <g transform="translate(0,-72)">
 
   <!-- browser band -->
   <rect x="48" y="108" width="1104" height="54" rx="12" fill="#171a21" stroke="#2a2f3a"/>
@@ -121,4 +119,5 @@
 
   <!-- stats -->
   <text class="stat" x="48" y="722"><tspan class="mint" font-weight="700">347</tspan> tests, under a second   <tspan class="mint" font-weight="700">·</tspan>   <tspan class="mint" font-weight="700">4</tspan> scripts, every medical step cited   <tspan class="mint" font-weight="700">·</tspan>   <tspan class="mint" font-weight="700">0</tspan> network calls in the coaching loop   <tspan class="mint" font-weight="700">·</tspan>   every cloud helper off by default, with a local fallback</text>
+  </g>
 </svg>

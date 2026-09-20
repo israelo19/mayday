@@ -33,48 +33,33 @@ start again.
   <img src="docs/images/the-gap.svg" width="100%" alt="Timeline from a collapse to the ambulance: the gap Mayday covers, severe bleeding can kill in five minutes, the median ambulance arrives at seven, thirteen in rural areas">
 </p>
 
-| The gap | Number | Source |
-|---|---|---|
-| Cardiac arrests outside a hospital in the US each year | more than 350,000, and under 10% survive | [American Heart Association](https://cpr.heart.org/en/resources/cpr-facts-and-stats) |
-| What CPR from a bystander does to survival | doubles or triples it | [American Heart Association](https://cpr.heart.org/en/resources/cpr-facts-and-stats) |
-| Victims who get CPR from a bystander before help arrives | about 40% | [American Heart Association](https://cpr.heart.org/en/resources/cpr-facts-and-stats) |
-| Time from the 911 call to the ambulance on scene | 7 minutes in the middle, 13 in rural areas | [JAMA Surgery, 2017](https://jamanetwork.com/journals/jamasurgery/fullarticle/2643992) |
-| How fast severe bleeding can kill | as little as 5 minutes | [American College of Surgeons, Stop the Bleed](https://www.facs.org/media-center/press-releases/2025/may-is-national-stop-the-bleed-month-learn-how-to-save-a-life-with-three-simple-actions/) |
+Sources: [American Heart Association](https://cpr.heart.org/en/resources/cpr-facts-and-stats),
+[JAMA Surgery, 2017](https://jamanetwork.com/journals/jamasurgery/fullarticle/2643992),
+[American College of Surgeons, Stop the Bleed](https://www.facs.org/media-center/press-releases/2025/may-is-national-stop-the-bleed-month-learn-how-to-save-a-life-with-three-simple-actions/).
 
 The knowledge that closes this gap is public and free: the American Heart Association's
 hands-only CPR, the American College of Surgeons' Stop the Bleed, the Red Cross choking steps.
 What does not exist is a way to put it in a frightened stranger's hands in the minutes that
-matter, with no training, no account, no signal, and someone watching whether they are doing it
-right. Video from the caller's phone to a dispatcher has been shown to change the assessment in
-half of real calls ([BMC Emergency Medicine, 2021](https://link.springer.com/article/10.1186/s12873-021-00493-5)),
+matter, with someone watching whether they are doing it right. Video from the caller's phone to
+a dispatcher changes the assessment in half of real calls ([BMC Emergency Medicine, 2021](https://link.springer.com/article/10.1186/s12873-021-00493-5)),
 and an AI coach has out-performed dispatchers over audio ([JAMA Internal Medicine, 2026](https://today.ucsd.edu/story/ai-powered-cpr-coach-outperforms-911-dispatchers-in-guiding-bystander-resuscitation)).
 Mayday puts the eyes on the phone itself.
 
-This is a philanthropy problem before it is a technology problem. It falls hardest on the people
-with the least: no training, no equipment, an ambulance thirteen minutes away.
-
-## ❤️ Why we built it
+## ❤️ Why this is philanthropy
 
 In most emergencies the first responder is whoever happens to be there, and they want to help.
-Mayday gives them a way. It is already in their pocket, needs no account, no app store and no
-signal, and turns the first minutes from waiting into care. It puts CALL 911 on the screen from
-the first second and hands the caller a running situation report to read out, so the dispatcher
-hears where, what and how long instead of panic. It teaches the real guideline every time it is
-used, and it is open source, so any community can add the emergency it faces most. That is the
-philanthropy: not replacing the ambulance, but making sure someone is doing the right thing
-until it arrives.
+Mayday gives them a way, and it gives it to everyone: it costs nothing, runs on any phone with a
+browser, and keeps coaching where there is no signal, which is where the ambulance takes
+longest. It turns the first minutes from waiting into care, keeps the dispatcher fed with facts
+instead of panic, and teaches the real guideline every time it is used. It is open source under
+Apache 2.0, so a community can add the emergency it faces most by adding one file. It does not
+replace the ambulance. It makes sure someone is doing the right thing until it arrives.
 
 ## 💡 What a session looks like
 
 <p align="center">
   <img src="docs/images/session-flow.svg" width="100%" alt="A session in seven steps: tap I NEED HELP, say what happened, follow the beat, get corrected, keep going when the camera is covered, call 911 with the SITREP, hand off a timeline">
 </p>
-
-One tap starts it. Say what is happening, or tap the matching button; a panicked sentence the
-app does not recognize becomes a "Sounds like Not breathing?" question. Then big text, a
-picture for every step, a beat at 110 a minute, and corrections within a second read from your
-shoulders. Cover the lens and it says so and keeps coaching by voice. Press CALL 911 and it
-tells you what to say. When the ambulance arrives, it hands over a timeline and a QR code.
 
 Bleeding runs on its own script: are you safe first, with no timer, then a circle locked around
 the wound where your hands settle, and "Don't let go!" within about two seconds of both hands
@@ -88,19 +73,9 @@ leaving it.
   <img src="docs/images/how-mayday-works.svg" width="100%" alt="How Mayday works: the Eyes see the scene and the helper, the Ears hear what you say, the Brain interprets both and picks the next line from the guideline script, the Voice speaks and keeps the beat; you answer with taps and voice; Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge">
 </p>
 
-Four parts on the phone do the work.
-
-- **Eyes.** Box every person in view, read who is lying still, and send one photo to a vision
-  model at the start to size up the emergency. Then watch the helper's hands and shoulders while
-  they work.
-- **Ears.** Hear what the bystander says, in their own panicked words, and turn it into the
-  answer the script needs.
-- **Brain.** Take what the Eyes and Ears report and decide what to say next, from a script
-  written line by line from the published guideline. It interprets; it never invents.
-- **Voice.** Speak the step, keep the beat, and correct within a second.
-
-The cloud helpers, a vision model, a text model and human voices, make each part better when
-the network is there. None is ever in charge.
+The camera and microphone feed the Eyes and Ears, the Brain decides from the script, the Voice
+speaks only what the Brain hands it. The cloud helpers make each part better when the network
+is there, and none is ever in charge.
 
 ## 🧭 Why you can trust it
 
@@ -115,21 +90,15 @@ is enforced by a test a judge can open.
 | **Fail loud, never wrong** | When the camera cannot see well, the numbers go blank, the app says so, and coaching continues by voice. Unwatched time is reported as unmeasured, never as a pause. | While blind, only lines marked safe may play. Unmeasured time is a named field in the report. |
 | **A human dials 911** | The app never places a call. The call-taker in the demo is simulated, and the launch screen says so once. | A test fails on any phone-dialing code, requires the disclosure on the launch screen, and forbids the word "simulated" on the call itself. |
 
-The numbers behind that: 347 tests, four scripts with every medical step citing a live
-guideline page, an engine of 279 lines with no dependencies, and zero network calls in the
-coaching loop.
-
-Each emergency is one script file: the steps in order, the exact words for each, the beat, the
-correction rules, and which answer leads where, with the guideline page each step came from.
-The engine knows nothing about any particular emergency, so a new one is a new file, and the
-build fails on a step with no citation. All four scripts are drawn from their data in
-[docs/protocol-diagrams.md](docs/protocol-diagrams.md).
+Behind that: 347 tests, four scripts with every medical step citing a live guideline page, an
+engine of 279 lines with no dependencies, and zero network calls in the coaching loop. The
+scripts are drawn from their data in [docs/protocol-diagrams.md](docs/protocol-diagrams.md).
 
 ## 👀 What the camera measures
 
-Google's MediaPipe pose and hand tracking runs inside the browser, models included in the app,
-so no video ever leaves the phone. It boxes everyone in view to read the scene, and during
-coaching it watches the helper's hands and shoulders, which is where the corrections come from.
+Pose and hand tracking run inside the browser, models included in the app, so no video ever
+leaves the phone. It boxes everyone in view to read the scene, and during coaching it watches
+the helper's hands and shoulders, which is where the corrections come from.
 
 | It measures | How | Which becomes |
 |---|---|---|
@@ -140,29 +109,13 @@ coaching it watches the helper's hands and shoulders, which is where the correct
 | Confidence | whether the shoulders are visible enough to trust | the "I can't see you clearly" line, and the beat continues |
 | The scene | a box around each person, their posture and stillness, and one photo to a vision model at the start | "Looks like Collapsed?", a question |
 
-## 🗣️ How it talks and listens
-
-One voice, three levels of urgency: a critical line interrupts, a correction replaces an older
-version of itself, instructions wait their turn and are never dropped. The beat runs on the
-audio clock so a busy camera cannot make it stutter. Listening is keyword spotting only, the
-answers the current step accepts, and every keyword also has a button. The default voice is the
-browser's own, which needs no key and no network. Every line has a hand-drawn picture; browse
-them at `?guide=1`.
-
 ## 🚑 The handoff
 
 <p align="center">
   <img src="docs/images/handoff.svg" width="100%" alt="The handoff: one log of every event feeds the lines read to the 911 dispatcher while the call is open, and the paramedic's headline numbers, timeline and QR code when the ambulance arrives">
 </p>
 
-Everything the session hears, sees and says goes into one log: what was said, which step began
-when, the rate, every pause, every second the camera could not see. Two reports are folded out
-of it. While the 911 call is open, the situation report is rebuilt every second as lines to
-read aloud, in the order a dispatcher asks: where, what, how long, when CPR started, the
-average rate, the longest pause. When the ambulance arrives, the handoff screen gives the
-paramedic the headline numbers, the timeline, and a QR code that carries the report itself,
-not a link, so it scans with no signal. Time the camera could not see is printed as not
-measured, never as a pause.
+The QR carries the report itself, not a link, so it scans with no signal.
 
 ## 🧰 Under the hood
 
@@ -170,21 +123,17 @@ measured, never as a pause.
   <img src="docs/images/tech-stack.svg" width="100%" alt="The Mayday stack: a PWA in the browser; on the device with no network calls, MediaPipe pose and hand tracking as WebAssembly, signal extraction, a state machine engine running four scripts as data, a voice queue with a Web Audio metronome, keyword spotting, and an event log that becomes the SITREP and the handoff; a key proxy on the same origin; behind it Gemini, xAI Grok and ElevenLabs">
 </p>
 
-Everything in the coaching loop is browser code: pose and hand tracking as WebAssembly, signal
-extraction, a hand-rolled state machine engine that runs four scripts written as data, a voice
-queue with a metronome on the audio clock, and the browser's own speech in and out. It installs
-as a PWA and caches its models, so it opens with wifi off. The cloud sits behind a small key
-proxy on the same origin and behind a flag: Gemini for the photo, Grok for a sentence and a
-rewording, ElevenLabs for the voices and the live call-taker. Keys never reach the browser, and
-a test fails the build if a network call appears inside the loop.
+## 🏆 Tracks and challenges
 
-## 🤝 Sponsor challenges
+**Most Philanthropic Hack.** The whole product: free, offline, open source, teaching a published
+guideline to whoever is standing there, and built so the people furthest from an ambulance get
+the most from it. The section above on why this is philanthropy is the case.
 
 **Best Use of Gemini API.** About a second into a session, one photo goes to Gemini with a strict
-question: collapse, bleeding, choking, or unclear. The answer becomes a spoken question, "It
-looks like someone is bleeding badly. Say yes, or tap.", and nothing moves until the person says
-yes. When they say something the app has no phrase for, Gemini picks which on-screen button they
-meant, so it can suggest but never invent a step.
+question: collapse, bleeding, choking, or unclear, with a box around the patient. The answer
+becomes a spoken question, "It looks like someone is bleeding badly. Say yes, or tap.", and
+nothing moves until the person says yes. The label is a closed list, so Gemini can suggest but
+never invent a step.
 
 **Best Use of ElevenLabs, Best Project Built with ElevenLabs.** The coach speaks as Brian, a low,
 calm voice, with every line cached at launch so it keeps playing with wifi off. The 911
@@ -199,8 +148,8 @@ at once. And it rewords a line for the moment, so a repeated "Faster. Push with 
 with what you said and what the camera measured. Every rewording is checked against the step's
 required words before it is spoken, or the line plays as written.
 
-All three are off by default, keep their keys on the server, and fall back to the phone's own
-voice, ears and cues, so the app is complete without them.
+All three services are off by default, keep their keys on the server, and fall back to the
+phone's own voice, ears and cues, so the app is complete without them.
 
 ## 🚀 Run it
 
@@ -224,10 +173,10 @@ npm run dev
 | `?guide=1` | every step picture, no camera needed |
 | `?flag=elevenLabs,dispatcherSim,sceneAssess,intentRoute,narrationFlavor` | the cloud helpers, any subset |
 
-Keys go in `.env.local`, copied from `.env.example`: `GEMINI_API_KEY` for the photo and the
-sentence matching, `XAI_API_KEY` for Grok on the text routes, `ELEVENLABS_API_KEY` for the
-voices, `ELEVENLABS_AGENT_ID` for the live call-taker. They never reach the browser. The phone notes, the walkthrough for each switch and
-the checks the team walks before a judged run are in
+Keys go in `.env.local`, copied from `.env.example`: `GEMINI_API_KEY` for the photo,
+`XAI_API_KEY` for Grok on the text routes, `ELEVENLABS_API_KEY` for the voices,
+`ELEVENLABS_AGENT_ID` for the live call-taker. They never reach the browser. The phone notes,
+the walkthrough for each switch and the checks the team walks before a judged run are in
 [docs/12-run-and-check.md](docs/12-run-and-check.md).
 
 ## 🗂️ Repo layout
@@ -240,7 +189,7 @@ mayday/
 │   │   └── machines/        one data file per emergency: triage, cardiac, bleeding, choking
 │   ├── voice/               speaking (queue, metronome) and listening (keyword spotting) (docs/04, docs/09)
 │   │   └── providers/       the one place a network call is allowed: ElevenLabs voice and agent, the key proxy
-│   ├── ai/                  the cloud helpers behind interfaces: scene photo, sentence matching (docs/04, docs/11)
+│   ├── ai/                  the cloud helpers behind interfaces: scene photo, sentence matching, rewording (docs/04, docs/11)
 │   └── sitrep/              the event log, the SITREP, the paramedic handoff
 ├── web/                     the browser app
 │   ├── session.ts           the orchestrator: where camera, engine, voice and log meet (docs/10)

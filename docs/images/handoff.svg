@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" width="1200" height="480" role="img" aria-label="The handoff. Everything the session hears, sees and says goes into one log. While the 911 call is open, the log becomes lines to read to the dispatcher. When the ambulance arrives, the same log becomes the paramedic's headline numbers, a timeline, and a QR code that carries the report itself.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 404" width="1200" height="404" role="img" aria-label="The handoff. Everything the session hears, sees and says goes into one log. While the 911 call is open, the log becomes lines to read to the dispatcher. When the ambulance arrives, the same log becomes the paramedic's headline numbers, a timeline, and a QR code that carries the report itself.">
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#9aa3b2"/>
@@ -18,10 +18,8 @@
     .foot { font-size: 14px; fill: #9aa3b2; }
     .mint { fill: #34d399; } .red { fill: #ff3b30; } .blue { fill: #60a5fa; } .amber { fill: #fbbf24; }
   </style>
-  <rect width="1200" height="480" rx="18" fill="#0b0d10"/>
-
-  <text class="h" x="48" y="56">The handoff</text>
-  <text class="sub" x="48" y="84">One log of everything the session heard, saw and said. Two reports are folded out of it, and both can only claim what was recorded.</text>
+  <rect width="1200" height="404" rx="18" fill="#0b0d10"/>
+  <g transform="translate(0,-76)">
 
   <!-- THE LOG -->
   <rect x="48" y="112" width="330" height="300" rx="14" fill="#171a21" stroke="#2a2f3a"/>
@@ -80,4 +78,5 @@
   <text class="note" x="842" y="390">below it on the screen.</text>
 
   <text class="foot" x="48" y="456">Time the camera could not see is printed as "not measured", never as a pause. The report never claims more than the log recorded.</text>
+  </g>
 </svg>

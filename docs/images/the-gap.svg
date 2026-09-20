@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" width="1200" height="520" role="img" aria-label="Timeline from a collapse to the ambulance. The gap Mayday covers runs from minute zero to the median ambulance arrival at seven minutes. Severe bleeding can kill in five. Rural ambulances take thirteen.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 416" width="1200" height="416" role="img" aria-label="Timeline from a collapse to the ambulance. The gap Mayday covers runs from minute zero to the median ambulance arrival at seven minutes. Severe bleeding can kill in five. Rural ambulances take thirteen.">
   <style>
     text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #e8eaed; }
     .h { font-size: 30px; font-weight: 700; }
@@ -14,10 +14,8 @@
     .src { font-size: 12px; fill: #6b7280; }
     .red { fill: #ff3b30; } .amber { fill: #fbbf24; } .blue { fill: #60a5fa; } .mint { fill: #34d399; }
   </style>
-  <rect width="1200" height="520" rx="18" fill="#0b0d10"/>
-
-  <text class="h" x="48" y="58">The minutes before the ambulance</text>
-  <text class="sub" x="48" y="86">What happens between a collapse and the first paramedic on scene, in a typical US emergency.</text>
+  <rect width="1200" height="416" rx="18" fill="#0b0d10"/>
+  <g transform="translate(0,-104)">
 
   <!-- the gap band: minute 0 to minute 7 -->
   <rect x="80" y="140" width="518" height="128" rx="10" fill="#ff3b30" fill-opacity="0.13" stroke="#ff3b30" stroke-opacity="0.45"/>
@@ -85,4 +83,5 @@
   </g>
 
   <text class="src" x="1152" y="510" text-anchor="end">Sources: American Heart Association CPR facts; JAMA Surgery 2017; American College of Surgeons, Stop the Bleed</text>
+  </g>
 </svg>

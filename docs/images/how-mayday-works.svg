@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 736" width="1200" height="736" role="img" aria-label="How Mayday works. The phone's camera feeds the Eyes, which box every person in view, read who is lying still, send one photo to a vision model, and then watch the helper's hands and shoulders. The microphone feeds the Ears, which hear what the bystander says. The Brain interprets both and picks the next line from the guideline script. The Voice speaks each line and keeps the beat. You answer by tapping or speaking. Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge. When paramedics arrive, the phone shows a timeline.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 654" width="1200" height="654" role="img" aria-label="How Mayday works. The phone's camera feeds the Eyes, which box every person in view, read who is lying still, send one photo to a vision model, and then watch the helper's hands and shoulders. The microphone feeds the Ears, which hear what the bystander says. The Brain interprets both and picks the next line from the guideline script. The Voice speaks each line and keeps the beat. You answer by tapping or speaking. Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge. When paramedics arrive, the phone shows a timeline.">
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#9aa3b2"/>
@@ -19,10 +19,8 @@
     .cloud { font-size: 16px; fill: #cfe3ff; }
     .mint { fill: #34d399; } .red { fill: #ff3b30; } .blue { fill: #60a5fa; } .amber { fill: #fbbf24; } .violet { fill: #c084fc; }
   </style>
-  <rect width="1200" height="736" rx="18" fill="#0b0d10"/>
-
-  <text class="h" x="48" y="56">How Mayday works, in one picture</text>
-  <text class="sub" x="48" y="84">Four parts on the phone do the work. Cloud helpers make them better when the network is there. None is ever in charge.</text>
+  <rect width="1200" height="654" rx="18" fill="#0b0d10"/>
+  <g transform="translate(0,-82)">
 
   <!-- the phone -->
   <rect x="48" y="118" width="176" height="324" rx="26" fill="#171a21" stroke="#2a2f3a" stroke-width="2"/>
@@ -133,4 +131,5 @@
   <text class="note" x="136" y="696" text-anchor="middle">got the same facts.</text>
 
   <text class="note" x="1152" y="726" text-anchor="end">Wifi off? Eyes, Brain and Voice keep working, and every voice command has a button.</text>
+  </g>
 </svg>
