@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="1200" height="660" role="img" aria-label="How Mayday works. The phone's camera and microphone feed the Eyes and the ears. The Brain follows the published first-aid script. The Voice speaks each line and keeps the beat. You answer by tapping or speaking. Gemini and ElevenLabs are optional cloud helpers that are never in charge. When paramedics arrive, the phone shows a timeline.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="1200" height="660" role="img" aria-label="How Mayday works. The phone's camera and microphone feed the Eyes and the ears. The Brain follows the published first-aid script. The Voice speaks each line and keeps the beat. You answer by tapping or speaking. Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge. When paramedics arrive, the phone shows a timeline.">
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#9aa3b2"/>
@@ -22,7 +22,7 @@
   <rect width="1200" height="660" rx="18" fill="#0b0d10"/>
 
   <text class="h" x="48" y="56">How Mayday works, in one picture</text>
-  <text class="sub" x="48" y="84">Three parts on the phone do the work. Two cloud helpers make it better when the network is there. Neither is ever in charge.</text>
+  <text class="sub" x="48" y="84">Three parts on the phone do the work. Cloud helpers make it better when the network is there. None is ever in charge.</text>
 
   <!-- the phone -->
   <rect x="48" y="118" width="176" height="300" rx="26" fill="#171a21" stroke="#2a2f3a" stroke-width="2"/>
@@ -96,15 +96,21 @@
   <text class="lbl" x="726" y="380">answers</text>
 
   <!-- cloud helpers -->
-  <rect x="266" y="496" width="886" height="132" rx="16" fill="#0f1a2c" stroke="#60a5fa" stroke-width="2" stroke-dasharray="8 6"/>
-  <text class="title blue" x="292" y="528" font-size="18">CLOUD HELPERS</text>
-  <text class="note" x="292" y="552">Optional. Off by default. Never in charge. Mayday is complete without them.</text>
-  <text class="cloud" x="292" y="582"><tspan font-weight="700">Gemini API</tspan>  looks at one photo, once, and asks a question:</text>
-  <text class="cloud" x="292" y="606">"It looks like someone is bleeding badly. Say yes, or tap."</text>
-  <text class="cloud" x="740" y="582"><tspan font-weight="700">ElevenLabs</tspan>  gives the coach a calm human voice</text>
-  <text class="cloud" x="740" y="606">and plays the 911 call-taker in the demo.</text>
+  <rect x="266" y="496" width="886" height="140" rx="16" fill="#0f1a2c" stroke="#60a5fa" stroke-width="2" stroke-dasharray="8 6"/>
+  <text class="title blue" x="292" y="526" font-size="18">CLOUD HELPERS</text>
+  <text class="note" x="292" y="548">Optional. Off by default. Never in charge. Mayday is complete without them.</text>
+  <text class="cloud" x="292" y="576"><tspan font-weight="700">Gemini API</tspan></text>
+  <text class="cloud" x="292" y="598">looks at one photo, once,</text>
+  <text class="cloud" x="292" y="618">and asks you a question.</text>
+  <text class="cloud" x="592" y="576"><tspan font-weight="700">ElevenLabs</tspan></text>
+  <text class="cloud" x="592" y="598">a calm human voice for the coach,</text>
+  <text class="cloud" x="592" y="618">and the 911 call-taker.</text>
+  <text class="cloud" x="892" y="576"><tspan font-weight="700">Grok API</tspan></text>
+  <text class="cloud" x="892" y="598">processes what you say into</text>
+  <text class="cloud" x="892" y="618">words the app can act on.</text>
   <!-- dotted arrows from cloud up to the loop -->
   <line x1="402" y1="494" x2="402" y2="470" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowdim)"/>
+  <line x1="714" y1="494" x2="714" y2="470" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowdim)"/>
   <line x1="1020" y1="494" x2="1020" y2="470" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowdim)"/>
 
   <!-- handoff -->
@@ -121,5 +127,5 @@
   <text class="note" x="136" y="596" text-anchor="middle">a timeline of what</text>
   <text class="note" x="136" y="616" text-anchor="middle">happened, and a QR.</text>
 
-  <text class="note" x="1152" y="650" text-anchor="end">Wifi off? Eyes, Brain and Voice keep working.</text>
+  <text class="note" x="1152" y="654" text-anchor="end">Wifi off? Eyes, Brain and Voice keep working.</text>
 </svg>

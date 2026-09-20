@@ -1,8 +1,7 @@
-<p align="center">
-  <img src="public/icon.svg" width="88" alt="Mayday icon, a red cross on black">
-</p>
-
-<h1 align="center">Mayday</h1>
+<h1 align="center">
+  <img src="public/icon.svg" width="44" alt="Mayday icon, a red cross on black">
+  Mayday
+</h1>
 
 <p align="center"><strong>The minutes before the ambulance, coached.</strong></p>
 
@@ -13,7 +12,7 @@
 </p>
 
 > Built at HopHacks 2026, Johns Hopkins, September 18 to 20, for the Most Philanthropic Hack
-> track, with the Gemini API and ElevenLabs sponsor challenges.
+> track, with the Gemini API, ElevenLabs and SpaceXAI sponsor challenges.
 
 Mayday turns a phone into a first-aid coach that can see. When someone collapses or is bleeding
 badly, a bystander with no training opens it, says what is happening, props the phone up, and
@@ -81,7 +80,7 @@ leaving it.
 ## 🏗️ How it works
 
 <p align="center">
-  <img src="docs/images/how-it-works.svg" width="100%" alt="How Mayday works: the phone's camera feeds the Eyes, the Brain follows the published first-aid script, the Voice speaks and keeps the beat; you answer with taps and voice; Gemini and ElevenLabs are optional cloud helpers that are never in charge">
+  <img src="docs/images/how-it-works.svg" width="100%" alt="How Mayday works: the phone's camera feeds the Eyes, the Brain follows the published first-aid script, the Voice speaks and keeps the beat; you answer with taps and voice; Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge">
 </p>
 
 Facts flow one way. The Eyes report measurements, never advice. The Brain turns measurements
@@ -106,44 +105,21 @@ The numbers behind that: 326 tests, four scripts with every medical step citing 
 guideline page, an engine of 279 lines with no dependencies, and zero network calls in the
 coaching loop.
 
-## 📜 The protocols are data, not code
+## 📜 Where every step comes from
 
-Each emergency is one file under `src/protocol/machines`: the steps, the exact words for each,
-the beat, the correction rules, and which answer leads where. The engine knows nothing about any
-particular emergency, so adding one is adding a file with its guideline page. Untrained
-bystanders get hands-only CPR, no rescue breaths, as the AHA teaches. Scene safety in the
-bleeding script has no timeout; only the human can say it is safe.
+Each emergency is one script file: the steps in order, the exact words to say for each, the
+beat, the correction rules, and which answer leads where. Every medical step cites the guideline
+page it was transcribed from, and the build fails if one does not. The engine that walks the
+script knows nothing about any particular emergency, so a new emergency is a new file, not new
+code.
 
-```mermaid
-stateDiagram-v2
-    [*] --> cardiac_scene_check
-    cardiac_scene_check: scene_check
-    cardiac_scene_check --> cardiac_check_breathing: "no response" (+7 more)
-    cardiac_scene_check --> cardiac_check_breathing: NEXT
-    cardiac_check_breathing: check_breathing
-    cardiac_check_breathing --> cardiac_call_911: "not breathing" (+8 more)
-    cardiac_check_breathing --> cardiac_recovery_hold: "he's breathing" (+5 more)
-    cardiac_check_breathing --> cardiac_call_911: NEXT
-    cardiac_call_911: call_911
-    cardiac_call_911 --> cardiac_position: after 8s
-    cardiac_call_911 --> cardiac_position: NEXT
-    cardiac_position: position
-    cardiac_position --> cardiac_compressions: Started compressions (measured)
-    cardiac_position --> cardiac_compressions: NEXT
-    cardiac_compressions: compressions (110 bpm)
-    cardiac_compressions --> cardiac_handoff: "ambulance here" (+5 more)
-    cardiac_compressions --> cardiac_handoff: NEXT
-    cardiac_recovery_hold: recovery_hold
-    cardiac_recovery_hold --> cardiac_call_911: "not breathing"
-    cardiac_recovery_hold --> cardiac_handoff: "ambulance here" (+4 more)
-    cardiac_recovery_hold --> cardiac_handoff: NEXT
-    cardiac_handoff: handoff
-    cardiac_handoff --> [*]
-```
+<p align="center">
+  <img src="docs/images/cardiac-script.svg" width="100%" alt="The cardiac arrest script in six steps, each with its spoken line and what you say to move on: check the scene, check breathing, call 911, get in position, push to the beat, hand off. A side branch holds if the person is breathing.">
+</p>
 
-The cardiac arrest script, drawn from its data file by `npm run diagrams`. Every arrow is
-something the person can say, and every NEXT is a button on the screen. All four scripts are in
-[docs/protocol-diagrams.md](docs/protocol-diagrams.md).
+Every "you say" is also a button, and NEXT always moves on, so the whole script can be driven by
+tapping. Untrained bystanders get hands-only CPR, no rescue breaths, as the AHA teaches. The
+bleeding and choking scripts have the same shape.
 
 ## 👀 What the camera measures
 
@@ -182,8 +158,12 @@ call-taker speaks as Sarah, a clearly different person, and with the live agent 
 is a real-time ElevenLabs Agents conversation that hears the phone's mic and is forbidden from
 giving medical advice.
 
-Both are off by default, keep their keys on the server, and fall back to the phone's own
-voice and cues, so the app is complete without them.
+**Make it Legendary, SpaceXAI.** The Grok API takes the audio. What the bystander says into the
+phone's microphone goes through Grok, so a panicked, rambling sentence reaches the app as words
+it can act on. Landing now on a teammate's branch.
+
+All three are off by default, keep their keys on the server, and fall back to the phone's own
+voice, ears and cues, so the app is complete without them.
 
 ## 🚀 Run it
 
