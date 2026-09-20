@@ -52,6 +52,8 @@ async function waitForMetadata(video: HTMLVideoElement): Promise<void> {
 export async function openCamera(
   video: HTMLVideoElement,
   prefer: 'environment' | 'user' = 'environment',
+  /** Fires the moment a stream is granted, so the caller can stop saying "waiting for permission". */
+  onGranted?: () => void,
 ): Promise<CameraHandle> {
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error('Camera API unavailable. Open the app over HTTPS (or localhost).');
@@ -74,6 +76,7 @@ export async function openCamera(
     }
   }
   if (!stream) throw lastErr instanceof Error ? lastErr : new Error('Camera unavailable');
+  onGranted?.();
 
   const track = stream.getVideoTracks()[0];
   const settings = track?.getSettings() ?? {};
