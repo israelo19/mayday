@@ -62,3 +62,17 @@ describe('narration validator', () => {
     }
   });
 });
+
+describe('numbers a rewording may use', () => {
+  const nag = 'Faster. Push with the beat.';
+
+  it('allows a measurement the caller put in front of the model, and nothing else', () => {
+    expect(validateNarration('You are at 80. Faster. Push with the beat.', nag, compressions, [80]).ok).toBe(true);
+    const invented = validateNarration('You are at 80. Faster. Push with the beat.', nag, compressions, []);
+    expect(invented.ok).toBe(false);
+    expect(invented.text).toBe(nag);
+    expect(invented.reason).toContain('introduced the number 80');
+    // Without the list the old contract stands: only the line's own numbers are checked.
+    expect(validateNarration('You are at 80. Faster. Push with the beat.', nag, compressions).ok).toBe(true);
+  });
+});

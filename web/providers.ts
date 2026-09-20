@@ -6,6 +6,7 @@
 import { createSceneAssessor, createStubSceneAssessor, type SceneAssessor } from '../src/ai/assess';
 import { createIntentRouter, createStubIntentRouter, type IntentRouter } from '../src/ai/intent';
 import type { DispatcherSim } from '../src/ai/dispatcher';
+import { ModelNarrationFlavor, type NarrationFlavor } from '../src/ai';
 import { flags } from '../src/flags';
 import type { SceneLabel } from '../src/types';
 import { WebSpeechProvider, type SpeakerProvider } from '../src/voice/out';
@@ -66,4 +67,9 @@ export function createRouter(fake: boolean): IntentRouter | undefined {
 /** Warm the ElevenLabs cache with every line the machines can say, so replays are free and offline (docs/09). */
 export function warmSpeaker(speaker: SpeakerProvider, lines: readonly string[]): void {
   if (speaker instanceof ElevenLabsProvider) void speaker.warm(lines);
+}
+
+/** Rewording of canonical lines behind its flag; absent, every line speaks as written (docs/04 item 5). */
+export function createFlavor(): NarrationFlavor | undefined {
+  return flags.narrationFlavor ? new ModelNarrationFlavor() : undefined;
 }

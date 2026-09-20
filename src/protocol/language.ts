@@ -6,6 +6,8 @@
 //   - apostrophes ignored ("hes not breathing", "cant breathe");
 //   - word-bounded phrase matching, longest phrase first, so 'no' never wins over
 //     'no response' and 'shot' never fires inside 'shotgun';
+//   - up to two filler words inside a phrase ("the ambulance IS here" is 'ambulance here'),
+//     except in phrases that start with a negation, and never across a negation;
 //   - a keyword that is not itself a negation is skipped when the word before it is
 //     no/not/never/can't/don't, so "it's not safe" does not mean safe.
 // Pure and tested in tests/language.test.ts. Owned by P2 (docs/07); built on `polish`.
@@ -97,17 +99,42 @@ export function sameWord(a: string, b: string): boolean {
  * so "can't" and "don't" arrive as "cant" / "dont". A keyword that itself starts with one
  * of these ("not breathing", "can't cough") is not flipped: the negation is the keyword.
  */
-const NEGATION = new Set(['no', 'not', 'never', 'cant', 'cannot', 'dont', 'isnt', 'aint']);
+const NEGATION = new Set(['no', 'not', 'never', 'cant', 'cannot', 'dont', 'doesnt', 'didnt', 'isnt', 'wont', 'couldnt', 'aint']);
 
-/** True when `phrase` occurs in `text` as consecutive whole words (both already tokenized). */
+/**
+ * Filler words a speaker drops inside a phrase: "the ambulance IS here" must still be
+ * 'ambulance here'. Only this many, only between the phrase's words, and never a negation
+ * ("the ambulance is not here" stays unmatched). Phrases that START with a negation get no
+ * slack at all: with a gap, "no, there's a pulse" would read as 'no pulse' and mean the
+ * exact opposite of what was said.
+ */
+const MAX_GAP = 2;
+
+/** True when `phrase` occurs in `text` as whole words in order (both already tokenized). */
 export function containsTokens(text: readonly string[], phrase: readonly string[]): boolean {
   if (phrase.length === 0 || phrase.length > text.length) return false;
+  const gap = NEGATION.has(phrase[0]) ? 0 : MAX_GAP;
   outer: for (let i = 0; i + phrase.length <= text.length; i++) {
-    for (let j = 0; j < phrase.length; j++) if (!sameWord(text[i + j], phrase[j])) continue outer;
+    if (!sameWord(text[i], phrase[0])) continue;
+    let at = i;
+    for (let j = 1; j < phrase.length; j++) {
+      const found = nextWithin(text, at + 1, phrase[j], gap);
+      if (found < 0) continue outer;
+      at = found;
+    }
     if (negatedAt(text, i, phrase)) continue;
     return true;
   }
   return false;
+}
+
+/** Index of `word` at `from`..`from+gap` in `text`, or -1; a negation in the gap aborts. */
+function nextWithin(text: readonly string[], from: number, word: string, gap: number): number {
+  for (let k = from; k <= from + gap && k < text.length; k++) {
+    if (sameWord(text[k], word)) return k;
+    if (NEGATION.has(text[k])) return -1;
+  }
+  return -1;
 }
 
 function negatedAt(text: readonly string[], start: number, phrase: readonly string[]): boolean {

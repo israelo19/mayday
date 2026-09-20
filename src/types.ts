@@ -171,7 +171,10 @@ export type Transition = {
 
 /** A keyword the machine answers without changing state, e.g. 'tourniquet' (docs/02). */
 export type KeywordResponse = {
+  /** The phrase that earns the answer on its own; the linter refuses one a step already owns. */
   keyword: string;
+  /** The question this answers, as a person would ask it: what the intent model is shown (docs/04 item 8). */
+  label: string;
   say: string;
   priority: CoachingPriority;
   source: string;

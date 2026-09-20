@@ -489,6 +489,21 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   `/__trace` sink in vite.config.ts, `micTrace` on the session) posts every recognizer event, mic
   status, transcript, speaking state and JS error from a phone to the dev server log, because a
   phone has no console the laptop can read.
+- **Sat 07:45 (Emmanuel, `voice_response_processing`)** Two answers to "some words get
+  processed, others don't". (1) The matcher now lets up to TWO filler words sit inside a
+  phrase ("the ambulance IS here" is 'ambulance here'), because that was the actual miss
+  pattern from the demo. Two, not more: at three ("no, there's a pulse" → 'no pulse' is a
+  three-word gap) the false fires start, so phrases that START with a negation get no slack
+  at all and a negation inside the gap kills the match. (2) Speech that still matches
+  nothing may go to a text model under a contract that keeps principle 1 whole: the model
+  sees a numbered list of what the current state can do and may only answer a number; a hit
+  becomes the same confirm-gated suggestion the triage cues produce, so the engine still
+  moves only on a human yes, on a keyword the machine already accepts. The model's words are
+  never spoken and never routed. This branch first built that as its own Grok matcher; the
+  19:40 entry is the same design built in parallel on `main`, and the 21:55 entry is the
+  fold-in. We considered letting the model WRITE responses and did not: validate.ts can
+  prove a paraphrase keeps required words, but cannot cheaply prove free prose contains no
+  instruction, and an unapproved instruction is exactly what principle 1 forbids.
 - **Sat 07:55 (Ricky, `review`, from the first `?trace=1` run on the iPhone)** The trace
   confirmed the WebKit diagnosis on the device (interim-only, cumulative transcripts; the
   settle logged "Choking" 1.2 s after the last interim and the chip showed words live) and
@@ -628,6 +643,32 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   not say "simulated" in anything they render. Nowhere disclosure at all was the other option
   and was not taken.
 
+- **Sat 20:40 (Emmanuel, `voice_response_processing`)** "The app should not only listen for
+  certain words, and should not only give fixed instructions." The listening half was the
+  07:45 entry. The responding half turned out to be a data problem before it was a model
+  problem: the whole app held ONE approved answer to a question (bleeding: tourniquet), so
+  "am I pushing hard enough?" had nothing it was allowed to say back. Two things, both inside
+  principle 1. (1) Answers. `KeywordResponse` carries the question it answers; cardiac has
+  fourteen and bleeding eleven, cited, drafted from the AHA and Stop the Bleed pages the way
+  the states were, and a human verifies them against the live pages before the demo. The
+  intent router is offered them next to the step's moves, marked Question; a move still asks
+  for a yes, an answer moves nothing so it just speaks. The linter refuses an answer whose
+  phrase a step already owns, so a question can never become a transition. (2) Rewording.
+  `NarrationFlavor` is wired, as the clause in principle 1 allows: the model is handed ONE
+  canonical line plus the moment (what the person just said, the camera's numbers as plain
+  phrases, how often the line has been said, a length budget) and hands back a rewording;
+  `validateNarration` keeps the line's numbers, refuses any number it was not shown, keeps
+  the required words, bounds the length and bans the forbidden terms, and the canonical line
+  speaks on any miss. Never late: a step's own lines are reworded before the step is reached
+  and kept for the session; a nag is canonical the first time and personal on its repeat, kept
+  twenty seconds; answers speak as written. What the model still cannot do is choose or author
+  an instruction. Seen live on Grok: with nothing to acknowledge it returns the line verbatim
+  (fine, and the safe outcome); with context it once wrote "Push with the beat, 100–120 a
+  minute", inventing the guideline numbers and dropping "Faster". The numbers rule refused
+  it. A per-nag required-words guard for the dropped word was tried and reverted the same
+  hour; it stands as a known gap, recorded here rather than papered over: a rewording that
+  drops an instruction word the state's own required list does not name passes the validator.
+  That is why this lives behind `?flag=narrationFlavor` with the canonical lines as the floor.
 - **Sat 20:50 (Ricky, `mobile-911-simulated-label`)** The live screen is one flex column, not two
   absolute stacks. `.live-top` was pinned to `top: 0` and `.live-bottom` to `bottom: 0`, each
   sized by its own content, with nothing between them but z-index; on a 375x667 phone with the
@@ -649,3 +690,17 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   LAUNCH moved from inline styles to `web/ui/launch.css` on the same rules and now fits 320x568
   with room. The ?fake=1 panel collapses to a chip, because a debug layer that covers the handoff
   is the same bug in a different coat.
+- **Sat 21:55 (Emmanuel, `voice_response_processing`)** Two implementations of docs/04 item 8 met
+  at merge time: this branch's Grok matcher (07:45) and the Gemini router on `main` (19:40),
+  same closed-list contract, same amber Yes/No bar, built five hours apart without either of
+  us knowing. One ships. The router on `main` stays (it is measured, 20:20, and it is the
+  sponsor track); this branch folds into it: xAI is a third row in the proxy's provider table
+  (picked when it is the only model key, or `MODEL_PROVIDER=xai`), so the same route runs on
+  the HopHacks credits with no other change; the router is offered the machine's answers
+  (marked Question) and the state's own keyword to the terminal step, which the button-twin
+  list deliberately hides and which had left "the paramedics just pulled up" unrouteable; an
+  answer speaks, a move asks; a miss earns one spoken acknowledgment (narration, twenty
+  seconds apart) instead of dead air. `/text/complete` is the same proxy call under a name
+  that fits its second job, the rewording (item 5), which is provider-agnostic and so is
+  `ModelNarrationFlavor`. Nothing from the parallel build was pushed; it lives only in this
+  entry.

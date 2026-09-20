@@ -143,9 +143,93 @@ export const bleeding: Machine = {
       // Only ever spoken because the bystander said the word. We do not suggest tourniquets,
       // and we never coach an improvised one (docs/02).
       keyword: 'tourniquet',
+      label: 'Should I use a tourniquet?',
       priority: 'correction',
       source: STOP_THE_BLEED,
       say: 'If you have a real tourniquet kit, place it two to three inches above the wound, not on a joint, and tighten until the bleeding stops. Otherwise keep pressing.',
+    },
+    // What people ask while holding pressure. Spoken only because the person asked, never as
+    // a step; the keyword earns it on its own, and ?flag=grokIntent may pick it for a sentence
+    // the keyword missed (docs/04 item 8). Drafted from the cited pages the same way the
+    // states were: a human verifies each line against the live page before the demo.
+    {
+      // Stop the Bleed: an improvised belt does not get tight enough to stop arterial bleeding.
+      keyword: 'belt',
+      label: 'Can I use a belt?',
+      priority: 'correction',
+      source: STOP_THE_BLEED,
+      say: 'A belt will not get tight enough. Keep pressing hard on the wound with both hands instead.',
+    },
+    {
+      keyword: 'hurting him',
+      label: 'Am I hurting him?',
+      priority: 'correction',
+      source: ACS_BLEEDING_CONTROL,
+      say: "Pressure hurts, and pressure is what stops the bleeding. Don't ease off.",
+    },
+    {
+      keyword: 'doing it right',
+      label: 'Am I doing it right?',
+      priority: 'correction',
+      source: ACS_BLEEDING_CONTROL,
+      say: "You're doing it right. Hard, steady pressure with both hands, right on the wound.",
+    },
+    {
+      keyword: 'let go',
+      label: 'Can I let go to look?',
+      priority: 'correction',
+      source: ACS_BLEEDING_CONTROL,
+      say: "Don't lift your hands to look. Keep the pressure steady until help takes over.",
+    },
+    {
+      // Stop the Bleed: never pull out an object; pressure goes around it.
+      keyword: 'stuck in',
+      label: 'Something is stuck in the wound',
+      priority: 'correction',
+      source: STOP_THE_BLEED,
+      say: 'If something is stuck in the wound, leave it there. Press hard around it, not on top of it.',
+    },
+    {
+      keyword: 'so much blood',
+      label: 'There is so much blood',
+      priority: 'correction',
+      source: STOP_THE_BLEED,
+      say: "Blood on the outside is why we press. Keep your hands hard on the wound. Don't let go.",
+    },
+    {
+      keyword: 'pale',
+      label: 'He looks pale or faint',
+      priority: 'correction',
+      source: STOP_THE_BLEED,
+      say: 'Losing blood makes him pale and faint. Keep the pressure on and keep talking to him.',
+    },
+    {
+      keyword: 'clean',
+      label: 'Should I clean it?',
+      priority: 'correction',
+      source: STOP_THE_BLEED,
+      say: "Don't try to clean it. Stopping the bleeding matters more than germs right now.",
+    },
+    {
+      keyword: 'gloves',
+      label: "I don't have gloves",
+      priority: 'correction',
+      source: STOP_THE_BLEED,
+      say: "Gloves or a plastic bag if they are within reach. If not, use your bare hands. Don't wait.",
+    },
+    {
+      keyword: 'how long',
+      label: 'How long do I hold it?',
+      priority: 'correction',
+      source: ACS_BLEEDING_CONTROL,
+      say: "Until the paramedics take over. Don't let go to check.",
+    },
+    {
+      keyword: 'scared',
+      label: "I'm scared",
+      priority: 'correction',
+      source: STOP_THE_BLEED,
+      say: "You're doing the right thing. Keep pressing. I'm right here with you.",
     },
   ],
 };

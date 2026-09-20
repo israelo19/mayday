@@ -84,4 +84,27 @@ describe('matchKeyword', () => {
     expect(tokens("can't breathe")).toEqual(['cant', 'breath']);
     expect(tokens('cant breathe')).toEqual(['cant', 'breath']);
   });
+
+  it('lets filler words sit inside a phrase the way people actually say it', () => {
+    expect(matchKeyword('the ambulance is here', ['ambulance here'])).toBe('ambulance here');
+    expect(matchKeyword('the ambulance just got here', ['ambulance here'])).toBe('ambulance here');
+    expect(matchKeyword('the blood is soaking right through', ['blood soaking through'])).toBe('blood soaking through');
+    expect(matchKeyword('something is stuck', ['something stuck'])).toBe('something stuck');
+  });
+
+  it('never lets a gap flip the meaning', () => {
+    // A negation inside the gap kills the match: "is not here" must not mean here.
+    expect(matchKeyword('the ambulance is not here yet', ['ambulance here'])).toBeNull();
+    expect(matchKeyword('he is still not bleeding', ['still bleeding'])).toBeNull();
+    // A phrase that starts with a negation gets no slack at all: with a gap,
+    // "no, there's a pulse" would read as 'no pulse' and mean the opposite.
+    expect(matchKeyword('no theres a pulse', ['no pulse'])).toBeNull();
+    expect(matchKeyword('there is no pulse', ['no pulse'])).toBe('no pulse');
+  });
+
+  it('hears the wider family of negations', () => {
+    expect(matchKeyword("he didn't collapse", ['collapsed'])).toBeNull();
+    expect(matchKeyword("she doesn't breathe", ['breathing'])).toBeNull();
+    expect(matchKeyword("he won't stop bleeding", ['still bleeding', 'bleeding'])).toBe('bleeding');
+  });
 });

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createFakePerception } from '../src/perception/fake';
-import { createSession, ROI_FAILED_LINE, type Session, type SessionDeps } from './session';
+import { createSession, HEARD_UNMATCHED_LINE, ROI_FAILED_LINE, type Session, type SessionDeps } from './session';
 import type { Voice, VoiceInOptions, VoiceInStatus } from '../src/voice';
 import type { CoachingEvent } from '../src/types';
 import type { IntentRequest, IntentRouter } from '../src/ai/intent';
+import type { FlavorContext, NarrationFlavor } from '../src/ai/narration';
 
 const T0 = 1_700_000_000_000;
 
@@ -442,6 +443,62 @@ describe('intent router', () => {
   });
 });
 
+describe('intent router: answers and the standing finish', () => {
+  const flush = async (tick: (ms: number) => void, ms = 100) => {
+    tick(ms);
+    await Promise.resolve();
+    await Promise.resolve();
+    tick(ms);
+  };
+
+  it("is offered the machine's answers as questions, and an answer speaks with no yes", async () => {
+    const { router, asked } = fakeRouter((labels) => labels.indexOf('I felt a rib crack'));
+    const { s, v, tick } = rig({ router });
+    s.start();
+    s.say('not breathing');
+    v.mic()!.onTranscript('I think I just broke something in his chest');
+    await flush(tick);
+    expect(asked[0].options.find((o) => o.label === 'I felt a rib crack')).toMatchObject({ kind: 'answer', keyword: 'ribs' });
+    expect(s.snapshot().suggestion).toBeNull();
+    expect(s.snapshot().stateKey).toBe('cardiac.scene_check');
+    expect(v.enqueued.map((e) => e.text)).toContain('A crack or a pop can happen when you push hard enough. It is not a reason to stop. Keep going.');
+    expect(s.log.entries().some((e) => e.detail.endsWith('as the question: I felt a rib crack'))).toBe(true);
+  });
+
+  it('offers the standing finish too, so "the paramedics just pulled up" is understood', async () => {
+    const { router, asked } = fakeRouter((labels) => labels.indexOf('Ambulance is here'));
+    const { s, v, tick } = rig({ router });
+    s.start();
+    s.say('not breathing');
+    for (let i = 0; i < 4; i++) s.advance(); // compressions
+    v.mic()!.onTranscript('the paramedics just pulled up');
+    await flush(tick);
+    expect(asked[0].options.some((o) => o.label === 'Ambulance is here' && o.kind === 'transition')).toBe(true);
+    expect(s.snapshot().suggestion).toMatchObject({ source: 'model', to: 'handoff' });
+    s.confirmSuggestion();
+    expect(s.snapshot().phase).toBe('handoff');
+  });
+
+  it('acknowledges out loud when even the router cannot place the sentence', async () => {
+    const { router } = fakeRouter(() => null);
+    const { s, v, tick } = rig({ router });
+    s.start();
+    s.say('not breathing');
+    v.mic()!.onTranscript('I do not know what any of this means');
+    await flush(tick);
+    expect(v.enqueued.find((e) => e.text === HEARD_UNMATCHED_LINE)?.priority).toBe('narration');
+  });
+
+  it('offers triage exactly the three routes, as before', async () => {
+    const { router, asked } = fakeRouter(() => null);
+    const { s, v, tick } = rig({ router });
+    s.start();
+    v.mic()!.onTranscript('something is very wrong with him');
+    await flush(tick);
+    expect(asked[0].options.map((o) => o.label)).toEqual(['Not breathing', 'Shot or bleeding', 'Choking']);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // The scene model (docs/04 item 7, docs/11): one frame, a closed label, a question. Never a route.
 // ---------------------------------------------------------------------------
@@ -609,5 +666,110 @@ describe('session: the camera as an open question', () => {
     tick(100);
     expect(s.snapshot().eyes.status).toBe('error');
     expect(s.snapshot().eyesReadyAt).not.toBeNull();
+  });
+});
+
+/** A rewording provider that records what it was asked and answers whatever the test decides. */
+function fakeFlavor(reply: (canonical: string, ctx: FlavorContext) => string | null) {
+  const asked: { canonical: string; ctx: FlavorContext }[] = [];
+  const flavor: NarrationFlavor = {
+    flavor: async (canonical, ctx) => {
+      asked.push({ canonical, ctx });
+      return reply(canonical, ctx);
+    },
+  };
+  const settle = async () => {
+    await new Promise((r) => setTimeout(r));
+  };
+  return { flavor, asked, settle };
+}
+
+describe('rewording (injected behind ?flag=narrationFlavor)', () => {
+  it("rewords the next step's lines before it is reached; the session's first lines speak as written", async () => {
+    const f = fakeFlavor((canonical) => `Warmly: ${canonical}`);
+    const { s, v } = rig({ flavor: f.flavor });
+    s.start();
+    // Triage's own line had no earlier moment to be reworded in.
+    expect(v.enqueued[0].text).toContain("Tell me what's happening");
+    // Triage can lead to three machines; their first steps' lines are asked for now, with no live context.
+    const asked = f.asked.map((a) => a.canonical);
+    expect(asked).toContain("Make sure it's safe to approach.");
+    expect(asked).toContain('First: are YOU safe?');
+    expect(f.asked.every((a) => a.ctx.heard === null && a.ctx.numbers.length === 0)).toBe(true);
+    await f.settle();
+    v.mic()!.onKeyword('not breathing');
+    const texts = v.enqueued.map((e) => e.text);
+    expect(texts).toContain("Warmly: Make sure it's safe to approach.");
+    expect(texts).toContain('Warmly: Tap his shoulders and shout: are you okay?');
+    expect(texts).not.toContain("Make sure it's safe to approach.");
+    // The screen still knows which step line was said.
+    expect(s.snapshot().lineIndex).toBe(1);
+    expect(s.log.entries().some((e) => e.detail === 'said as: "Warmly: Make sure it\'s safe to approach."')).toBe(true);
+  });
+
+  it('refuses a rewording that drops a number or invents one; the canonical line speaks', async () => {
+    const f = fakeFlavor((canonical) =>
+      canonical.startsWith('Call 911')
+        ? 'Call the emergency number right now. Put the phone on speaker and lay it on the ground beside him.'
+        : canonical === 'Follow my beat. Do not stop.'
+          ? 'Follow my beat at 110. Do not stop.'
+          : `Warmly: ${canonical}`,
+    );
+    const { s, v } = rig({ flavor: f.flavor });
+    s.start();
+    await f.settle();
+    v.mic()!.onKeyword('not breathing'); // scene_check: asks for check_breathing
+    await f.settle();
+    s.advance(); // check_breathing: asks for call_911
+    await f.settle();
+    s.advance(); // call_911
+    expect(v.enqueued.at(-1)?.text).toBe('Call 911 right now. Put the phone on speaker and lay it on the ground beside him.');
+    expect(s.log.entries().some((e) => e.detail.startsWith('rewording refused (dropped the number 911)'))).toBe(true);
+    s.advance(); // position: asks for compressions
+    await f.settle();
+    s.advance(); // compressions
+    const texts = v.enqueued.map((e) => e.text);
+    expect(texts).toContain('Warmly: Push hard and fast, at least two inches deep.');
+    expect(texts).toContain('Follow my beat. Do not stop.');
+    expect(s.log.entries().some((e) => e.detail.startsWith('rewording refused (introduced the number 110)'))).toBe(true);
+  });
+
+  it('a nag is canonical the first time and personal on the repeat: what they said, what the camera measures', async () => {
+    const f = fakeFlavor((canonical, ctx) =>
+      canonical === 'Faster. Push with the beat.' && ctx.heard !== null && ctx.numbers.length > 0
+        ? `Your arms are burning, I know. You are at ${ctx.numbers[0]}. Faster. Push with the beat.`
+        : null,
+    );
+    const { s, v, p, tick, clock } = rig({ flavor: f.flavor });
+    s.start();
+    s.say('not breathing');
+    for (let i = 0; i < 4; i++) s.advance();
+    expect(s.snapshot().stateKey).toBe('cardiac.compressions');
+    tick(100);
+    v.mic()!.onTranscript('my arms are giving out');
+    p.setControls({ rate: 80, compressing: true });
+    const run = (ms: number) => {
+      for (let i = 0; i < ms / 100; i++) {
+        tick(100);
+        p.emitAt(clock.t);
+      }
+    };
+    run(4500);
+    const nags = () => v.enqueued.filter((e) => e.dedupeKey === 'rate-low').map((e) => e.text);
+    expect(nags()).toEqual(['Faster. Push with the beat.']);
+    const ask = f.asked.find((a) => a.canonical === 'Faster. Push with the beat.');
+    expect(ask?.ctx.heard).toBe('my arms are giving out');
+    expect(ask?.ctx.observations).toContain('pushing at about 80 a minute');
+    expect(ask?.ctx.numbers).toContain(80);
+    await f.settle();
+    run(7000);
+    expect(nags()).toEqual(['Faster. Push with the beat.', 'Your arms are burning, I know. You are at 80. Faster. Push with the beat.']);
+  });
+
+  it('asks nothing and changes nothing without a provider', () => {
+    const { s, v } = rig();
+    s.start();
+    v.mic()!.onKeyword('not breathing');
+    expect(v.enqueued.map((e) => e.text)).toContain("Make sure it's safe to approach.");
   });
 });

@@ -42,6 +42,8 @@ export interface Engine {
   currentState(): { machineId: string; state: State } | null;
   keywords(): string[];
   availableTransitions(): { label: string; keyword: string }[];
+  /** The questions this machine answers without moving, labelled for the intent model (docs/04 item 8). */
+  availableAnswers(): { label: string; keyword: string }[];
   subscribe(cb: (out: EngineOutput) => void): () => void;
 }
 
@@ -141,6 +143,10 @@ class ProtocolEngine implements Engine {
     return (this.state?.transitions ?? [])
       .filter(isKeyword)
       .map((t) => ({ label: t.label, keyword: t.on.keyword }));
+  }
+
+  availableAnswers(): { label: string; keyword: string }[] {
+    return (this.machine?.keywordResponses ?? []).map((a) => ({ label: a.label, keyword: a.keyword }));
   }
 
   subscribe(cb: (out: EngineOutput) => void): () => void {

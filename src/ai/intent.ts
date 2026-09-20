@@ -15,8 +15,12 @@
 export const INTENT_TIMEOUT_MS = 3000;
 export const DEFAULT_INTENT_ENDPOINT = '/api/proxy/intent/route';
 
-/** One move the engine is offering: the label on the button, and the keyword that presses it. */
-export type IntentOption = { keyword: string; label: string };
+/**
+ * One move the engine is offering: the label on the button, and the keyword that presses it.
+ * Or, with `kind: 'answer'`, a question the machine has an approved answer for, labelled as a
+ * person would ask it; the session speaks that answer without asking, since nothing moves.
+ */
+export type IntentOption = { keyword: string; label: string; kind?: 'transition' | 'answer' };
 
 export type IntentRequest = { transcript: string; options: readonly IntentOption[] };
 
@@ -29,7 +33,7 @@ export interface IntentRouter {
 }
 
 export const INTENT_SYSTEM =
-  'You are reading one sentence from a panicking bystander at a medical emergency and deciding which of a fixed list of options it means. You never give advice, instructions or a diagnosis, and you never suggest anything outside the list.';
+  'You are reading one sentence from a panicking bystander at a medical emergency and deciding which of a fixed list of options it means. Some options are things the bystander may be reporting; those marked Question are questions the bystander may be asking. You never give advice, instructions or a diagnosis, and you never suggest anything outside the list.';
 
 /**
  * The list is numbered from 1 so that 0, the default of a confused model, means "none".
@@ -43,7 +47,7 @@ export const INTENT_SYSTEM =
 export function intentPrompt(transcript: string, options: readonly IntentOption[]): string {
   return [
     'Options:',
-    ...options.map((o, i) => `${i + 1}. ${o.label}`),
+    ...options.map((o, i) => `${i + 1}. ${o.kind === 'answer' ? 'Question: ' : ''}${o.label}`),
     '',
     `The bystander said: "${transcript}"`,
     '',
