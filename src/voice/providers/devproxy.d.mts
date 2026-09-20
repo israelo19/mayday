@@ -23,6 +23,8 @@ export function assessWithFeatherless(o: {
 export function createKeyProxy(o: {
   apiKey?: string | null;
   agentId?: string | null;
+  /** ELEVENLABS_COACH_VOICE: a voice id or a name in the account's library; null keeps the default. */
+  coachVoice?: string | null;
   visionKey?: string | null;
   visionModel?: string;
 }): (req: IncomingMessage, res: ServerResponse) => Promise<void>;

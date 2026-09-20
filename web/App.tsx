@@ -8,7 +8,7 @@
 import { useMemo } from 'react';
 import { createPerception } from '../src/perception';
 import { Metronome } from '../src/voice/metronome';
-import { createSpeaker } from './providers';
+import { configureCoachVoice, createSpeaker } from './providers';
 import { DebugScreen } from './ui/DebugScreen';
 import { GuideGallery } from './ui/guide';
 import { LiveApp } from './ui/live/LiveApp';
@@ -23,7 +23,11 @@ export default function App() {
 
 function EyesDebug() {
   const perception = useMemo(() => createPerception(), []);
-  const speaker = useMemo(createSpeaker, []);
+  const speaker = useMemo(() => {
+    const s = createSpeaker();
+    void configureCoachVoice(s); // the voice chip then names the configured coach voice
+    return s;
+  }, []);
   const metronome = useMemo(() => new Metronome(), []);
   return <DebugScreen perception={perception} speaker={speaker} metronome={metronome} />;
 }

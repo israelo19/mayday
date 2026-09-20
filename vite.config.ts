@@ -60,6 +60,7 @@ function phoneQr(): PluginOption {
 function keyProxy(): PluginOption {
   const apiKey = readLocalEnv('ELEVENLABS_API_KEY');
   const agentId = readLocalEnv('ELEVENLABS_AGENT_ID');
+  const coachVoice = readLocalEnv('ELEVENLABS_COACH_VOICE');
   const visionKey = readLocalEnv('FEATHERLESS_API_KEY');
   const visionModel = readLocalEnv('FEATHERLESS_VISION_MODEL') ?? DEFAULT_VISION_MODEL;
   // Dev and preview servers share the connect stack, so one mount serves both hooks.
@@ -68,8 +69,10 @@ function keyProxy(): PluginOption {
       console.log('  Keys: none in .env.local; WebSpeech carries the demo and the camera keeps its own cues');
       return;
     }
-    server.middlewares.use('/api/proxy', createKeyProxy({ apiKey, agentId, visionKey, visionModel }));
-    console.log(`  ElevenLabs: ${apiKey ? `key proxy at /api/proxy, dispatcher agent ${agentId ? 'set' : 'NOT set'}` : 'off (no ELEVENLABS_API_KEY)'}`);
+    server.middlewares.use('/api/proxy', createKeyProxy({ apiKey, agentId, coachVoice, visionKey, visionModel }));
+    console.log(
+      `  ElevenLabs: ${apiKey ? `key proxy at /api/proxy, dispatcher agent ${agentId ? 'set' : 'NOT set'}, coach voice ${coachVoice ? `"${coachVoice}"` : 'default'}` : 'off (no ELEVENLABS_API_KEY)'}`,
+    );
     console.log(`  Scene model: ${visionKey ? `${visionModel} via /api/proxy/vision/assess, on with ?flag=sceneAssess` : 'off (no FEATHERLESS_API_KEY)'}`);
   };
   return { name: 'mayday-key-proxy', configureServer: mount, configurePreviewServer: mount };

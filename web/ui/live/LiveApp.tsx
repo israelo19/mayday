@@ -9,7 +9,7 @@ import { canonicalLines, createSession, WATCHING_STATES, type Eyes } from '../..
 import type { LiveSource } from '../guide';
 import { reverseGeocode } from '../../geocode';
 import { createVoice } from '../../../src/voice';
-import { createAssessor, createDispatcher, createSpeaker, warmSpeaker } from '../../providers';
+import { configureCoachVoice, createAssessor, createDispatcher, createSpeaker, warmSpeaker } from '../../providers';
 import type { Box, SceneAssessment } from '../../../src/types';
 import { CameraView } from '../CameraView';
 import { LaunchScreen } from '../LaunchScreen';
@@ -40,6 +40,9 @@ export function LiveApp() {
   const fake = useMemo(() => isFakeRequested(), []);
   const perception = useMemo<Perception>(() => (fake ? createFakePerception() : createPerception()), [fake]);
   const speaker = useMemo(createSpeaker, []);
+  // The configured coach voice arrives from the proxy while LAUNCH is on screen; warming waits
+  // for it so the first lines are synthesized in the right voice, never twice.
+  const coachReady = useMemo(() => configureCoachVoice(speaker), [speaker]);
   const voice = useMemo(() => createVoice({ provider: speaker }), [speaker]);
   // The scene model, behind its flag; the fake rescuer's controls drive the stub (docs/04 item 7).
   const assessor = useMemo(
@@ -93,7 +96,7 @@ export function LiveApp() {
           // and runs after paint, which is why iOS asked for the microphone on the next card.
           void primeMediaPermissions();
           session.start();
-          warmSpeaker(speaker, canonicalLines());
+          void coachReady.then(() => warmSpeaker(speaker, canonicalLines()));
         }}
       />
     );
