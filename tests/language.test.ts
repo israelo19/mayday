@@ -30,19 +30,25 @@ describe('word comparison', () => {
     expect(sameWord('blood', 'bloody')).toBe(true);
   });
 
-  it('will not swap the first letter, which makes a different word rather than a misheard one', () => {
-    // These pairs are one edit apart and both real words, so the tolerance used to route
-    // ordinary speech into the wrong protocol: "he can't make a sound" and "I found him on
-    // the floor" each matched the bleeding keyword 'wound'.
+  it('will not swap a letter at either end, which makes a different word', () => {
+    // A substituted first or last letter turns one real word into another, and the other one
+    // routes somewhere else: "sound" and "found" reached the bleeding keyword 'wound', and
+    // "clear" reached the bleeding answer 'clean', so "the room is clear" answered a question
+    // nobody asked instead of opening the scene-safety gate.
     for (const [a, b] of [
       ['sound', 'wound'],
       ['found', 'wound'],
       ['round', 'wound'],
       ['flood', 'blood'],
+      ['clear', 'clean'],
     ] as const) {
       expect(sameWord(a, b), `${a}/${b}`).toBe(false);
     }
+    // A letter misheard in the middle, and a letter added on the end, both still match.
+    expect(sameWord('breeth', 'breath')).toBe(true);
+    expect(sameWord('blood', 'bloody')).toBe(true);
   });
+
 });
 
 describe('matchKeyword', () => {
@@ -90,6 +96,19 @@ describe('matchKeyword', () => {
     expect(matchKeyword('the ambulance just got here', ['ambulance here'])).toBe('ambulance here');
     expect(matchKeyword('the blood is soaking right through', ['blood soaking through'])).toBe('blood soaking through');
     expect(matchKeyword('something is stuck', ['something stuck'])).toBe('something stuck');
+  });
+
+  it('only lets real filler into the gap, not a word carrying its own meaning', () => {
+    // Every one of these matched before the gap was restricted to a closed list, and each
+    // ends or derails a session: 'ambulance here' is a terminal transition, and "he's
+    // breathing" walks the machine out of compressions into the recovery hold.
+    expect(matchKeyword('the ambulance will be here soon', ['ambulance here'])).toBeNull();
+    expect(matchKeyword('is the ambulance nearly here', ['ambulance here'])).toBeNull();
+    expect(matchKeyword('i hope the ambulance gets here fast', ['ambulance here'])).toBeNull();
+    expect(matchKeyword('hes struggling to breathe', ["he's breathing"])).toBeNull();
+    // And the ones that mean what the phrase means still land.
+    expect(matchKeyword('the ambulance just got here', ['ambulance here'])).toBe('ambulance here');
+    expect(matchKeyword('the paramedics are here', ['paramedics are here'])).toBe('paramedics are here');
   });
 
   it('never lets a gap flip the meaning', () => {

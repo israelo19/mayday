@@ -91,6 +91,11 @@ export function sameWord(a: string, b: string): boolean {
   if (Math.min(a.length, b.length) < 5) return false;
   if (Math.abs(a.length - b.length) > 1) return false;
   if (a[0] !== b[0]) return false;
+  // A same-length difference is a substituted letter, and a substitution at either end makes a
+  // different word rather than a misheard one: "clear" reached the bleeding answer 'clean', so
+  // "the room is clear" answered a question nobody asked instead of opening the safety gate.
+  // A length difference is an inserted or dropped letter ("blood"/"bloody"), which is fine.
+  if (a.length === b.length && a[a.length - 1] !== b[b.length - 1]) return false;
   return distance(a, b) <= 1;
 }
 
@@ -110,6 +115,25 @@ const NEGATION = new Set(['no', 'not', 'never', 'cant', 'cannot', 'dont', 'doesn
  */
 const MAX_GAP = 2;
 
+/**
+ * And the gap may only be filler. Any word used to count, which let two words of ordinary
+ * speech stand in for the ones the phrase means: "the ambulance WILL BE here soon" matched
+ * 'ambulance here' and ended the session in the middle of CPR, and "he's STRUGGLING to
+ * breathe" matched "he's breathing" and walked the machine out of compressions and into the
+ * recovery hold. Both are sentences someone says while the camera is running. A closed list
+ * keeps what the gap was for, the copulas and articles a speaker slips in, and nothing else.
+ */
+const FILLER = new Set([
+  'is', 'are', 'was', 'were', 'be', 'been', 'am', 's',
+  'the', 'a', 'an', 'this', 'that',
+  'his', 'her', 'their', 'its', 'my', 'your', 'our',
+  'just', 'now', 'still', 'really', 'very', 'all', 'already', 'about', 'right', 'and',
+  // Arrival, in the past tense only: "the ambulance just GOT here" has arrived, while "the
+  // ambulance GETS here soon" and "WILL BE here" have not, and only the first should end the
+  // session. The stemmer keeps got and get apart, which is what makes the distinction hold.
+  'got', 'arrived', 'came', 'pulled',
+]);
+
 /** True when `phrase` occurs in `text` as whole words in order (both already tokenized). */
 export function containsTokens(text: readonly string[], phrase: readonly string[]): boolean {
   if (phrase.length === 0 || phrase.length > text.length) return false;
@@ -128,11 +152,16 @@ export function containsTokens(text: readonly string[], phrase: readonly string[
   return false;
 }
 
-/** Index of `word` at `from`..`from+gap` in `text`, or -1; a negation in the gap aborts. */
+/**
+ * Index of `word` at `from`..`from+gap` in `text`, or -1. A negation in the gap aborts, and so
+ * does anything that is not filler: a word carrying meaning of its own is not a gap, it is a
+ * different sentence.
+ */
 function nextWithin(text: readonly string[], from: number, word: string, gap: number): number {
   for (let k = from; k <= from + gap && k < text.length; k++) {
     if (sameWord(text[k], word)) return k;
     if (NEGATION.has(text[k])) return -1;
+    if (!FILLER.has(text[k])) return -1;
   }
   return -1;
 }
