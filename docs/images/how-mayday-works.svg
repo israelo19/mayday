@@ -111,8 +111,8 @@
   <text class="cloud" x="592" y="666">a calm human voice for the coach,</text>
   <text class="cloud" x="592" y="686">and the 911 call-taker.</text>
   <text class="cloud" x="892" y="644"><tspan font-weight="700">Grok API</tspan></text>
-  <text class="cloud" x="892" y="666">helps the Ears understand</text>
-  <text class="cloud" x="892" y="686">a panicked, rambling sentence.</text>
+  <text class="cloud" x="892" y="666">reads a panicked sentence, picks</text>
+  <text class="cloud" x="892" y="686">its button, rewords a line.</text>
   <line x1="402" y1="562" x2="402" y2="544" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowdim)"/>
   <line x1="714" y1="562" x2="714" y2="544" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowdim)"/>
   <line x1="1020" y1="562" x2="1020" y2="544" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowdim)"/>

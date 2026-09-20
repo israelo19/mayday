@@ -1,7 +1,7 @@
 # CLAUDE.md - Mayday
 
 ## What this is
-Mayday is an AI emergency dispatcher with eyes. A bystander opens it on a phone during any medical emergency. It triages by voice, watches through the camera, and coaches the bystander through the correct first-aid protocol in real time until EMS arrives, then produces a structured handoff report. Built over the HopHacks 2026 weekend (September 18 to 20) by a team of 4, for the Most Philanthropic Hack track. Sponsor challenges entered: Gemini API, ElevenLabs, and SpaceXAI (the Grok API, being integrated on a teammate's branch); docs/04 maps each dependency to its challenge.
+Mayday is an AI emergency dispatcher with eyes. A bystander opens it on a phone during any medical emergency. It triages by voice, watches through the camera, and coaches the bystander through the correct first-aid protocol in real time until EMS arrives, then produces a structured handoff report. Built over the HopHacks 2026 weekend (September 18 to 20) by a team of 4, for the Most Philanthropic Hack track. Sponsor challenges entered: Gemini API, ElevenLabs, and SpaceXAI (the Grok API as a text-model provider for the intent router and the rewording, docs/04 items 5 and 8); docs/04 maps each dependency to its challenge.
 
 A protocol is a state machine written as data (docs/02), one machine per emergency, transcribed from a published guideline. The engine, perception and voice are generic over machines. Adding an emergency means adding a machine file with cited sources, never code in the engine.
 

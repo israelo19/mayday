@@ -10,18 +10,16 @@
 > Built at HopHacks 2026, Johns Hopkins, September 18 to 20, for the Most Philanthropic Hack
 > track, with the Gemini API, ElevenLabs and SpaceXAI sponsor challenges.
 
-Mayday is a first-aid coach that runs in a phone's browser and can see. Open it, say what is
-happening, prop the phone up, and it walks you through the right steps out loud, one at a time,
-with a picture for each, until the ambulance arrives. The camera watches you work: it counts
-your chest compressions against a metronome, tells you to speed up or slow down, and notices
-when your hands leave a wound. When you call 911, it gives you the words to say. When the
-paramedics arrive, it hands them a timeline of everything that happened.
+Mayday is an AI emergency dispatcher with eyes. A bystander opens it on a phone during a
+medical emergency. It triages by voice, watches through the camera, and coaches them through
+the correct first-aid protocol in real time until EMS arrives, then hands the paramedics a
+structured report of what happened.
 
-It needs no account, no app store and no signal. Every instruction is a line from a published
-guideline, the American Heart Association, Stop the Bleed and the Red Cross, written into the
-app as a script. AI helps it see and hear; it never decides a step. Two emergencies ship today,
-cardiac arrest and severe bleeding, with choking behind them, and adding another is adding one
-file.
+It is help in your pocket. No training, no account, no signal, and anyone standing next to
+someone in trouble can act with it and give that person a chance. Every step it speaks comes
+from a published guideline, written into the app as a script; the AI helps it see and hear and
+never decides a step. Two emergencies ship today, cardiac arrest and severe bleeding, and adding
+another is adding one file.
 
 ## 🚨 The problem
 
@@ -87,7 +85,7 @@ leaving it.
 ## 🏗️ How it works
 
 <p align="center">
-  <img src="docs/images/how-it-works.svg" width="100%" alt="How Mayday works: the Eyes see the scene and the helper, the Ears hear what you say, the Brain interprets both and picks the next line from the guideline script, the Voice speaks and keeps the beat; you answer with taps and voice; Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge">
+  <img src="docs/images/how-mayday-works.svg" width="100%" alt="How Mayday works: the Eyes see the scene and the helper, the Ears hear what you say, the Brain interprets both and picks the next line from the guideline script, the Voice speaks and keeps the beat; you answer with taps and voice; Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge">
 </p>
 
 Four parts on the phone do the work.
@@ -101,8 +99,8 @@ Four parts on the phone do the work.
   written line by line from the published guideline. It interprets; it never invents.
 - **Voice.** Speak the step, keep the beat, and correct within a second.
 
-The cloud helpers, a vision model and human voices, make each part better when the network is
-there. None is ever in charge.
+The cloud helpers, a vision model, a text model and human voices, make each part better when
+the network is there. None is ever in charge.
 
 ## 🧭 Why you can trust it
 
@@ -117,7 +115,7 @@ is enforced by a test a judge can open.
 | **Fail loud, never wrong** | When the camera cannot see well, the numbers go blank, the app says so, and coaching continues by voice. Unwatched time is reported as unmeasured, never as a pause. | While blind, only lines marked safe may play. Unmeasured time is a named field in the report. |
 | **A human dials 911** | The app never places a call. The call-taker in the demo is simulated, and the launch screen says so once. | A test fails on any phone-dialing code, requires the disclosure on the launch screen, and forbids the word "simulated" on the call itself. |
 
-The numbers behind that: 326 tests, four scripts with every medical step citing a live
+The numbers behind that: 347 tests, four scripts with every medical step citing a live
 guideline page, an engine of 279 lines with no dependencies, and zero network calls in the
 coaching loop.
 
@@ -183,9 +181,9 @@ measured, never as a pause.
 | The app | Vite, React 19, TypeScript, installable as a PWA | one page, no store, caches itself for wifi off |
 | Eyes, on the phone | MediaPipe Pose and Hand Landmarker, WASM in the browser | boxes, posture, stillness, compression rate, hands on the wound |
 | Eyes, in the cloud | Gemini API, `gemini-3.6-flash`, key from Google AI Studio | one photo to a closed label and a box; a missed sentence to a button |
-| Ears | Web Speech recognition as keyword spotting; the Grok API, landing now | what you said, turned into the answer the script needs |
+| Ears | Web Speech recognition as keyword spotting; Grok or Gemini for a sentence no phrase matched | what you said, turned into the answer the script needs |
 | Brain | a hand-rolled state machine engine in TypeScript, scripts as data | the guideline, one line at a time, no dependencies |
-| Voice | Web Speech synthesis and a Web Audio metronome; ElevenLabs Flash v2.5 and ElevenLabs Agents | speech, the beat, the human voice, the call-taker |
+| Voice | Web Speech synthesis and a Web Audio metronome; ElevenLabs Flash v2.5 and ElevenLabs Agents; Grok or Gemini to reword a line, checked before it is spoken | speech, the beat, the human voice, the call-taker |
 | Handoff | Geolocation with reverse geocoding, the event log, `qrcode` | the SITREP, the timeline, the QR |
 | Keys | a small proxy the dev server mounts at `/api/proxy` | every cloud key stays on the server |
 
@@ -207,9 +205,12 @@ call-taker speaks as Sarah, a clearly different person, and with the live agent 
 is a real-time ElevenLabs Agents conversation that hears the phone's mic and is forbidden from
 giving medical advice.
 
-**Make it Legendary, SpaceXAI.** The Grok API takes the audio. What the bystander says into the
-phone's microphone goes through Grok, so a panicked, rambling sentence reaches the app as words
-it can act on. Landing now on a teammate's branch.
+**Make it Legendary, SpaceXAI.** Grok, on the HopHacks xAI credits, is the text model behind two
+switches. It reads a panicked sentence the app has no phrase for and picks the on-screen button
+or the cited answer it meant, so "did I just crack something in his chest?" gets the rib answer
+at once. And it rewords a line for the moment, so a repeated "Faster. Push with the beat." opens
+with what you said and what the camera measured. Every rewording is checked against the step's
+required words before it is spoken, or the line plays as written.
 
 All three are off by default, keep their keys on the server, and fall back to the phone's own
 voice, ears and cues, so the app is complete without them.
@@ -234,11 +235,11 @@ npm run dev
 | `?fake=1` | the whole loop on a laptop with no camera: a rate slider, cover the lens, lift hands |
 | `?debug=1` | the sensor view: skeleton, waveform, rate, confidence |
 | `?guide=1` | every step picture, no camera needed |
-| `?flag=elevenLabs,dispatcherSim,sceneAssess,intentRoute` | the cloud helpers, any subset |
+| `?flag=elevenLabs,dispatcherSim,sceneAssess,intentRoute,narrationFlavor` | the cloud helpers, any subset |
 
 Keys go in `.env.local`, copied from `.env.example`: `GEMINI_API_KEY` for the photo and the
-sentence matching, `ELEVENLABS_API_KEY` for the voices, `ELEVENLABS_AGENT_ID` for the live
-call-taker. They never reach the browser. The phone notes, the walkthrough for each switch and
+sentence matching, `XAI_API_KEY` for Grok on the text routes, `ELEVENLABS_API_KEY` for the
+voices, `ELEVENLABS_AGENT_ID` for the live call-taker. They never reach the browser. The phone notes, the walkthrough for each switch and
 the checks the team walks before a judged run are in
 [docs/12-run-and-check.md](docs/12-run-and-check.md).
 
