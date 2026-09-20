@@ -2,7 +2,7 @@
 // a budget, and whatever comes back is one cleaned line or null. The validator (tested in
 // tests/validate.test.ts) and the session (web/session.test.ts) decide whether it is spoken.
 import { describe, expect, it } from 'vitest';
-import { cleanFlavor, flavorPrompt, GrokNarrationFlavor, type FlavorContext } from './narration';
+import { cleanFlavor, flavorPrompt, ModelNarrationFlavor, type FlavorContext } from './narration';
 
 const ctx: FlavorContext = {
   situation: 'CPR',
@@ -52,10 +52,10 @@ describe('cleanFlavor', () => {
   });
 });
 
-describe('GrokNarrationFlavor', () => {
+describe('ModelNarrationFlavor', () => {
   it('sends the rules and the prompt, and returns the cleaned rewording', async () => {
     const { fetch, bodies } = fakeFetch([{ status: 200, text: '"You are at 80. Faster. Push with the beat."' }]);
-    const f = new GrokNarrationFlavor({ fetch });
+    const f = new ModelNarrationFlavor({ fetch });
     expect(await f.flavor('Faster. Push with the beat.', ctx)).toBe('You are at 80. Faster. Push with the beat.');
     const body = JSON.parse(bodies[0]) as { system: string; user: string; maxTokens: number };
     expect(body.system).toContain('Keep every instruction and every number');
@@ -66,7 +66,7 @@ describe('GrokNarrationFlavor', () => {
 
   it('latches off after a 404: no key behind the proxy means stop asking', async () => {
     const { fetch, bodies } = fakeFetch([{ status: 404 }]);
-    const f = new GrokNarrationFlavor({ fetch });
+    const f = new ModelNarrationFlavor({ fetch });
     expect(await f.flavor('Faster. Push with the beat.', ctx)).toBeNull();
     expect(await f.flavor('Faster. Push with the beat.', ctx)).toBeNull();
     expect(bodies.length).toBe(1);
@@ -75,7 +75,7 @@ describe('GrokNarrationFlavor', () => {
   it('answers null on a timeout or an empty reply', async () => {
     const never = ((_u: RequestInfo | URL, init?: RequestInit) =>
       new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener('abort', () => reject(new Error('aborted'))))) as typeof fetch;
-    expect(await new GrokNarrationFlavor({ fetch: never, timeoutMs: 5 }).flavor('Faster. Push with the beat.', ctx)).toBeNull();
-    expect(await new GrokNarrationFlavor({ fetch: fakeFetch([{ status: 200, text: '' }]).fetch }).flavor('Faster.', ctx)).toBeNull();
+    expect(await new ModelNarrationFlavor({ fetch: never, timeoutMs: 5 }).flavor('Faster. Push with the beat.', ctx)).toBeNull();
+    expect(await new ModelNarrationFlavor({ fetch: fakeFetch([{ status: 200, text: '' }]).fetch }).flavor('Faster.', ctx)).toBeNull();
   });
 });

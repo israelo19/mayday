@@ -34,15 +34,15 @@ class StubNarrationFlavor implements NarrationFlavor {
   }
 }
 
-/** The stub; web/providers.ts constructs GrokNarrationFlavor behind ?flag=narrationFlavor. */
+/** The stub; web/providers.ts constructs ModelNarrationFlavor behind ?flag=narrationFlavor. */
 export function createNarrationFlavor(): NarrationFlavor {
   return new StubNarrationFlavor();
 }
 
-export type GrokFlavorDeps = {
+export type ModelFlavorDeps = {
   fetch?: typeof fetch;
   timeoutMs?: number;
-  /** The proxy route (docs/04 TODO 1); same origin as the page. */
+  /** The proxy's text route (docs/04 TODO 1), whichever model provider it holds; same origin as the page. */
   url?: string;
 };
 
@@ -76,16 +76,16 @@ export function cleanFlavor(text: string): string | null {
   return line.length > 0 ? line : null;
 }
 
-export class GrokNarrationFlavor implements NarrationFlavor {
-  private readonly deps: Required<GrokFlavorDeps>;
+export class ModelNarrationFlavor implements NarrationFlavor {
+  private readonly deps: Required<ModelFlavorDeps>;
   /** A 404 means no key behind the proxy; stop asking for the rest of the session. */
   private dead = false;
 
-  constructor(deps?: GrokFlavorDeps) {
+  constructor(deps?: ModelFlavorDeps) {
     this.deps = {
       fetch: deps?.fetch ?? ((...a) => fetch(...a)),
       timeoutMs: deps?.timeoutMs ?? TIMEOUT_MS,
-      url: deps?.url ?? '/api/proxy/grok/chat',
+      url: deps?.url ?? '/api/proxy/text/complete',
     };
   }
 

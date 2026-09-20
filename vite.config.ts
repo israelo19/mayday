@@ -72,7 +72,7 @@ function keyProxy(): PluginOption {
     console.log(
       `  ElevenLabs: ${apiKey ? `key proxy at /api/proxy, dispatcher agent ${agentId ? 'set' : 'NOT set'}, coach voice ${coachVoice ? `"${coachVoice}"` : 'default'}` : 'off (no ELEVENLABS_API_KEY)'}`,
     );
-    console.log(`  Model: ${provider ? `${provider.model} (${provider.id}), serving ?flag=sceneAssess and ?flag=intentRoute` : 'off (no GEMINI_API_KEY or FEATHERLESS_API_KEY)'}`);
+    console.log(`  Model: ${provider ? `${provider.model} (${provider.id}), serving ?flag=sceneAssess, ?flag=intentRoute and ?flag=narrationFlavor` : 'off (no GEMINI_API_KEY, FEATHERLESS_API_KEY or XAI_API_KEY)'}`);
   };
   return { name: 'mayday-key-proxy', configureServer: mount, configurePreviewServer: mount };
 }

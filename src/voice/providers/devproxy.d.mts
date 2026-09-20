@@ -5,7 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 /** Value of `name` from the environment, else from .env.local, else null. */
 export function readLocalEnv(name: string): string | null;
 
-export type ProviderId = 'gemini' | 'featherless';
+export type ProviderId = 'gemini' | 'featherless' | 'xai';
 
 /** The scene-model providers, keyed by id: endpoint, which env vars name the key and model. */
 export const MODEL_PROVIDERS: Record<

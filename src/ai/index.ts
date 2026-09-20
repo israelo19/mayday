@@ -2,5 +2,5 @@
 export type { VisionDescriber } from './vision';
 export { createVisionDescriber } from './vision';
 export type { FlavorContext, NarrationFlavor } from './narration';
-export { createNarrationFlavor, GrokNarrationFlavor } from './narration';
+export { createNarrationFlavor, ModelNarrationFlavor } from './narration';
 export type { DispatcherSim } from './dispatcher';
