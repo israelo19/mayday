@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 96" width="340" height="96" role="img" aria-label="Mayday">
+  <rect x="0" y="4" width="88" height="88" rx="16" fill="#000000" stroke="#30363d" stroke-width="1"/>
+  <rect x="37" y="20" width="14" height="56" fill="#ff3b30"/>
+  <rect x="16" y="41" width="56" height="14" fill="#ff3b30"/>
+  <text x="108" y="68" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="58" font-weight="800" fill="#e6edf3">Mayday</text>
+</svg>

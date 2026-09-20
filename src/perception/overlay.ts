@@ -4,7 +4,7 @@
 import { PoseLandmarker, type NormalizedLandmark } from '@mediapipe/tasks-vision';
 import type { SceneObservation } from '../types';
 import type { Hand, Roi } from './roi';
-import { LEFT_SHOULDER, RIGHT_SHOULDER, shoulderMidX, shoulderMidY } from './signal';
+import { headOf, LEFT_SHOULDER, RIGHT_SHOULDER, shoulderMidX, shoulderMidY } from './signal';
 
 export const OVERLAY = {
   body: 'rgba(255,255,255,0.72)',
@@ -14,7 +14,11 @@ export const OVERLAY = {
   dim: 'rgba(255,255,255,0.28)',
 } as const;
 
-/** Body-only connections: face landmarks 0..10 are noise for our purposes. */
+/**
+ * Connections below the neck. The eleven face landmarks are individually jittery, and eleven
+ * twitching dots on someone's face is not a skeleton, so the head is drawn as one circle and
+ * a neck instead (`headOf`). Without it the figure ended at the shoulders and looked headless.
+ */
 const BODY_CONNECTIONS = PoseLandmarker.POSE_CONNECTIONS.filter((c) => c.start > 10 && c.end > 10);
 
 export function drawPose(ctx: CanvasRenderingContext2D, lm: readonly NormalizedLandmark[], w: number, h: number, dim: boolean): void {
@@ -30,6 +34,28 @@ export function drawPose(ctx: CanvasRenderingContext2D, lm: readonly NormalizedL
     ctx.lineTo(b.x * w, b.y * h);
   }
   ctx.stroke();
+
+  // Neck and head: the figure reads as a person, and a lying person reads as a lying person.
+  const head = headOf(lm);
+  if (head) {
+    const cx = head.cx * w;
+    const cy = head.cy * h;
+    // Ellipse, not arc: the radius is a fraction of the frame and the frame is rarely square.
+    const rx = head.r * w;
+    const ry = head.r * h;
+    const nx = shoulderMidX(lm) * w;
+    const ny = shoulderMidY(lm) * h;
+    const len = Math.hypot(cx - nx, cy - ny);
+    ctx.beginPath();
+    if (len > 0) {
+      // Stop the neck at the skull rather than drawing a line through the face.
+      const t = Math.max(0, 1 - Math.hypot(rx, ry) / (len * Math.SQRT2));
+      ctx.moveTo(nx, ny);
+      ctx.lineTo(nx + (cx - nx) * t, ny + (cy - ny) * t);
+    }
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
 
   ctx.fillStyle = dim ? OVERLAY.dim : OVERLAY.joint;
   const jr = Math.max(2, w / 240);
