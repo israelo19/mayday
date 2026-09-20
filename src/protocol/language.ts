@@ -78,6 +78,14 @@ function distance(a: string, b: string): number {
 }
 
 /**
+ * Pairs the rules above cannot separate, because they differ only in the middle and both ends
+ * match, yet one of them routes somewhere the other does not mean. "He's lying on the COUCH"
+ * fired the choking machine's 'coughing', which is the difference between a blocked airway
+ * and a piece of furniture.
+ */
+const CONFUSABLE = new Set(['couch|cough', 'coach|cough']);
+
+/**
  * Two stems of five letters or more tolerate one letter of recognizer error; anything shorter
  * must be exact. The onset must match: a substituted first letter does not turn a word into a
  * misheard version of itself, it turns it into a different real word, and that word routes to
@@ -96,6 +104,7 @@ export function sameWord(a: string, b: string): boolean {
   // "the room is clear" answered a question nobody asked instead of opening the safety gate.
   // A length difference is an inserted or dropped letter ("blood"/"bloody"), which is fine.
   if (a.length === b.length && a[a.length - 1] !== b[b.length - 1]) return false;
+  if (CONFUSABLE.has(`${a}|${b}`) || CONFUSABLE.has(`${b}|${a}`)) return false;
   return distance(a, b) <= 1;
 }
 
@@ -175,11 +184,25 @@ export function negatedWord(text: readonly string[], i: number): boolean {
   return i > 0 && NEGATION.has(text[i - 1]);
 }
 
+/**
+ * Verbs of opinion a negation reaches straight through: "I do not THINK it is safe" is not
+ * safe, and the guard used to look only at the word immediately before the phrase, so the
+ * bleeding machine advanced past its scene-safety gate on a sentence that said the opposite.
+ * That gate is the one place this app can walk someone into danger.
+ */
+const HEDGES = new Set(['think', 'sure', 'believe', 'feel', 'know', 'certain', 'positive', 'reckon', 'sound', 'look', 'seem']);
+
 function negatedAt(text: readonly string[], start: number, phrase: readonly string[]): boolean {
   if (start === 0) return false;
-  const prev = text[start - 1];
-  if (!NEGATION.has(prev)) return false;
-  return !sameWord(phrase[0], prev);
+  // Walk back over hedges and filler only. Anything else carrying meaning ends the scan, so
+  // "he won't STOP bleeding" still reports bleeding: 'stop' is neither, and the negation
+  // belongs to it rather than to the phrase.
+  for (let i = start - 1; i >= 0 && start - i <= 3; i--) {
+    const w = text[i];
+    if (NEGATION.has(w)) return !sameWord(phrase[0], w);
+    if (!HEDGES.has(w) && !FILLER.has(w)) return false;
+  }
+  return false;
 }
 
 /**

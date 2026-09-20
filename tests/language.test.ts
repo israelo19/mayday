@@ -121,6 +121,22 @@ describe('matchKeyword', () => {
     expect(matchKeyword('there is no pulse', ['no pulse'])).toBe('no pulse');
   });
 
+  it('lets a negation reach through a verb of opinion', () => {
+    // The bleeding machine's scene-safety gate is the one place this app can walk someone
+    // into danger, and the guard looked only at the word immediately before the phrase.
+    expect(matchKeyword("i dont think its safe", ['safe', "it's safe"])).toBeNull();
+    expect(matchKeyword("im not sure its safe", ['safe', "it's safe"])).toBeNull();
+    // And a negation that belongs to another verb still leaves the phrase alone.
+    expect(matchKeyword("he won't stop bleeding", ['still bleeding', 'bleeding'])).toBe('bleeding');
+    expect(matchKeyword('it is safe now', ['safe now', 'safe'])).toBe('safe now');
+    expect(matchKeyword('i am safe', ['safe'])).toBe('safe');
+  });
+
+  it('keeps a piece of furniture out of the choking machine', () => {
+    expect(matchKeyword('hes lying on the couch', ['coughing'])).toBeNull();
+    expect(matchKeyword('he is coughing', ['coughing'])).toBe('coughing');
+  });
+
   it('hears the wider family of negations', () => {
     expect(matchKeyword("he didn't collapse", ['collapsed'])).toBeNull();
     expect(matchKeyword("she doesn't breathe", ['breathing'])).toBeNull();

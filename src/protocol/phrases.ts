@@ -192,7 +192,9 @@ export function suggestRoute(transcript: string, routes: readonly TriageRoute[] 
 }
 
 /** Words that confirm or reject a suggestion. Checked by the session, never by the engine. */
-export const CONFIRM_WORDS: readonly string[] = ['yes', 'yeah', 'yep', 'yup', 'correct', 'right', "that's right", 'exactly', 'do it'];
+// No bare 'right': "am I doing it right?" and "right here" both said yes to whatever the app
+// had just asked, and the first of those is a question the machine has its own answer for.
+export const CONFIRM_WORDS: readonly string[] = ['yes', 'yeah', 'yep', 'yup', 'correct', "that's right", 'exactly', 'do it'];
 export const REJECT_WORDS: readonly string[] = ['no', 'nope', 'wrong', "that's wrong", 'not that', 'never mind'];
 
 /** Keywords across all routes that would collide after stemming, for the test that forbids it. */

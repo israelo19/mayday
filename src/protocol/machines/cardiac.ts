@@ -140,7 +140,10 @@ export const cardiac: Machine = {
         { on: { kind: 'keyword', keyword: 'paramedics are here' }, to: 'handoff', label: 'Ambulance is here' },
         { on: { kind: 'keyword', keyword: 'ems is here' }, to: 'handoff', label: 'Ambulance is here' },
         { on: { kind: 'keyword', keyword: "they're here" }, to: 'handoff', label: 'Ambulance is here' },
-        { on: { kind: 'keyword', keyword: 'paramedics' }, to: 'handoff', label: 'Paramedics here' },
+        // No bare 'paramedics': one common noun ended the run. "The paramedics are not here
+        // yet" reached it, because the negation sits after the word and guards only look
+        // before it, and the handoff opened in the middle of compressions. The four phrases
+        // above all say the crew has arrived; the word on its own does not.
         { on: { kind: 'manualAdvance' }, to: 'handoff', label: 'Next' },
       ],
     },
