@@ -22,6 +22,21 @@ describe('intentPrompt', () => {
   });
 });
 
+describe('answers as options', () => {
+  it('marks a question the machine can answer, and the pick carries its kind back', () => {
+    const options: IntentOption[] = [
+      { keyword: 'ambulance here', label: 'Ambulance is here', kind: 'transition' },
+      { keyword: 'ribs', label: 'I felt a rib crack', kind: 'answer' },
+    ];
+    const prompt = intentPrompt('I think I just broke something in his chest', options);
+    expect(prompt).toContain('1. Ambulance is here');
+    expect(prompt).toContain('2. Question: I felt a rib crack');
+    expect(INTENT_SYSTEM).toContain('Question');
+    const pick = parseIntent('{"choice": 2, "confidence": "high"}', options, { model: 'test', latencyMs: 1 });
+    expect(pick).toMatchObject({ keyword: 'ribs', kind: 'answer' });
+  });
+});
+
 describe('parseIntent', () => {
   it('answers with the caller’s own option, not the model’s words', () => {
     const match = parseIntent('{"choice":1,"confidence":"high"}', options, meta);
