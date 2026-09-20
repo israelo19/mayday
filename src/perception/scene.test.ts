@@ -130,6 +130,27 @@ describe('the head', () => {
     expect(box!.box.y).toBeLessThanOrEqual(head!.cy - head!.r);
   });
 
+  it('is never wider than the shoulders, however badly an ear is placed', () => {
+    const lm = upright();
+    lm[0] = { x: 0.5, y: 0.2, visibility: 0.9 };
+    lm[7] = { x: 0.02, y: 0.2, visibility: 0.9 }; // an ear across the room
+    lm[8] = { x: 0.98, y: 0.2, visibility: 0.9 };
+    const span = Math.hypot(lm[11].x - lm[12].x, lm[11].y - lm[12].y);
+    expect(headOf(lm)!.r).toBeLessThanOrEqual(span * 0.75);
+    // and the box it produces is still a person, not the whole frame
+    expect(boxOf(lm)!.box.h).toBeLessThan(0.9);
+  });
+
+  it('refuses a NaN landmark instead of spreading it over the box', () => {
+    const lm = upright();
+    lm[0] = { x: 0.5, y: 0.2, visibility: 0.9 };
+    lm[7] = { x: Number.NaN, y: Number.NaN, visibility: 0.9 };
+    lm[8] = { x: 0.53, y: 0.2, visibility: 0.9 };
+    expect(headOf(lm)).toBeNull();
+    const box = boxOf(lm)!.box;
+    for (const v of [box.x, box.y, box.w, box.h]) expect(Number.isFinite(v)).toBe(true);
+  });
+
   it('is null when the shoulders are not visible, and never throws on a bare pose', () => {
     const hidden = upright().map((p) => ({ ...p, visibility: 0 }));
     expect(headOf(hidden)).toBeNull();

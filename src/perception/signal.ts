@@ -397,10 +397,12 @@ const HEAD_VISIBLE = 0.3;
  * the scene box used to cut a person's head off and the skeleton stopped at the shoulders.
  * This estimates the rest of the skull.
  *
- * Ear to ear is the skull at its widest, so it sets the scale; a turned head collapses that
- * distance, so shoulder span holds a floor under it. Ears and nose both sit below the crown,
- * so the circle is pushed along the neck axis, which keeps it right for a person lying down
- * or tilted rather than assuming up is up.
+ * Ear to ear is the skull at its widest, so it sets the scale, bounded both ways by shoulder
+ * span: a turned head collapses that distance, and a single mis-detected ear would otherwise
+ * balloon the box over the whole frame, which it did the first time this was probed. Nobody's
+ * head is wider than their shoulders. Ears and nose both sit below the crown, so the circle is
+ * pushed along the neck axis, which keeps it right for a person lying down or tilted rather
+ * than assuming up is up.
  */
 export function headOf(lm: readonly LandmarkLike[]): { cx: number; cy: number; r: number } | null {
   const ls = lm[LEFT_SHOULDER];
@@ -416,7 +418,7 @@ export function headOf(lm: readonly LandmarkLike[]): { cx: number; cy: number; r
   if (le && re && Math.min(le.visibility, re.visibility) >= HEAD_VISIBLE) {
     ax = (le.x + re.x) / 2;
     ay = (le.y + re.y) / 2;
-    r = Math.max(Math.hypot(le.x - re.x, le.y - re.y) * 0.85, span * 0.25);
+    r = Math.min(Math.max(Math.hypot(le.x - re.x, le.y - re.y) * 0.85, span * 0.25), span * 0.75);
   } else if (nose && nose.visibility >= HEAD_VISIBLE) {
     ax = nose.x;
     ay = nose.y;
@@ -427,8 +429,11 @@ export function headOf(lm: readonly LandmarkLike[]): { cx: number; cy: number; r
   const dx = ax - shoulderMidX(lm);
   const dy = ay - shoulderMidY(lm);
   const len = Math.hypot(dx, dy);
-  if (len === 0) return { cx: ax, cy: ay, r };
-  return { cx: ax + (dx / len) * r * 0.35, cy: ay + (dy / len) * r * 0.35, r };
+  const head = len === 0 ? { cx: ax, cy: ay, r } : { cx: ax + (dx / len) * r * 0.35, cy: ay + (dy / len) * r * 0.35, r };
+  // A NaN landmark has to die here. `boxOf`'s min/max skips one for free, because every
+  // comparison against NaN is false, but this circle is folded in with Math.min/Math.max,
+  // which would spread it to the whole box and on into the stillness arithmetic.
+  return Number.isFinite(head.cx) && Number.isFinite(head.cy) && Number.isFinite(head.r) ? head : null;
 }
 
 export const LEFT_HIP = 23;

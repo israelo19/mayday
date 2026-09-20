@@ -722,4 +722,9 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   tests could not catch it because every stillness case fed a byte-identical pose, so the step
   was exactly zero; the one moving case stepped a whole second. Both gaps now have tests.
   Nothing here reaches triage: `PersonDownDetector` is torso angle and a hold, and `stillMs`
-  and the box are read only by `drawPeople`.
+  and the box are read only by `drawPeople`. Probing degenerate landmarks afterwards caught two
+  more, both in the new code: an unbounded head radius let one mis-detected ear stretch the box
+  over most of the frame, now capped at three quarters of shoulder span because nobody's head is
+  wider than their shoulders; and a NaN landmark, which `boxOf`'s min/max had always skipped for
+  free since comparisons against NaN are false, spread through the folded-in circle to the whole
+  box, so `headOf` returns null unless every number it made is finite.
