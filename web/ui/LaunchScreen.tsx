@@ -9,7 +9,12 @@ export function LaunchScreen({ onStart }: Props) {
   return (
     <div
       style={{
-        height: '100dvh',
+        // 100dvh is the FULL visual viewport, but index.css already pads body by the safe-area
+        // insets and #root is 100% of that padded content box. Asking for 100dvh here subtracted
+        // the inset once and added it back once, so the card overflowed by the notch, body became
+        // a scroll container (overflow-x: hidden forces overflow-y: auto), and a thumb that
+        // drifted on the big button was read as a pan, cancelling the tap. 100% fits the box.
+        height: '100%',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -30,7 +35,10 @@ export function LaunchScreen({ onStart }: Props) {
       >
         I NEED HELP
       </button>
-      <p style={{ color: 'var(--muted)', fontSize: 18, margin: 0 }}>or just start talking</p>
+      {/* Nothing is listening yet, and on iOS nothing can be: SpeechRecognition.start() is only
+          granted inside a tap. So this line no longer invites speech, it warns what the tap does,
+          which is the prompt people were meeting with no warning at all. */}
+      <p style={{ color: 'var(--muted)', fontSize: 18, margin: 0 }}>Camera and microphone turn on when you tap.</p>
     </div>
   );
 }
