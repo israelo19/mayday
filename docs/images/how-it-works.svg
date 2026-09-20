@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 710" width="1200" height="710" role="img" aria-label="How Mayday works. The phone's camera feeds the Eyes, which box every person in view, read who is lying still, send one photo to a vision model, and then watch the helper's hands and shoulders. The microphone feeds the Ears, which hear what the bystander says. The Brain interprets both and picks the next line from the guideline script. The Voice speaks each line and keeps the beat. You answer by tapping or speaking. Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge. When paramedics arrive, the phone shows a timeline.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 736" width="1200" height="736" role="img" aria-label="How Mayday works. The phone's camera feeds the Eyes, which box every person in view, read who is lying still, send one photo to a vision model, and then watch the helper's hands and shoulders. The microphone feeds the Ears, which hear what the bystander says. The Brain interprets both and picks the next line from the guideline script. The Voice speaks each line and keeps the beat. You answer by tapping or speaking. Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge. When paramedics arrive, the phone shows a timeline.">
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#9aa3b2"/>
@@ -15,60 +15,59 @@
     .body { font-size: 15px; fill: #e8eaed; }
     .small { font-size: 14px; fill: #e8eaed; }
     .note { font-size: 14px; fill: #9aa3b2; }
-    .lbl { font-size: 13px; fill: #9aa3b2; }
     .you { font-size: 16px; fill: #e8eaed; }
     .cloud { font-size: 16px; fill: #cfe3ff; }
     .mint { fill: #34d399; } .red { fill: #ff3b30; } .blue { fill: #60a5fa; } .amber { fill: #fbbf24; } .violet { fill: #c084fc; }
   </style>
-  <rect width="1200" height="710" rx="18" fill="#0b0d10"/>
+  <rect width="1200" height="736" rx="18" fill="#0b0d10"/>
 
   <text class="h" x="48" y="56">How Mayday works, in one picture</text>
   <text class="sub" x="48" y="84">Four parts on the phone do the work. Cloud helpers make them better when the network is there. None is ever in charge.</text>
 
   <!-- the phone -->
-  <rect x="48" y="118" width="176" height="310" rx="26" fill="#171a21" stroke="#2a2f3a" stroke-width="2"/>
+  <rect x="48" y="118" width="176" height="324" rx="26" fill="#171a21" stroke="#2a2f3a" stroke-width="2"/>
   <rect x="112" y="128" width="48" height="6" rx="3" fill="#2a2f3a"/>
   <text class="title" x="136" y="166" text-anchor="middle" font-size="18">YOUR PHONE</text>
   <circle cx="96" cy="200" r="16" fill="none" stroke="#34d399" stroke-width="3"/>
   <circle cx="96" cy="200" r="6" fill="#34d399"/>
   <text class="body" x="122" y="206">Camera</text>
-  <rect x="88" y="326" width="16" height="26" rx="8" fill="#c084fc"/>
-  <path d="M 82 346 a 14 14 0 0 0 28 0" fill="none" stroke="#c084fc" stroke-width="3"/>
-  <line x1="96" y1="360" x2="96" y2="368" stroke="#c084fc" stroke-width="3"/>
-  <text class="body" x="122" y="349">Microphone</text>
   <text class="note" x="136" y="256" text-anchor="middle">No app store.</text>
   <text class="note" x="136" y="278" text-anchor="middle">No account.</text>
   <text class="note" x="136" y="300" text-anchor="middle">Already in your pocket.</text>
-  <text class="note" x="136" y="404" text-anchor="middle">Works with wifi off.</text>
+  <rect x="88" y="348" width="16" height="26" rx="8" fill="#c084fc"/>
+  <path d="M 82 368 a 14 14 0 0 0 28 0" fill="none" stroke="#c084fc" stroke-width="3"/>
+  <line x1="96" y1="382" x2="96" y2="390" stroke="#c084fc" stroke-width="3"/>
+  <text class="body" x="122" y="371">Microphone</text>
+  <text class="note" x="136" y="424" text-anchor="middle">Works with wifi off.</text>
 
   <line x1="226" y1="200" x2="262" y2="200" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
-  <line x1="226" y1="352" x2="262" y2="352" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="226" y1="374" x2="262" y2="374" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
 
   <!-- EYES -->
-  <rect x="266" y="118" width="272" height="160" rx="16" fill="#171a21" stroke="#34d399" stroke-width="2"/>
+  <rect x="266" y="118" width="272" height="176" rx="16" fill="#171a21" stroke="#34d399" stroke-width="2"/>
   <circle cx="292" cy="148" r="7" fill="#34d399"/>
   <text class="title mint" x="308" y="155">EYES</text>
-  <text class="small" x="290" y="184">Boxes every person in view,</text>
-  <text class="small" x="290" y="202">reads who is lying still, and</text>
-  <text class="small" x="290" y="220">sends one photo to a vision</text>
+  <text class="small" x="290" y="184">Box every person in view,</text>
+  <text class="small" x="290" y="202">read who is lying still, and</text>
+  <text class="small" x="290" y="220">send one photo to a vision</text>
   <text class="small" x="290" y="238">model to size up the scene.</text>
-  <text class="small" x="290" y="262">Then watches your hands and</text>
+  <text class="small" x="290" y="262">Then watch your hands and</text>
   <text class="small" x="290" y="280">shoulders as you work.</text>
 
   <!-- EARS -->
-  <rect x="266" y="296" width="272" height="124" rx="16" fill="#171a21" stroke="#c084fc" stroke-width="2"/>
-  <circle cx="292" cy="326" r="7" fill="#c084fc"/>
-  <text class="title violet" x="308" y="333">EARS</text>
-  <text class="small" x="290" y="362">Hear what you say, in your</text>
-  <text class="small" x="290" y="380">own panicked words, and turn</text>
-  <text class="small" x="290" y="398">it into the answer the script</text>
-  <text class="small" x="290" y="416">needs. Every answer is a button too.</text>
+  <rect x="266" y="306" width="272" height="136" rx="16" fill="#171a21" stroke="#c084fc" stroke-width="2"/>
+  <circle cx="292" cy="336" r="7" fill="#c084fc"/>
+  <text class="title violet" x="308" y="343">EARS</text>
+  <text class="small" x="290" y="370">Hear what you say, in your</text>
+  <text class="small" x="290" y="388">own panicked words, and turn</text>
+  <text class="small" x="290" y="406">it into the answer the script</text>
+  <text class="small" x="290" y="424">needs. Every answer is a button too.</text>
 
   <line x1="540" y1="200" x2="574" y2="200" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
-  <line x1="540" y1="352" x2="574" y2="352" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="540" y1="374" x2="574" y2="374" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
 
   <!-- BRAIN -->
-  <rect x="578" y="118" width="272" height="302" rx="16" fill="#171a21" stroke="#ff3b30" stroke-width="2"/>
+  <rect x="578" y="118" width="272" height="324" rx="16" fill="#171a21" stroke="#ff3b30" stroke-width="2"/>
   <circle cx="604" cy="148" r="7" fill="#ff3b30"/>
   <text class="title red" x="620" y="155">BRAIN</text>
   <text class="body" x="602" y="190">Takes what the Eyes and Ears</text>
@@ -77,61 +76,61 @@
   <text class="body" x="602" y="256">line by line from the guideline.</text>
   <text class="body" x="602" y="290">AHA. Stop the Bleed.</text>
   <text class="body" x="602" y="312">Red Cross.</text>
-  <text class="body amber" x="602" y="348">It interprets. It never invents.</text>
-  <text class="note" x="602" y="396">No AI writes a step. Ever.</text>
+  <text class="body amber" x="602" y="350">It interprets. It never invents.</text>
+  <text class="note" x="602" y="418">No AI writes a step. Ever.</text>
 
-  <line x1="852" y1="268" x2="886" y2="268" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="852" y1="280" x2="886" y2="280" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
 
   <!-- VOICE -->
-  <rect x="890" y="118" width="262" height="302" rx="16" fill="#171a21" stroke="#60a5fa" stroke-width="2"/>
+  <rect x="890" y="118" width="262" height="324" rx="16" fill="#171a21" stroke="#60a5fa" stroke-width="2"/>
   <circle cx="916" cy="148" r="7" fill="#60a5fa"/>
   <text class="title blue" x="932" y="155">VOICE</text>
   <text class="body" x="914" y="190">Speaks each step out loud.</text>
   <text class="body" x="914" y="212">Keeps the beat at 110.</text>
   <text class="body" x="914" y="246">Corrects you within</text>
   <text class="body" x="914" y="268">a second:</text>
-  <text class="body amber" x="914" y="296">"Faster. Push with the beat."</text>
-  <text class="body amber" x="914" y="318">"Don't let go!"</text>
-  <text class="note" x="914" y="396">Works with the network off.</text>
+  <text class="body amber" x="914" y="298">"Faster. Push with the beat."</text>
+  <text class="body amber" x="914" y="320">"Don't let go!"</text>
+  <text class="note" x="914" y="418">Works with the network off.</text>
 
   <!-- YOU -->
-  <rect x="266" y="442" width="886" height="76" rx="16" fill="#171a21" stroke="#2a2f3a" stroke-width="2"/>
-  <text class="title" x="292" y="474" font-size="20">YOU</text>
-  <text class="you" x="352" y="470">Say what is happening. Answer yes or no. Tap NEXT. Press CALL 911 and read the script on screen.</text>
-  <text class="note" x="352" y="498">Every voice command is also a button. The app never dials.</text>
-  <line x1="714" y1="440" x2="714" y2="424" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <rect x="266" y="464" width="886" height="76" rx="16" fill="#171a21" stroke="#2a2f3a" stroke-width="2"/>
+  <text class="title" x="292" y="496" font-size="20">YOU</text>
+  <text class="you" x="352" y="492">Say what is happening. Answer yes or no. Tap NEXT. Press CALL 911 and read the script on screen.</text>
+  <text class="note" x="352" y="520">Every voice command is also a button. The app never dials.</text>
+  <line x1="714" y1="462" x2="714" y2="446" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
 
   <!-- cloud helpers -->
-  <rect x="266" y="542" width="886" height="140" rx="16" fill="#0f1a2c" stroke="#60a5fa" stroke-width="2" stroke-dasharray="8 6"/>
-  <text class="title blue" x="292" y="572" font-size="18">CLOUD HELPERS</text>
-  <text class="note" x="292" y="594">Optional. Off by default. Never in charge. Mayday is complete without them.</text>
-  <text class="cloud" x="292" y="622"><tspan font-weight="700">Gemini API</tspan></text>
-  <text class="cloud" x="292" y="644">reads the one photo the Eyes send,</text>
-  <text class="cloud" x="292" y="664">and suggests a question.</text>
-  <text class="cloud" x="592" y="622"><tspan font-weight="700">ElevenLabs</tspan></text>
-  <text class="cloud" x="592" y="644">a calm human voice for the coach,</text>
-  <text class="cloud" x="592" y="664">and the 911 call-taker.</text>
-  <text class="cloud" x="892" y="622"><tspan font-weight="700">Grok API</tspan></text>
-  <text class="cloud" x="892" y="644">helps the Ears understand</text>
-  <text class="cloud" x="892" y="664">a panicked, rambling sentence.</text>
-  <line x1="402" y1="540" x2="402" y2="522" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowdim)"/>
-  <line x1="714" y1="540" x2="714" y2="522" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowdim)"/>
-  <line x1="1020" y1="540" x2="1020" y2="522" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowdim)"/>
+  <rect x="266" y="564" width="886" height="140" rx="16" fill="#0f1a2c" stroke="#60a5fa" stroke-width="2" stroke-dasharray="8 6"/>
+  <text class="title blue" x="292" y="594" font-size="18">CLOUD HELPERS</text>
+  <text class="note" x="292" y="616">Optional. Off by default. Never in charge. Mayday is complete without them.</text>
+  <text class="cloud" x="292" y="644"><tspan font-weight="700">Gemini API</tspan></text>
+  <text class="cloud" x="292" y="666">reads the one photo the Eyes send,</text>
+  <text class="cloud" x="292" y="686">and suggests a question.</text>
+  <text class="cloud" x="592" y="644"><tspan font-weight="700">ElevenLabs</tspan></text>
+  <text class="cloud" x="592" y="666">a calm human voice for the coach,</text>
+  <text class="cloud" x="592" y="686">and the 911 call-taker.</text>
+  <text class="cloud" x="892" y="644"><tspan font-weight="700">Grok API</tspan></text>
+  <text class="cloud" x="892" y="666">helps the Ears understand</text>
+  <text class="cloud" x="892" y="686">a panicked, rambling sentence.</text>
+  <line x1="402" y1="562" x2="402" y2="544" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowdim)"/>
+  <line x1="714" y1="562" x2="714" y2="544" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowdim)"/>
+  <line x1="1020" y1="562" x2="1020" y2="544" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowdim)"/>
 
   <!-- handoff -->
-  <rect x="48" y="452" width="176" height="230" rx="16" fill="#171a21" stroke="#2a2f3a" stroke-width="2"/>
-  <text class="title" x="136" y="484" text-anchor="middle" font-size="16">HANDOFF</text>
+  <rect x="48" y="474" width="176" height="230" rx="16" fill="#171a21" stroke="#2a2f3a" stroke-width="2"/>
+  <text class="title" x="136" y="506" text-anchor="middle" font-size="16">HANDOFF</text>
   <g fill="#e8eaed">
-    <rect x="112" y="500" width="10" height="10"/><rect x="126" y="500" width="10" height="10"/><rect x="154" y="500" width="10" height="10"/>
-    <rect x="112" y="514" width="10" height="10"/><rect x="140" y="514" width="10" height="10"/><rect x="154" y="514" width="10" height="10"/>
-    <rect x="126" y="528" width="10" height="10"/><rect x="140" y="528" width="10" height="10"/>
-    <rect x="112" y="542" width="10" height="10"/><rect x="154" y="542" width="10" height="10"/>
+    <rect x="112" y="522" width="10" height="10"/><rect x="126" y="522" width="10" height="10"/><rect x="154" y="522" width="10" height="10"/>
+    <rect x="112" y="536" width="10" height="10"/><rect x="140" y="536" width="10" height="10"/><rect x="154" y="536" width="10" height="10"/>
+    <rect x="126" y="550" width="10" height="10"/><rect x="140" y="550" width="10" height="10"/>
+    <rect x="112" y="564" width="10" height="10"/><rect x="154" y="564" width="10" height="10"/>
   </g>
-  <text class="note" x="136" y="584" text-anchor="middle">Paramedics arrive:</text>
-  <text class="note" x="136" y="604" text-anchor="middle">a timeline of what</text>
-  <text class="note" x="136" y="624" text-anchor="middle">happened, and a QR.</text>
-  <text class="note" x="136" y="656" text-anchor="middle">The 911 call-taker</text>
-  <text class="note" x="136" y="674" text-anchor="middle">got the same facts.</text>
+  <text class="note" x="136" y="606" text-anchor="middle">Paramedics arrive:</text>
+  <text class="note" x="136" y="626" text-anchor="middle">a timeline of what</text>
+  <text class="note" x="136" y="646" text-anchor="middle">happened, and a QR.</text>
+  <text class="note" x="136" y="678" text-anchor="middle">The 911 call-taker</text>
+  <text class="note" x="136" y="696" text-anchor="middle">got the same facts.</text>
 
-  <text class="note" x="1152" y="702" text-anchor="end">Wifi off? Eyes, Brain and Voice keep working, and every voice command has a button.</text>
+  <text class="note" x="1152" y="726" text-anchor="end">Wifi off? Eyes, Brain and Voice keep working, and every voice command has a button.</text>
 </svg>

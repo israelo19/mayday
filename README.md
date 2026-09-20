@@ -90,15 +90,19 @@ leaving it.
   <img src="docs/images/how-it-works.svg" width="100%" alt="How Mayday works: the Eyes see the scene and the helper, the Ears hear what you say, the Brain interprets both and picks the next line from the guideline script, the Voice speaks and keeps the beat; you answer with taps and voice; Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge">
 </p>
 
-Four parts on the phone do the work. The **Eyes** see the scene: a box around every person in
-view, who is lying still, one photo to a vision model at the start to size up what kind of
-emergency this is, and then the helper's hands and shoulders while they work. The **Ears** hear
-what the bystander says, in their own panicked words, and turn it into the answer the script
-needs. The **Brain** interprets what the Eyes and Ears report and decides what to say next, from
-a script written line by line from the published guideline. It interprets; it never invents.
-The **Voice** speaks the step, keeps the beat, and corrects within a second. The vision model and
-the voices in the cloud make each part better when the network is there, and none is ever in
-charge.
+Four parts on the phone do the work.
+
+- **Eyes.** Box every person in view, read who is lying still, and send one photo to a vision
+  model at the start to size up the emergency. Then watch the helper's hands and shoulders while
+  they work.
+- **Ears.** Hear what the bystander says, in their own panicked words, and turn it into the
+  answer the script needs.
+- **Brain.** Take what the Eyes and Ears report and decide what to say next, from a script
+  written line by line from the published guideline. It interprets; it never invents.
+- **Voice.** Speak the step, keep the beat, and correct within a second.
+
+The cloud helpers, a vision model and human voices, make each part better when the network is
+there. None is ever in charge.
 
 ## 🧭 Why you can trust it
 
