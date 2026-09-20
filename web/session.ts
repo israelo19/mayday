@@ -14,7 +14,7 @@
 import type { CoachingEvent, GeoFix, HandoffReport, PerceptionFacts, SceneAssessment, Sitrep, State } from '../src/types';
 import type { SceneAssessor } from '../src/ai/assess';
 import { ASSESS_FRAME_PX } from '../src/ai/assess';
-import type { IntentMatch, IntentRouter } from '../src/ai/intent';
+import type { IntentMatch, IntentOption, IntentRouter } from '../src/ai/intent';
 import type { DispatcherSim } from '../src/ai/dispatcher';
 import type { Perception, RoiState } from '../src/perception';
 import { GUIDANCE } from '../src/perception';
@@ -209,6 +209,9 @@ const INTENT_COOLDOWN_MS = 8_000;
 export const ROI_FAILED_LINE = "I can't find your hands on the wound. I'll keep coaching by voice.";
 /** Not medical: the camera moved the machine, and the bystander should know it was watching. */
 export const CAMERA_SAW_LINE = 'I can see you pushing.';
+/** Not medical: the mic heard a sentence nothing could place; dead air was the old answer. */
+export const HEARD_UNMATCHED_LINE = 'I heard you. If something has changed, say it simply, or tap a button.';
+const ACK_COOLDOWN_MS = 20_000;
 
 export function createSession(deps: SessionDeps): Session {
   const { perception, voice } = deps;
@@ -464,27 +467,61 @@ export function createSession(deps: SessionDeps): Session {
     const router = deps.router;
     if (!router || routing || phase === 'idle' || phase === 'handoff') return;
     if (t - routedAt < INTENT_COOLDOWN_MS) return;
-    const options = twinsOf(engine.currentState()?.state ?? null).map((twin) => ({ keyword: twin.keyword, label: twin.label }));
+    const options = intentOptions();
     if (options.length === 0) return;
     routing = true;
     void router.route({ transcript, options }).then((match) => {
       routing = false;
       routedAt = now();
-      if (match) suggestFromIntent(match, transcript);
-      else log.append({ t: now(), kind: 'system', detail: `no match from the intent router: "${transcript}"` });
+      if (match?.kind === 'answer') answerFromIntent(match, transcript);
+      else if (match) suggestFromIntent(match, transcript);
+      else {
+        log.append({ t: now(), kind: 'system', detail: `no match from the intent router: "${transcript}"` });
+        // Not silence: the person spoke and nothing could place it. Narration, so it never
+        // talks over a line, and rarely, so it never becomes a nag.
+        voice.out.enqueue({ priority: 'narration', text: HEARD_UNMATCHED_LINE, stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'heard-unmatched', cooldownMs: ACK_COOLDOWN_MS, t: now() });
+      }
       notify();
     });
+  }
+
+  /**
+   * What the router may pick from: the buttons on screen, the standing finish by this state's
+   * own keyword (its button is elsewhere, but "the paramedics just pulled up" is the commonest
+   * sentence of all), and the questions the machine has an approved answer for.
+   */
+  function intentOptions(): IntentOption[] {
+    const cur = engine.currentState();
+    if (!cur) return [];
+    const moves: IntentOption[] = twinsOf(cur.state).map((twin) => ({ keyword: twin.keyword, label: twin.label, kind: 'transition' }));
+    const terminal = terminalStateOf(cur.machineId);
+    const finish = cur.state.transitions.find(
+      (tr) => tr.on.kind === 'keyword' && terminal !== null && (tr.to === terminal || tr.to === `${cur.machineId}.${terminal}`),
+    );
+    if (finish?.on.kind === 'keyword') moves.push({ keyword: finish.on.keyword, label: finish.label, kind: 'transition' });
+    const answers: IntentOption[] = engine.availableAnswers().map((a) => ({ ...a, kind: 'answer' }));
+    return [...moves, ...answers];
   }
 
   function suggestFromIntent(match: IntentMatch, transcript: string): void {
     const t = now();
     if (suggestion) return; // something else asked while the model was thinking
-    const twin = twinsOf(engine.currentState()?.state ?? null).find((b) => b.keyword === match.keyword);
-    if (!twin) return; // the state moved on under the answer
-    const route = TRIAGE_ROUTES.find((r) => r.to === twin.to);
-    suggestion = { at: t, label: twin.label, keyword: twin.keyword, to: twin.to, heard: transcript, source: 'model' };
-    log.append({ t, kind: 'system', detail: `intent router (${match.model}, ${match.confidence}) reads "${transcript}" as ${twin.label}` });
-    voice.out.enqueue({ priority: 'correction', text: route?.confirm ?? confirmLine(twin.label), stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'suggest', cooldownMs: 3000, t });
+    const tr = engine.currentState()?.state.transitions.find((x) => x.on.kind === 'keyword' && x.on.keyword === match.keyword);
+    if (!tr) return; // the state moved on under the answer
+    const route = TRIAGE_ROUTES.find((r) => r.to === tr.to);
+    suggestion = { at: t, label: tr.label, keyword: match.keyword, to: tr.to, heard: transcript, source: 'model' };
+    log.append({ t, kind: 'system', detail: `intent router (${match.model}, ${match.confidence}) reads "${transcript}" as ${tr.label}` });
+    voice.out.enqueue({ priority: 'correction', text: route?.confirm ?? confirmLine(tr.label), stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'suggest', cooldownMs: 3000, t });
+  }
+
+  /** An approved answer moves nothing, so it needs no yes: the machine speaks its own cited line. */
+  function answerFromIntent(match: IntentMatch, transcript: string): void {
+    const t = now();
+    if (!engine.availableAnswers().some((a) => a.keyword === match.keyword)) return; // the machine changed under the answer
+    log.append({ t, kind: 'system', detail: `intent router (${match.model}, ${match.confidence}) reads "${transcript}" as the question: ${match.label}` });
+    lastKeyword = match.keyword;
+    lastHeardAt = t;
+    engine.onKeyword(match.keyword);
   }
 
   /**

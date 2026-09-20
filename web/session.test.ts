@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createFakePerception } from '../src/perception/fake';
-import { createSession, ROI_FAILED_LINE, type Session, type SessionDeps } from './session';
+import { createSession, HEARD_UNMATCHED_LINE, ROI_FAILED_LINE, type Session, type SessionDeps } from './session';
 import type { Voice, VoiceInOptions, VoiceInStatus } from '../src/voice';
 import type { CoachingEvent } from '../src/types';
 import type { IntentRequest, IntentRouter } from '../src/ai/intent';
@@ -439,6 +439,62 @@ describe('intent router', () => {
     release!();
     await flush(tick);
     expect(s.snapshot().suggestion).toBeNull();
+  });
+});
+
+describe('intent router: answers and the standing finish', () => {
+  const flush = async (tick: (ms: number) => void, ms = 100) => {
+    tick(ms);
+    await Promise.resolve();
+    await Promise.resolve();
+    tick(ms);
+  };
+
+  it("is offered the machine's answers as questions, and an answer speaks with no yes", async () => {
+    const { router, asked } = fakeRouter((labels) => labels.indexOf('I felt a rib crack'));
+    const { s, v, tick } = rig({ router });
+    s.start();
+    s.say('not breathing');
+    v.mic()!.onTranscript('I think I just broke something in his chest');
+    await flush(tick);
+    expect(asked[0].options.find((o) => o.label === 'I felt a rib crack')).toMatchObject({ kind: 'answer', keyword: 'ribs' });
+    expect(s.snapshot().suggestion).toBeNull();
+    expect(s.snapshot().stateKey).toBe('cardiac.scene_check');
+    expect(v.enqueued.map((e) => e.text)).toContain('A crack or a pop can happen when you push hard enough. It is not a reason to stop. Keep going.');
+    expect(s.log.entries().some((e) => e.detail.endsWith('as the question: I felt a rib crack'))).toBe(true);
+  });
+
+  it('offers the standing finish too, so "the paramedics just pulled up" is understood', async () => {
+    const { router, asked } = fakeRouter((labels) => labels.indexOf('Ambulance is here'));
+    const { s, v, tick } = rig({ router });
+    s.start();
+    s.say('not breathing');
+    for (let i = 0; i < 4; i++) s.advance(); // compressions
+    v.mic()!.onTranscript('the paramedics just pulled up');
+    await flush(tick);
+    expect(asked[0].options.some((o) => o.label === 'Ambulance is here' && o.kind === 'transition')).toBe(true);
+    expect(s.snapshot().suggestion).toMatchObject({ source: 'model', to: 'handoff' });
+    s.confirmSuggestion();
+    expect(s.snapshot().phase).toBe('handoff');
+  });
+
+  it('acknowledges out loud when even the router cannot place the sentence', async () => {
+    const { router } = fakeRouter(() => null);
+    const { s, v, tick } = rig({ router });
+    s.start();
+    s.say('not breathing');
+    v.mic()!.onTranscript('I do not know what any of this means');
+    await flush(tick);
+    expect(v.enqueued.find((e) => e.text === HEARD_UNMATCHED_LINE)?.priority).toBe('narration');
+  });
+
+  it('offers triage exactly the three routes, as before', async () => {
+    const { router, asked } = fakeRouter(() => null);
+    const { s, v, tick } = rig({ router });
+    s.start();
+    v.mic()!.onTranscript('something is very wrong with him');
+    await flush(tick);
+    expect(asked[0].options.map((o) => o.label)).toEqual(['Not breathing', 'Shot or bleeding', 'Choking']);
   });
 });
 
