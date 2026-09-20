@@ -2,7 +2,7 @@
 
 ## Screens (there are only four; resist adding a fifth)
 1. LAUNCH: one huge button "I NEED HELP" + the line "or just start talking". Tapping or any triage keyword enters triage. Dark background, maximum contrast, thumb-reachable. Nothing else. (Design rationale for judges: literature shows guidance apps can delay the start of care; our launch is zero-navigation.)
-2. COACH: what the phone shows while propped on the ground. Current instruction in giant text (readable at 1.5m), live metric (rate number, or continuous-pressure timer), camera preview small in a corner with pose overlay, CALL 911 button persistent top, NEXT button persistent bottom (manual advance fallback), red SIMULATED DISPATCHER banner when that panel is open.
+2. COACH: what the phone shows while propped on the ground. Current instruction in giant text (readable at 1.5m), live metric (rate number, or continuous-pressure timer), camera preview small in a corner with pose overlay, CALL 911 button persistent top, NEXT button persistent bottom (manual advance fallback), the dispatcher panel in the top stack when the call is open. The panel does not label itself; LAUNCH carries the disclosure (DECISIONS.md Sat 20:35).
 3. SITREP: "Say this to the dispatcher" read-aloud block (location, emergency, status) + live timeline.
 4. HANDOFF: headline metrics (CPR started at, avg rate, pauses, pressure time), timeline, QR of report JSON. This is the closing shot of the demo.
 
@@ -17,7 +17,7 @@
 2. Phone handed to a JUDGE. "I NEED HELP." Judge says "he's not breathing."
 3. App walks judge through position; judge compresses a duffel; metronome; app corrects the judge's real rate; cover-the-camera beat -> blind mode line.
 4. Bleeding beat with teammate #2 + red cloth: judge presses, lifts hands to peek, app: "Don't let go!" within 1.5s.
-5. SITREP + simulated dispatcher exchange (SIMULATED banner visible).
+5. SITREP + dispatcher exchange (the panel reads 911 / On the line; the disclosure was on LAUNCH).
 6. Wifi off, coaching continues. Close on HANDOFF screen: "and the ambulance is still four minutes away."
 Record a full run as the sub-3-minute Devpost video Saturday night. It is the insurance policy.
 

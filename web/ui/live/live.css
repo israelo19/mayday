@@ -1,31 +1,62 @@
 /* The live screen: camera underneath, everything else floating. Dark ground, mint for good,
-   amber for a nudge, red for critical and for the call button. P4 restyles from here. */
+   amber for a nudge, red for critical and for the call button. P4 restyles from here.
+
+   LAYOUT CONTRACT. The screen is ONE flex column, not two absolute stacks. It used to be
+   `.live-top` pinned to top: 0 and `.live-bottom` pinned to bottom: 0, each sized by its own
+   content, with nothing between them but z-index. On a 375x667 phone with the dispatcher open
+   they met in the middle and the bottom stack drew over the call, cutting Hang up in half. In
+   a flex column they cannot: the bottom stack asks for its natural height, the top stack gets
+   the rest, and the dispatcher panel inside it shrinks and scrolls rather than disappearing
+   under anything. Nothing on this screen may go back to absolute positioning except the
+   camera, its overlay and the debug panel, which are layers rather than content.
+
+   SIZING. Every control is at least --tap tall, because the person tapping is kneeling over a
+   patient. Lengths that must survive a 320 px phone and a desktop window are clamp() with a
+   viewport term, not a bare percent or a bare pixel. Viewport heights are dvh: on iOS Safari
+   vh counts the space behind the URL bar, so a 30vh panel measured taller than the screen it
+   was sitting on, which is half of why things overlapped on the phone and not in the pane. */
 .live {
   --ink: #f4f6f7; --ink-2: #b9c1c8; --line: rgba(255, 255, 255, 0.14);
   --glass: rgba(6, 8, 10, 0.72); --mint: #7fe3c6; --amber: #ffb454; --red: #ff453a;
+  --tap: 48px; /* the floor for anything tappable, a little over the 44 px HIG minimum */
+  --gap: clamp(6px, 1.8vw, 10px);
+  --pad: clamp(10px, 3.4vw, 16px);
+  --r-lg: clamp(14px, 4vw, 18px);
+  --r-md: clamp(10px, 3vw, 14px);
   position: fixed; inset: 0; background: #000; color: var(--ink); overflow: hidden;
+  display: flex; flex-direction: column;
 }
 .live-camera { position: absolute; inset: 0; }
 .live-camera .cam { border-radius: 0; }
 .live-dim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.78); }
 
+/* The top stack yields. It is the only flex child allowed to shrink, and when it runs out of
+   room it scrolls itself instead of growing under the bottom stack. */
 .live-top {
-  position: absolute; left: 0; right: 0; top: 0; display: flex; flex-direction: column; align-items: stretch;
-  gap: 8px; padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 0; pointer-events: none;
+  position: relative; z-index: 2; flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; align-items: stretch;
+  gap: var(--gap); padding: calc(var(--gap) + env(safe-area-inset-top, 0px)) var(--pad) 0; pointer-events: none;
 }
-.live-top > * { pointer-events: auto; }
-.live-top-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-.live-top-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.live-call { background: var(--red); border: none; color: #fff; font-weight: 800; font-size: 17px; min-height: 46px; padding: 8px 16px; border-radius: 14px; box-shadow: 0 6px 24px rgba(255, 69, 58, 0.35); }
+.live-top > * { pointer-events: auto; flex: none; }
+.live-top-row { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--gap); }
+/* nowrap plus a min-width sized to the longer label ("On the line"), so the button does not
+   reflow to two lines or change width when the call connects. */
+.live-call {
+  flex: none; white-space: nowrap; min-width: clamp(112px, 32vw, 140px);
+  background: var(--red); border: none; color: #fff; font-weight: 800;
+  font-size: clamp(15px, 4.2vw, 18px); min-height: var(--tap); padding: 8px clamp(12px, 4vw, 18px);
+  border-radius: var(--r-md); box-shadow: 0 6px 24px rgba(255, 69, 58, 0.35);
+}
 .live-call:disabled { opacity: 0.85; }
 .live-call.urgent { animation: live-call-pulse 1.2s ease-in-out infinite; }
 @keyframes live-call-pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.06); box-shadow: 0 0 0 10px rgba(255, 69, 58, 0.25); }
 }
-.live-sim { font-size: 12px; font-weight: 700; color: var(--red); background: var(--glass); padding: 4px 8px; border-radius: 999px; border: 1px solid var(--red); }
 
-.live-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; font-size: 14px; max-width: 60vw; color: var(--ink); text-align: left; min-height: 0; }
+/* The chip takes the room the call button leaves, rather than a guessed 60vw that collided
+   with it on a narrow phone. min-width: 0 is what lets a flex child actually wrap its text. */
+.live-chip { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: 8px; background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; font-size: clamp(13px, 3.6vw, 15px); color: var(--ink); text-align: left; min-height: var(--tap); }
 .live-chip:disabled { opacity: 1; }
 .live-dot { width: 9px; height: 9px; border-radius: 50%; background: #5f6a74; flex: none; }
 .live-chip-on .live-dot { background: var(--mint); animation: live-pulse 1.4s ease-out infinite; }
@@ -69,8 +100,10 @@
 .live-metric.off .live-metric-value { color: var(--amber); }
 .live-metric-label { font-size: 12px; color: var(--ink-2); margin-top: 4px; }
 
-/* The bottom stack outranks the dispatcher panel: a suggestion, a correction or a button is never hidden under the call. */
-.live-bottom { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; display: flex; flex-direction: column; gap: 8px; padding: 0 12px calc(10px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 60%, rgba(0, 0, 0, 0)); padding-top: 24px; }
+/* The bottom stack wins. It takes its natural height first and the top stack lives on what is
+   left, because the instruction and the buttons under it are the product. The cap stops a long
+   card from taking the whole screen; past it the card scrolls. */
+.live-bottom { position: relative; z-index: 3; margin-top: auto; flex: 0 0 auto; max-height: 72%; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: var(--gap); padding: 24px var(--pad) calc(var(--gap) + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 60%, rgba(0, 0, 0, 0)); }
 .live-banner { border-radius: 12px; padding: 8px 12px; font-weight: 700; font-size: 15px; background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--line); }
 .live-banner.amber { color: var(--amber); border-color: rgba(255, 180, 84, 0.5); }
 .live-banner.red { color: var(--red); border-color: rgba(255, 69, 58, 0.6); }
@@ -78,10 +111,10 @@
 /* The camera-off banner carries a way back, so it is a row: the reason on the left, Try again
    on the right. Before this the camera could only be recovered by reloading the page. */
 .live-camera-off { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
-.live-camera-off button { flex: none; min-height: 40px; padding: 8px 14px; font-size: 15px; font-weight: 700; color: var(--red); border-color: rgba(255, 69, 58, 0.6); }
+.live-camera-off button { flex: none; min-height: var(--tap); padding: 8px 14px; font-size: clamp(14px, 3.8vw, 16px); font-weight: 700; color: var(--red); border-color: rgba(255, 69, 58, 0.6); }
 .live-camera-why { display: block; font-weight: 400; font-size: 13px; opacity: 0.75; }
 
-.live-card { background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; }
+.live-card { background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: var(--r-lg); padding: clamp(10px, 3.4vw, 16px) var(--pad); }
 .live-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; width: 100%; background: transparent; border: 0; padding: 0; color: inherit; min-height: 0; text-align: left; cursor: pointer; }
 .live-card-right { display: flex; align-items: center; gap: 10px; }
 .live-card-toggle { font-size: 12px; color: var(--ink-2); }
@@ -96,18 +129,23 @@
 .live-card .guide { background: transparent; }
 
 .live-twins { display: flex; flex-wrap: wrap; gap: 8px; }
-.live-twin { flex: 1 1 auto; background: rgba(255, 255, 255, 0.1); border: 1px solid var(--line); color: var(--ink); border-radius: 12px; min-height: 44px; font-size: 15px; font-weight: 600; }
-.live-twin.triage { flex: 1 1 100%; min-height: 54px; font-size: 20px; background: rgba(127, 227, 198, 0.16); border-color: rgba(127, 227, 198, 0.5); }
+.live-twin { flex: 1 1 auto; background: rgba(255, 255, 255, 0.1); border: 1px solid var(--line); color: var(--ink); border-radius: var(--r-md); min-height: var(--tap); font-size: clamp(14px, 4vw, 16px); font-weight: 600; }
+.live-twin.triage { flex: 1 1 100%; min-height: clamp(52px, 8dvh, 60px); font-size: clamp(17px, 5vw, 21px); background: rgba(127, 227, 198, 0.16); border-color: rgba(127, 227, 198, 0.5); }
 
 .live-actions { display: flex; gap: 10px; }
-.live-next { flex: 1; background: #fff; color: #000; border: none; border-radius: 14px; min-height: 50px; font-size: 18px; font-weight: 800; }
+.live-next { flex: 1; background: #fff; color: #000; border: none; border-radius: var(--r-md); min-height: clamp(50px, 7.5dvh, 58px); font-size: clamp(16px, 4.6vw, 19px); font-weight: 800; }
 .live-next:disabled { opacity: 0.35; }
-.live-ghost { flex: 1; background: transparent; border: 1px solid var(--line); color: var(--ink); border-radius: 14px; min-height: 50px; font-size: 16px; font-weight: 600; padding: 0 14px; }
-.live-ghost.small { min-height: 40px; font-size: 14px; }
+.live-ghost { flex: 1; background: transparent; border: 1px solid var(--line); color: var(--ink); border-radius: var(--r-md); min-height: var(--tap); font-size: clamp(15px, 4vw, 17px); font-weight: 600; padding: 0 14px; }
+.live-ghost.small { min-height: var(--tap); font-size: clamp(13px, 3.6vw, 15px); }
 
-.live-dispatch { max-height: 30vh; overflow: auto; background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--red); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
+/* The one child of the top stack that may shrink: a long exchange gives its room back to the
+   coaching rather than sliding under it. The soft cap keeps it from owning a tall screen. */
+.live-dispatch { flex: 0 1 auto; min-height: 0; max-height: min(38dvh, 340px); overflow: hidden; background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--red); border-radius: var(--r-lg); padding: 10px 12px; display: flex; flex-direction: column; gap: var(--gap); }
+/* The panel's own scroller. Head and Hang up are flex: none siblings and stay reachable. */
+.live-dispatch-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: var(--gap); }
+.live-dispatch > .live-dispatch-head, .live-dispatch > .live-ghost { flex: none; }
 .live-dispatch.collapsed { padding-bottom: 6px; }
-.live-dispatch-head { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.live-dispatch-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 32px; cursor: pointer; }
 .live-sim-tag { color: var(--red); font-weight: 800; font-size: 13px; }
 .live-dispatch-toggle { font-size: 13px; color: var(--ink-2); }
 .live-dispatch-lines { display: flex; flex-direction: column; gap: 4px; }
@@ -116,8 +154,10 @@
 .live-dispatch-line.you { color: var(--ink-2); font-weight: 500; }
 .live-dispatch-line.you b { color: var(--ink-2); }
 .live-dispatch-line.muted { color: var(--ink-2); font-weight: 500; }
-.live-dispatch-replies { display: flex; flex-direction: column; gap: 6px; max-height: 32vh; overflow: auto; }
-.live-reply { text-align: left; background: rgba(255, 255, 255, 0.08); border: 1px solid var(--line); color: var(--ink); border-radius: 10px; min-height: 42px; padding: 8px 12px; font-size: 14px; }
+/* No inner cap: the panel owns the scroll. A 32vh list inside a 30vh panel was two scrollers
+   fighting, and the outer one always won by clipping the Hang up button. */
+.live-dispatch-replies { display: flex; flex-direction: column; gap: 6px; }
+.live-reply { text-align: left; background: rgba(255, 255, 255, 0.08); border: 1px solid var(--line); color: var(--ink); border-radius: var(--r-md); min-height: var(--tap); padding: 8px 12px; font-size: clamp(14px, 3.8vw, 16px); }
 
 .live-handoff { position: absolute; inset: 0; overflow: auto; padding: calc(20px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 18px; }
 .live-handoff h1 { margin: 0; font-size: 30px; }
@@ -131,28 +171,35 @@
 .live-timeline { margin: 0; padding: 0; list-style: none; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
 .live-timeline span { color: var(--mint); font-variant-numeric: tabular-nums; margin-right: 8px; }
 
-.live-fake { position: absolute; right: 12px; top: calc(140px + env(safe-area-inset-top, 0px)); display: flex; flex-direction: column; gap: 6px; background: var(--glass); border: 1px dashed var(--amber); border-radius: 12px; padding: 8px; font-size: 12px; color: var(--amber); z-index: 3; }
+/* ?fake=1 only. A debug layer, so it floats over everything on purpose and scrolls itself
+   rather than pushing the real UI around. */
+.live-fake { position: absolute; right: var(--pad); top: calc(96px + env(safe-area-inset-top, 0px)); width: min(46vw, 190px); max-height: 46dvh; overflow: auto; display: flex; flex-direction: column; gap: 6px; background: var(--glass); backdrop-filter: blur(8px); border: 1px dashed var(--amber); border-radius: var(--r-md); padding: 8px; font-size: 12px; color: var(--amber); z-index: 9; }
+.live-fake.collapsed { width: auto; max-height: none; min-height: 32px; padding: 6px 10px; opacity: 0.7; }
+.live-fake-head { display: flex; justify-content: space-between; gap: 10px; width: 100%; min-height: 0; padding: 0 0 2px; background: none; border: 0; border-bottom: 1px dashed rgba(255, 180, 84, 0.4); border-radius: 0; color: inherit; font-size: 12px; }
 .live-fake button { min-height: 34px; padding: 4px 8px; font-size: 12px; }
 .live-fake input { width: 120px; accent-color: var(--amber); }
 
 @media (prefers-reduced-motion: reduce) { .live-chip-on .live-dot { animation: none; } }
 
-/* ---- the step guide inside the floating card: a picture strip, not a full player ---- */
-.live-bottom, .live-top, .live-dispatch { max-width: 560px; margin-left: auto; margin-right: auto; }
+/* One column width for the whole screen, phone or desktop window. The dispatcher inherits it
+   from .live-top now that it is a child in flow, so it no longer needs its own centring. */
+.live-bottom, .live-top { width: 100%; max-width: 560px; margin-left: auto; margin-right: auto; }
+.live-bottom { margin-top: auto; }
 .live-handoff { max-width: 640px; margin: 0 auto; left: 0; right: 0; }
-.live-top { left: 0; right: 0; }
+
+/* ---- the step guide inside the floating card: a picture strip, not a full player ---- */
 .live-card .gd { gap: 8px; }
 .live-card .gd-steps { display: none; }
-.live-card .gd-stage { aspect-ratio: auto; height: min(18vh, 160px); border-color: rgba(255, 255, 255, 0.08); }
+.live-card .gd-stage { aspect-ratio: auto; height: min(18dvh, 160px); border-color: rgba(255, 255, 255, 0.08); }
 .live-card .gd-caption { font-size: clamp(18px, 4.8vw, 26px); font-weight: 700; line-height: 1.18; min-height: 0; }
 .live-card .gd-trace { height: 56px; }
 @media (max-height: 700px) {
-  .live-card .gd-stage { height: 18vh; }
+  .live-card .gd-stage { height: 16dvh; }
   .live-card .gd-trace { display: none; }
 }
 
 .live-suggest { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 17px; }
 .live-suggest b { color: var(--ink); }
 .live-suggest-actions { display: flex; gap: 6px; }
-.live-suggest-actions button { min-height: 40px; padding: 6px 14px; border-radius: 10px; font-weight: 700; background: rgba(255, 255, 255, 0.12); border: 1px solid var(--line); color: var(--ink); }
+.live-suggest-actions button { min-height: var(--tap); padding: 6px 14px; border-radius: var(--r-md); font-weight: 700; background: rgba(255, 255, 255, 0.12); border: 1px solid var(--line); color: var(--ink); }
 .live-suggest-actions button:first-child { background: var(--mint); color: #04110d; border-color: var(--mint); }

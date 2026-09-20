@@ -1,0 +1,29 @@
+/* LAUNCH, docs/05. One button and three lines, sized off the viewport so the button stays the
+   biggest thing on the screen on a 320x568 phone and does not turn absurd in a desktop window.
+
+   height: 100%, never 100dvh. 100dvh is the FULL visual viewport, but index.css already pads
+   body by the safe-area insets and #root is 100% of that padded content box. Asking for 100dvh
+   subtracted the inset once and added it back once, so on a notched phone the card overflowed
+   by the notch, body became a scroll container (overflow-x: hidden forces overflow-y: auto),
+   and a thumb that drifted on the big button was read as a pan, cancelling the tap. */
+.launch {
+  height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: clamp(10px, 2.6dvh, 22px);
+  padding: clamp(16px, 4vw, 28px);
+  text-align: center;
+}
+.launch > * { flex: none; }
+.launch-head { display: flex; flex-direction: column; gap: 6px; max-width: 420px; }
+.launch-name { font-size: clamp(13px, 3.8vw, 16px); font-weight: 800; letter-spacing: 0.18em; color: var(--accent); }
+.launch-tagline { font-size: clamp(15px, 4.4vw, 18px); color: var(--muted); line-height: 1.35; }
+/* The one target that matters, aimed at a shaking hand. It shrinks with the screen rather than
+   holding a 220 px floor that pushed the fine print off a short phone. */
+.launch-cta {
+  width: 100%; max-width: 420px;
+  min-height: clamp(148px, 27dvh, 240px);
+  font-size: clamp(30px, 9vw, 44px); font-weight: 800;
+  border-radius: clamp(18px, 5vw, 26px);
+}
+.launch-note { margin: 0; max-width: 420px; color: var(--muted); font-size: clamp(15px, 4.4vw, 18px); }
+.launch-fine { margin: 0; max-width: 420px; color: var(--muted); font-size: clamp(11.5px, 3.2vw, 13px); line-height: 1.4; opacity: 0.75; }

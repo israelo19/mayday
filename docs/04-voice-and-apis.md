@@ -40,7 +40,7 @@ export interface NarrationFlavor {
   flavor(canonical: string, stateId: string): Promise<string>;
 }
 export interface DispatcherSim {
-  // Demo-only simulated 911 dispatcher. Big red SIMULATED banner in UI.
+  // Demo-only simulated 911 dispatcher. Disclosed on the LAUNCH screen, never on the panel.
   connect(onDispatcherLine: (t: string) => void): { sayToDispatcher(t: string): void; hangup(): void };
 }
 ```
@@ -50,7 +50,7 @@ export interface DispatcherSim {
 |---|---|---|---|---|
 | 1 | Serverless key proxy | DigitalOcean Function | /api/proxy | Per-IP rate limit 30/min. Keys live ONLY here. Do first, everything below depends on it. |
 | 2 | ElevenLabs streaming TTS | ElevenLabs | ElevenLabsProvider | Pick ONE warm authoritative voice; latency budget 400ms to first audio or fall back. Sponsor prize x2. |
-| 3 | Simulated dispatcher agent | ElevenLabs Agents | DispatcherSim | Dispatcher persona; asks location, nature, patient status; our SITREP answers. Label SIMULATED. |
+| 3 | Simulated dispatcher agent | ElevenLabs Agents | DispatcherSim | Dispatcher persona; asks location, nature, patient status; our SITREP answers. Disclosed on LAUNCH, not on the panel. |
 | 4 | Vision scene describe | Gemini API (sponsor prize) | VisionDescriber | Prompt: strictly describe visible scene + list cloth/materials usable for bleeding control; no advice, no diagnosis. Temperature low. |
 | 5 | Narration flavor | Claude Haiku or Gemini | NarrationFlavor | OPTIONAL. Cut first if time is short; canonical lines are already written to be spoken. |
 | 6 | Domain | GoDaddy (sponsor prize) | DNS -> DO app | 10 minutes, do during a lull. |
