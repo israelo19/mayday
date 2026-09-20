@@ -92,7 +92,7 @@ describe('the engine stays deterministic', () => {
 });
 
 describe('a human dials 911 (principle 5)', () => {
-  // The app renders a CALL 911 button and a SIMULATED dispatcher. It never places a call:
+  // The app renders a CALL 911 button and a scripted dispatcher. It never places a call:
   // no tel: link, no telephony API, anywhere in shipped code. Grepped, not remembered.
   const files = [...sourceFiles('src'), ...sourceFiles('web')];
 
@@ -101,7 +101,20 @@ describe('a human dials 911 (principle 5)', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('labels the dispatcher as simulated on the live screen', () => {
-    expect(readFileSync('web/ui/live/LiveApp.tsx', 'utf8')).toContain('Simulated dispatcher');
+  // The disclosure moved off the call panel and onto LAUNCH, so the call reads like the real
+  // one will. It still has to exist, and it has to be somewhere everyone passes through.
+  it('says on the launch screen that the dispatcher is not a real line', () => {
+    const launch = readFileSync('web/ui/LaunchScreen.tsx', 'utf8');
+    expect(launch).toMatch(/simulated dispatcher/i);
+    expect(launch).toMatch(/not a real emergency line/i);
+  });
+
+  it('never calls the dispatcher simulated on the live screen or the call panel', () => {
+    for (const f of ['web/ui/live/LiveApp.tsx', 'web/ui/live/DispatcherPanel.tsx']) {
+      const rendered = readFileSync(f, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '') // block and JSX comments
+        .replace(/^[ \t]*\/\/.*$/gm, ''); // line comments
+      expect(rendered, f).not.toMatch(/simulated/i);
+    }
   });
 });

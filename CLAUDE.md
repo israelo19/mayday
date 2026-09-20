@@ -14,7 +14,7 @@ One-liner for every README and pitch surface: "The minutes before the ambulance,
 2. REFLEXES ARE LOCAL. The perception loop (MediaPipe) and coaching loop run entirely on-device. The app must keep coaching with the network unplugged. We will demo this.
 3. COGNITION IS EPISODIC. Cloud AI calls (vision scene description, improvised materials suggestion, narration flavor) happen rarely, never block coaching, and always have a local fallback.
 4. FAIL LOUD, NEVER WRONG. If perception confidence drops (bad light, wrong angle, occlusion), the app announces it ("I can't see clearly, I'll keep coaching by voice") and degrades to audio-only protocol coaching. Silent wrong output is the only unacceptable state. Audio-only coaching is the floor, and the floor equals today's 911 dispatcher standard of care.
-5. A HUMAN DIALS 911. The app never places calls autonomously. It renders a big CALL 911 button, and once the human calls, it shows a SITREP to read aloud. The demo uses a SIMULATED dispatcher, clearly labeled. Never integrate with real emergency lines.
+5. A HUMAN DIALS 911. The app never places calls autonomously. It renders a big CALL 911 button, and once the human calls, it shows a SITREP to read aloud. The demo uses a simulated dispatcher, disclosed once on the LAUNCH screen before the session starts and never stamped on the call panel itself, so the call reads the way the real one will. Never integrate with real emergency lines.
 
 ## Stack
 - Vite + React + TypeScript, single-page app. No router needed.

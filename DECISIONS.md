@@ -613,3 +613,39 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   the screen, and the human was always going to confirm. The scene assessment is the steadier
   Gemini demo and should lead. Featherless answered the same sentence correctly in 1.5 s if a
   rehearsal needs determinism, one `MODEL_PROVIDER` away.
+- **Sat 20:35 (Ricky, `mobile-911-simulated-label`)** The word SIMULATED comes off the call, and
+  the disclosure moves to LAUNCH. Three surfaces said it at once mid-emergency: a red
+  "Simulated dispatcher" chip under the CALL 911 button, a "Simulated 911" header on the panel,
+  and a "Scripted" status line, plus "Connecting to the simulated call-taker" while the first
+  line loaded. The panel now reads 911 / On the line / Dispatcher, `scripted` and `fallback`
+  both surface as "On the line" because which engine answers is a build detail, and the event
+  log keeps the distinction for the debug screen. Principle 5 is unchanged in substance, the
+  app still never dials and `tests/boundaries.test.ts` still greps for `tel:` and telephony;
+  what changed is where it is said. Disclose once, before the tap, to someone who is not yet in
+  an emergency, then let the call look like the product it is a prototype of. The old test
+  asserting the label on `LiveApp.tsx` is replaced by two: LAUNCH must carry "simulated
+  dispatcher" and "not a real emergency line", and `LiveApp.tsx` and `DispatcherPanel.tsx` must
+  not say "simulated" in anything they render. Nowhere disclosure at all was the other option
+  and was not taken.
+
+- **Sat 20:50 (Ricky, `mobile-911-simulated-label`)** The live screen is one flex column, not two
+  absolute stacks. `.live-top` was pinned to `top: 0` and `.live-bottom` to `bottom: 0`, each
+  sized by its own content, with nothing between them but z-index; on a 375x667 phone with the
+  dispatcher open they met in the middle and the bottom stack drew over the call, cutting Hang up
+  in half. `.live` is now `display: flex; flex-direction: column`: the bottom stack takes its
+  natural height (capped at 72% and scrolling past that), the top stack gets the rest and shrinks,
+  and inside it only `.live-dispatch` gives ground. Head and Hang up are pinned and a new
+  `.live-dispatch-scroll` takes the exchange, so on a 320 px phone the panel shrinks without
+  putting its only exit out of reach. The `max-height: 32vh` reply list inside a `max-height: 30vh`
+  panel is gone: two scrollers fighting, outer always winning by clipping. Camera, HUD, dim and
+  the ?fake=1 panel are the only absolutes left, because they are layers rather than content.
+  Sizing rules that follow from it: viewport heights are `dvh`, never `vh`, since iOS Safari's
+  `vh` counts the space behind the URL bar and a 30vh panel measured taller than the screen it sat
+  on; every tappable thing is at least `--tap` (48px); lengths that must survive a 320 px phone
+  and a desktop window are `clamp()` with a viewport term rather than a bare percent or a bare
+  pixel. The call button is `white-space: nowrap` with a min-width sized to "On the line", which
+  is why it no longer reflows to two lines when the call connects, and the listening chip is
+  `flex: 1 1 auto; min-width: 0` instead of a guessed `max-width: 60vw` that collided with it.
+  LAUNCH moved from inline styles to `web/ui/launch.css` on the same rules and now fits 320x568
+  with room. The ?fake=1 panel collapses to a chip, because a debug layer that covers the handoff
+  is the same bug in a different coat.

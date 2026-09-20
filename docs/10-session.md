@@ -76,4 +76,4 @@ floating elements. P4 owns its look; the data seam is the snapshot and the eight
 Chrome's speech recognition sends audio to Google. With the network off the chip reads
 "Voice off, use the buttons" and every transition is still one tap; coaching, corrections,
 the metronome and speech output are local. The CALL 911 button opens the scripted
-simulated dispatcher under a red label; it never dials.
+simulated dispatcher in a red-bordered panel that does not label itself; it never dials.

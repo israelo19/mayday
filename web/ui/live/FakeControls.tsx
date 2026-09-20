@@ -5,14 +5,27 @@ import type { FakePerceptionHandle } from '../../../src/perception/fake';
 
 export function FakeControls({ perception }: { perception: FakePerceptionHandle }) {
   const [, force] = useState(0);
+  const [open, setOpen] = useState(true);
   const c = perception.controls;
   const set = (patch: Parameters<FakePerceptionHandle['setControls']>[0]) => {
     perception.setControls(patch);
     force((n) => n + 1);
   };
+  // It floats over the real screen, so it has to get out of the way: collapsed it is a single
+  // chip in the corner, and the handoff and the dispatcher are readable behind it again.
+  if (!open) {
+    return (
+      <button className="live-fake collapsed" onClick={() => setOpen(true)}>
+        fake rescuer
+      </button>
+    );
+  }
   return (
     <div className="live-fake">
-      <span>fake rescuer</span>
+      <button className="live-fake-head" onClick={() => setOpen(false)}>
+        <span>fake rescuer</span>
+        <span>hide</span>
+      </button>
       <label>
         {c.rate}/min
         <input type="range" min={60} max={150} value={c.rate} onChange={(e) => set({ rate: Number(e.target.value) })} />
