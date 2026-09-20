@@ -76,7 +76,6 @@ Mayday gives them a way, and gives it to everyone.
   pressure that does not lift.
 - **Keeps the dispatcher informed.** Facts instead of panic: where, what, how long, the rate.
 - **Teaches as it coaches.** Every session is the real guideline, step by step.
-- **Open to every community.** Apache 2.0, and a new emergency is a new file.
 
 It does not replace the ambulance. It makes sure someone is doing the right thing until it
 arrives.
