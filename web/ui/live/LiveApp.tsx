@@ -2,7 +2,7 @@
 // (docs/05 COACH, redesigned per the team's Sat 04:00 direction). Every element on screen is
 // read from the session snapshot; nothing here decides what to say. Owned by P4 (docs/07);
 // first cut by P1 on the `listen` branch so the voice -> engine -> screen loop is demoable.
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPerception, primeMediaPermissions, type Perception } from '../../../src/perception';
 import { createFakePerception, isFakeRequested, type FakePerceptionHandle } from '../../../src/perception/fake';
 import { canonicalLines, createSession, WATCHING_STATES, type Eyes } from '../../session';
@@ -59,7 +59,24 @@ export function LiveApp() {
   // the eyes get a look at the scene first (hints.ts). A tap on the look card ends it early.
   const [revealed, setRevealed] = useState(false);
   useEffect(() => setRevealed(false), [snap.stateKey]);
-  const looking = isLooking({ phase: snap.phase, eyesStatus: snap.eyes.status, suggestion: snap.suggestion !== null, revealed, assessing: snap.assessing, sinceMs: Date.now() - snap.stateEnteredAt });
+  // A refused or failed camera used to be permanent: CameraView opened the camera once from a
+  // mount effect and nothing ever called it again, so a person who tapped Allow a beat late
+  // stayed blind for the whole emergency. Bumping this key remounts CameraView, which is one
+  // fresh perception.start(). The loaders forget their failures too (src/perception/pose.ts),
+  // so the retry really does refetch. DebugScreen has had this button all along.
+  const [cameraAttempt, setCameraAttempt] = useState(0);
+  const onCameraError = useCallback(() => {}, []); // CameraView needs a stable identity; the error is read off the snapshot
+  // The opening look is measured from the camera settling, never from the tap: in between sits
+  // a ~17 MB model download and a permission sheet, and neither has a predictable length.
+  const looking = isLooking({
+    phase: snap.phase,
+    eyesStatus: snap.eyes.status,
+    suggestion: snap.suggestion !== null,
+    revealed,
+    assessing: snap.assessing,
+    sinceMs: Date.now() - (snap.eyesReadyAt ?? snap.stateEnteredAt),
+    sinceTriageMs: Date.now() - snap.stateEnteredAt,
+  });
   // The bystander's own shoulder signal under the compression picture (docs/05 wiring). The real
   // module stamps samples with performance.now(); the fake one with Date.now(), so shift those.
   const live = useMemo<LiveSource>(() => {
@@ -105,7 +122,7 @@ export function LiveApp() {
   return (
     <div className="live">
       <div className="live-camera">
-        <CameraView perception={perception} mirror={perception.debug.facing() === 'user'} fill />
+        <CameraView key={cameraAttempt} perception={perception} mirror={perception.debug.facing() === 'user'} onError={onCameraError} fill />
         {snap.phase === 'triage' && snap.assessment?.patient && (
           <SceneHud box={snap.assessment.patient} label={snap.assessment.label} frame={perception.debug.frameSize()} mirror={perception.debug.facing() === 'user'} />
         )}
@@ -139,7 +156,17 @@ export function LiveApp() {
       ) : (
         <div className="live-bottom">
           {/* Principle 4: a camera that is off is said, in every phase, not left as a black screen. */}
-          {snap.eyes.status === 'error' && <div className="live-banner red">Camera off. Coaching by voice and buttons.</div>}
+          {snap.eyes.status === 'error' && (
+            <div className="live-banner red live-camera-off">
+              <span>
+                Camera off. Coaching by voice and buttons.
+                {snap.eyes.error && <span className="live-camera-why">{snap.eyes.error}</span>}
+              </span>
+              <button type="button" onClick={() => setCameraAttempt((n) => n + 1)}>
+                Try again
+              </button>
+            </div>
+          )}
           {snap.phase === 'triage' && snap.assessment && (snap.assessment.scene !== '' || snap.assessment.label !== 'unclear') && (
             <SceneBanner assessment={snap.assessment} />
           )}
@@ -173,7 +200,23 @@ export function LiveApp() {
             <button type="button" className="live-look" onClick={() => setRevealed(true)}>
               <EyeIcon />
               <span>
-                <b>Looking at the scene.</b> {snap.assessing ? 'One picture is with the model.' : 'Say what happened, or tap to choose.'}
+                {/* Principle 4: the card never claims to be looking at a scene it cannot see yet.
+                    Until the camera answers, it says what it is actually waiting for, and the tap
+                    goes straight to the buttons for anyone who does not want to wait. */}
+                {snap.eyes.status === 'awaiting' ? (
+                  <>
+                    <b>Allow the camera to let me watch.</b> Or tap to answer by voice and buttons.
+                  </>
+                ) : snap.eyes.status === 'starting' ? (
+                  <>
+                    <b>Starting the camera.</b> Say what happened, or tap to choose.
+                  </>
+                ) : (
+                  <>
+                    <b>Looking at the scene.</b>{' '}
+                    {snap.assessing ? 'One picture is with the model.' : 'Say what happened, or tap to choose.'}
+                  </>
+                )}
               </span>
             </button>
           ) : (
@@ -291,6 +334,7 @@ function EyesChip({ eyes, triage, assessing, saw }: { eyes: Eyes; triage: boolea
     : saw ? `Saw: ${saw}`
     : assessing ? 'Assessing the scene'
     : eyes.status === 'error' ? 'Camera off'
+    : eyes.status === 'awaiting' ? 'Waiting for camera permission'
     : eyes.status === 'starting' ? 'Starting camera'
     : eyes.status === 'off' ? 'Camera off'
     : eyes.hands === 'locked' ? 'Watching your hands on the wound'
