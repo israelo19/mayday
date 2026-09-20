@@ -55,7 +55,7 @@ Bleeding runs on its own script: are you safe first, with no timer, then a circl
 the wound where your hands settle, and "Don't let go!" within about two seconds of both hands
 leaving it.
 
-And when the ambulance arrives, what the paramedic gets:
+### When the ambulance arrives, what the paramedic gets
 
 <p align="center">
   <img src="docs/images/handoff-report.svg" width="100%" alt="The handoff: one log of every event feeds the lines read to the 911 dispatcher while the call is open, and the paramedic's headline numbers, timeline and QR code when the ambulance arrives">
