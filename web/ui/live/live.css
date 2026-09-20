@@ -139,8 +139,12 @@
 .live-ghost.small { min-height: var(--tap); font-size: clamp(13px, 3.6vw, 15px); }
 
 /* The one child of the top stack that may shrink: a long exchange gives its room back to the
-   coaching rather than sliding under it. The soft cap keeps it from owning a tall screen. */
-.live-dispatch { flex: 0 1 auto; min-height: 0; max-height: min(38dvh, 340px); overflow: hidden; background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--red); border-radius: var(--r-lg); padding: 10px 12px; display: flex; flex-direction: column; gap: var(--gap); }
+   coaching rather than sliding under it. The soft cap keeps it from owning a tall screen, and
+   the floor stops the shrink going past the panel's own chrome: head (32) + Hang up (48) +
+   padding and gaps (~34) is 114px that cannot compress, so below that the exchange collapsed
+   to nothing and `overflow: hidden` cut Hang up off with no scroller to reach it. .live-top
+   scrolls instead once the floor is hit, and Call 911 is its first child, so it stays in view. */
+.live-dispatch { flex: 0 1 auto; min-height: 140px; max-height: min(38dvh, 340px); overflow: hidden; background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--red); border-radius: var(--r-lg); padding: 10px 12px; display: flex; flex-direction: column; gap: var(--gap); }
 /* The panel's own scroller. Head and Hang up are flex: none siblings and stay reachable. */
 .live-dispatch-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: var(--gap); }
 .live-dispatch > .live-dispatch-head, .live-dispatch > .live-ghost { flex: none; }

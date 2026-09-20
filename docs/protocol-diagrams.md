@@ -39,7 +39,7 @@ stateDiagram-v2
     cardiac_position --> cardiac_compressions: Started compressions (measured)
     cardiac_position --> cardiac_compressions: NEXT
     cardiac_compressions: compressions (110 bpm)
-    cardiac_compressions --> cardiac_handoff: "ambulance here" (+5 more)
+    cardiac_compressions --> cardiac_handoff: "ambulance here" (+4 more)
     cardiac_compressions --> cardiac_handoff: NEXT
     cardiac_recovery_hold: recovery_hold
     cardiac_recovery_hold --> cardiac_call_911: "not breathing"

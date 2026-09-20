@@ -8,6 +8,9 @@ import { guideFor } from '../guide';
 
 type Props = { snap: SessionSnapshot; session: Session };
 
+const PHONE_INTERNAL =
+  /^(speech recognition error|simulated dispatcher:|already on the line|intent router|no match from the intent router|rewording refused|said as:|sounds like |camera guidance:|camera: )/;
+
 /**
  * The timeline a paramedic reads. State ids become the step's title, and lines about the phone
  * itself (recognizer errors, dispatcher plumbing) stay in the log but off this screen.
@@ -20,7 +23,11 @@ export function timelineLine(e: EventLogEntry): string | null {
     const machine = MACHINE_LABEL[e.data.machineId] ?? e.data.machineId;
     return e.data.machineId === 'triage' ? machine : `${machine}: ${title}`;
   }
-  if (e.kind === 'system' && /^(speech recognition error|simulated dispatcher:|already on the line)/.test(e.detail)) return null;
+  // Lines about the phone's own machinery, off the screen a paramedic reads and out of the QR.
+  // The model plumbing joined the list when the rewording landed: the handoff was printing
+  // "said as:", "rewording refused (negated 'push'...)" and the router's confidence scores,
+  // so a closing shot meant to be a clinical record showed a debug log, and the QR encoded it.
+  if (e.kind === 'system' && PHONE_INTERNAL.test(e.detail)) return null;
   return e.detail;
 }
 

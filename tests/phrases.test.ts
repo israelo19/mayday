@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchKeyword, routeKeyword, stemCollisions, suggestRoute, TRIAGE_ROUTES } from '../src/protocol';
+import { CONFIRM_WORDS, matchKeyword, routeKeyword, stemCollisions, suggestRoute, TRIAGE_ROUTES } from '../src/protocol';
 
 const all = TRIAGE_ROUTES.flatMap((r) => r.keywords);
 const routeOf = (keyword: string) => TRIAGE_ROUTES.find((r) => r.keywords.includes(keyword))!.to;
@@ -42,5 +42,35 @@ describe('triage phrases', () => {
 
   it('enters a confirmed route by a keyword the engine knows', () => {
     for (const r of TRIAGE_ROUTES) expect(all).toContain(routeKeyword(r));
+  });
+});
+
+
+describe('the cue scorer and the person who said the words', () => {
+  it('leaves the router its sentence', () => {
+    // The cues are meant to miss this one so the intent router has something real to catch.
+    expect(suggestRoute('the poor man went down in the hallway and he is grey')).toBeNull();
+  });
+
+  it('does not count a cue the person negated', () => {
+    expect(suggestRoute('there is no blood anywhere')).toBeNull();
+    expect(suggestRoute('he is not choking he just fainted')).toBeNull();
+    expect(suggestRoute('the ambulance is not here yet')).toBeNull();
+  });
+
+  it('still asks when the cue is not negated', () => {
+    expect(suggestRoute('there is blood everywhere on the floor')?.route.label).toBe('Shot or bleeding');
+    expect(suggestRoute('he was eating steak and now hes clutching at his neck')?.route.label).toBe('Choking');
+  });
+});
+
+describe('yes means yes', () => {
+  it('does not read a question about technique as a yes', () => {
+    // 'right' was a confirm word, so "am I doing it right?" answered yes to whatever the app
+    // had just asked, and that sentence is one the machine has its own approved answer for.
+    expect(matchKeyword('am i doing it right', CONFIRM_WORDS)).toBeNull();
+    expect(matchKeyword('right here', CONFIRM_WORDS)).toBeNull();
+    expect(matchKeyword('yes', CONFIRM_WORDS)).toBe('yes');
+    expect(matchKeyword("thats right", CONFIRM_WORDS)).toBe("that's right");
   });
 });

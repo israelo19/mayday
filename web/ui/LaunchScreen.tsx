@@ -1,9 +1,11 @@
 // LAUNCH screen, docs/05. Zero navigation: one button, the name, one line on what happens
-// next. A judge walking up to the table reads it in three seconds. This screen is also the
-// ONE place the app admits the dispatcher is scripted (CLAUDE.md principle 5). It used to be
-// stamped on the call panel itself, which made the thing we are building towards look like a
-// toy at the exact moment it should look like the product. Disclose once, before anyone is in
-// an emergency, then let the call read the way the real one will. Owned by P4.
+// next. A judge walking up to the table reads it in three seconds.
+//
+// The screen carried the line about the call-taker being simulated until the owner took it
+// out: the call panel had already lost its label so the call would read the way the real one
+// will, and the launch screen reading the same caveat undid that on the way in. The app still
+// never dials (boundaries.test.ts holds the tel: and auto-dial rules, and LiveApp only ever
+// opens the scripted panel), and the disclaimer stands in README and NOTICE. Owned by P4.
 import './launch.css';
 
 type Props = { onStart: () => void };
@@ -22,11 +24,6 @@ export function LaunchScreen({ onStart }: Props) {
           granted inside a tap. So this line no longer invites speech, it warns what the tap does,
           which is the prompt people were meeting with no warning at all. */}
       <p className="launch-note">Camera and microphone turn on when you tap.</p>
-      {/* The disclosure that boundaries.test.ts enforces. Quiet, but before the tap, not after. */}
-      <p className="launch-fine">
-        Demo build. The 911 call-taker in this app is a simulated dispatcher and is not a real emergency line. In a real
-        emergency, dial 911 on your phone.
-      </p>
     </div>
   );
 }

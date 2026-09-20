@@ -197,6 +197,25 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
 
   const status = (s: VoiceInStatus) => opts?.onStatus?.(s);
 
+  /**
+   * Cut every handler off an instance we are giving up on. Its `end` still arrives, later and
+   * on its own task, and an attached `onend` would read the live `running` flag and attach a
+   * replacement we never asked for.
+   */
+  function detach(r: SpeechRecognitionLike | null): void {
+    if (!r) return;
+    r.onresult = null;
+    r.onerror = null;
+    r.onend = null;
+    r.onstart = null;
+    r.onaudiostart = null;
+    r.onaudioend = null;
+    r.onsoundstart = null;
+    r.onspeechstart = null;
+    r.onspeechend = null;
+    r.onnomatch = null;
+  }
+
   function attach(): void {
     if (!factory || !opts) return;
     const o = opts;
@@ -312,6 +331,9 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
       }, backoffMs);
       backoffMs = Math.min(backoffMs * 2, 4000); // reset on the next result
     };
+    // A restart that races a still-open instance would otherwise leave two live recognizers.
+    detach(rec);
+    rec?.stop();
     rec = r;
     try {
       ev?.('starting');
@@ -342,6 +364,11 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
       running = false;
       cancelRestart?.();
       cancelRestart = null;
+      // Detach before stopping. A real recognizer's `end` arrives on a later task, and
+      // restart() puts `running` back to true in the same tick, so the abandoned instance's
+      // onend saw a live session and attached a *second* recognizer alongside the new one.
+      // Every take after the first then heard the room twice.
+      detach(rec);
       rec?.stop();
       rec = null;
       status('stopped');

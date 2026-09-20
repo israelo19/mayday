@@ -35,7 +35,8 @@ instead, which is what the M0 and M1 checks below walk.
 
 Other scripts: `npm run typecheck`, `npm test` (vitest), `npm run lint` (the AI boundary
 check), `npm run build` (output in `dist/`), `npm run preview`, `npm run diagrams`. Open
-`http://localhost:5173/?guide=1` (any of the dev modes) for the step guide gallery: every
+`https://localhost:5173/?guide=1` for the step guide gallery (http under `MAYDAY_HTTP=1`, port
+4173 under `npm run preview`): every
 protocol picture, a simulated bystander to watch the guide react, and a coach-screen preview.
 No camera needed.
 
@@ -54,8 +55,13 @@ phone needs internet for it. Coaching, the beat and speech output need neither.
 2. Accept the self-signed certificate warning once (Advanced, proceed). Camera works after
    that because a secure context is about the https scheme, not certificate trust.
 3. Chrome menu, "Add to Home Screen": the app opens full screen from its own icon from then
-   on, and a reload with wifi off still loads once a session has run online
-   (`vite-plugin-pwa`, see Deploy). The deployed DigitalOcean URL skips step 2 entirely.
+   on. The deployed DigitalOcean URL skips step 2 entirely.
+
+Step 3 and the wifi-off reload need a *built* app: `vite-plugin-pwa` writes the manifest and
+the service worker at build time only, so `npm run dev` registers neither. Use `npm run preview`
+(port 4173) or the deployed URL for anything that shows the install or the offline behaviour.
+The shell precaches; the models and the WASM runtime cache on first successful fetch, so a
+wifi-off reload works once a session has loaded online at least once.
 
 Expo Go was tried and dropped: on the current SDK it refuses any project whose dev server
 is not signed in to an Expo account, on the laptop and on the phone (DECISIONS.md, Sat 05:00).
@@ -118,7 +124,9 @@ same model gets the sentence and the buttons that are on the screen right now (d
    "Sounds like Not breathing?" bar appears, and yes or a tap enters the state.
 3. The model answers with the NUMBER of a button, never with words, so it cannot name a step the
    state is not already offering. Anything else, or low confidence, or no answer in three
-   seconds: nothing happens and the buttons carry the demo.
+   seconds: the machine does not move and the buttons carry the demo. The app does say one
+   line when it heard a sentence it could not place ("I heard you. If something has changed,
+   say it simply, or tap a button"), at most once every twenty seconds.
 4. Measured variance on one sentence: about three matches in four identical calls (DECISIONS
    Sat 20:20). The miss is the designed one, no bar appears and the buttons are still there.
    The scene assessment is the steadier Gemini demo and should lead.
@@ -140,20 +148,37 @@ the machine decides (docs/04 items 5 and 8, DECISIONS.md Sat 20:40 and 21:55).
    is canonical the first time and, on its repeat, opens with what you said and what the camera
    measures. Every rewording passes `src/protocol/validate.ts` or the line speaks as written;
    `mayday.log.entries()` shows `said as:` and `rewording refused` lines.
-3. Grok: put `XAI_API_KEY=...` in `.env.local` (the HopHacks credits). It is picked when it is
-   the only model key, or with `MODEL_PROVIDER=xai`; the dev server prints
-   `Model: grok-4-1-fast-non-reasoning (xai)`. No key, or wifi off: both flags do nothing and
-   the matcher, the buttons and the canonical lines carry the demo.
+3. Grok: put `XAI_API_KEY=...` in `.env.local` or `.env` (the HopHacks credits), and
+   `MODEL_PROVIDER=xai` to give it the text routes. With a Gemini key beside it the dev server
+   prints a line per route: `Text model: grok-4.20-0309-non-reasoning (xai)` and `Frame model:
+   gemini-3.6-flash (gemini)`. The frame never goes to xAI, which has not been tried on one.
+   No key, or wifi off: both flags do nothing and the matcher, the buttons and the canonical
+   lines carry the demo.
+
+   Use a model id the account actually lists. `grok-4-1-fast-non-reasoning` is not one, and
+   xAI serves `grok-4.3` in its place without saying so: on the intent prompt that is 3/5 right
+   with a median of 4.8 s, every call past the router's 3 s budget, against 4/5 at 580 ms for
+   the id above.
+
+**Before a judged run, decide about `narrationFlavor`.** The other flags keep the model away
+from the words: the router picks the NUMBER of a button and a human still says yes, and an
+answer is a cited line the machine already owns. Rewording is the one place a model writes
+what is spoken, and `validate.ts` is a lexical gate: numbers, negation, units, comparators,
+places, urgency, length, and a list of terms we never coach. It cannot read meaning, so a
+paraphrase that keeps all of those and still changes the instruction will pass.
+`tests/narration-attacks.test.ts` holds fourteen of them. The flag is off by default; leaving
+it off is the safe run.
 
 ## M0 demo check
 
-1. Open `?debug=1`. The footer reads `status: running`, fps is above 10, the pose skeleton is
-   drawn on the camera preview with both shoulders circled in red.
+1. Open `?debug=1`. The chip at the top reads `Live`, fps is above 10, and the pose skeleton
+   is drawn on the camera preview with both shoulders ringed in mint.
 2. Point the camera at a teammate doing chest compressions on a pillow, chest facing the
    camera, phone propped about 1.5 m away. The waveform oscillates with visible peaks, about
    two per second at 110 bpm. The confidence number stays above 0.5.
-3. Tap **Metronome 110 bpm**: it ticks with an accent every fourth beat and does not stutter
-   while the skeleton is being drawn. Tap **Test voice**: a line is spoken through Web Speech.
+3. Tap **Start the beat, 110**: it ticks with an accent every fourth beat and does not stutter
+   while the skeleton is being drawn. Tap **Speak a test line**: a line goes out through Web
+   Speech.
 4. Turn wifi off and repeat step 3. Everything keeps working.
 
 DONE means: the waveform wiggles, confidence is on screen, the metronome ticks. Confirmed on

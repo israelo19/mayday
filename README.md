@@ -163,9 +163,10 @@ npm run dev
 | `?guide=1` | every step picture, no camera needed |
 | `?flag=elevenLabs,dispatcherSim,sceneAssess,intentRoute,narrationFlavor` | the cloud helpers, any subset |
 
-Keys go in `.env.local`, copied from `.env.example`: `GEMINI_API_KEY` for the photo,
-`XAI_API_KEY` for Grok on the text routes, `ELEVENLABS_API_KEY` for the voices,
-`ELEVENLABS_AGENT_ID` for the live call-taker. They never reach the browser. The phone notes,
+Keys go in `.env.local` or `.env`, copied from `.env.example`: `GEMINI_API_KEY` for the photo,
+`XAI_API_KEY` plus `MODEL_PROVIDER=xai` for Grok on the text routes, `ELEVENLABS_API_KEY` for
+the voices, `ELEVENLABS_AGENT_ID` for the live call-taker. Keep the Gemini key beside the xAI
+one: the photo never goes to a text-only model. They never reach the browser. The phone notes,
 the walkthrough for each switch and the checks the team walks before a judged run are in
 [docs/12-run-and-check.md](docs/12-run-and-check.md).
 

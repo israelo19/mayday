@@ -106,6 +106,14 @@ export class ElevenLabsProvider implements SpeakerProvider {
   /** (voice, model, text) -> decoded audio. The whole protocol fits here comfortably. */
   private readonly cache = new Map<string, unknown>();
   private consecutiveFailures = 0;
+  /**
+   * Bumped by every cancel(). A speak that was waiting on the network when the queue moved on
+   * compares the epoch it started in against this one and drops its result. Without it, a
+   * narration line preempted by a critical still arrived: the aborted fetch returned null, and
+   * the "network missed, use the local voice" branch spoke the dead line over the top of the
+   * critical that replaced it. Aborting the request is not the same as cancelling the line.
+   */
+  private epoch = 0;
   private inFlight: AbortController | null = null;
   private playing: { stop(): void } | null = null;
 
@@ -155,6 +163,7 @@ export class ElevenLabsProvider implements SpeakerProvider {
   }
 
   async speak(text: string, opts?: SpeakOptions): Promise<void> {
+    const mine = this.epoch;
     const voiceId = this.voiceFor(opts);
     // No second ElevenLabs voice configured: the dispatcher speaks on the local fallback,
     // which has a second voice of its own. Never silently reuse the coach's voice.
@@ -167,7 +176,12 @@ export class ElevenLabsProvider implements SpeakerProvider {
     // on every line and go straight to the voice that always works.
     if (!this.healthy()) return this.o.fallback.speak(text, opts);
 
-    const decoded = await this.synthesize(voiceId, text);
+    const decoded = await this.synthesize(voiceId, text, true);
+    // Cancelled while the network had it: keep the bytes, say nothing.
+    if (mine !== this.epoch) {
+      if (decoded !== null) this.cache.set(this.key(voiceId, text), decoded);
+      return;
+    }
     if (decoded === null) {
       this.consecutiveFailures++;
       return this.o.fallback.speak(text, opts);
@@ -199,10 +213,15 @@ export class ElevenLabsProvider implements SpeakerProvider {
     return cachedCount;
   }
 
-  /** Bytes fetched through the proxy and decoded, or null on any miss within the budget. */
-  private async synthesize(voiceId: string, text: string): Promise<unknown | null> {
+  /**
+   * Bytes fetched through the proxy and decoded, or null on any miss within the budget.
+   * Only a line being spoken registers as `inFlight`: warming shares the method but must not
+   * become the request that the next cancel() aborts, or cancel stops the warm and lets the
+   * line it was meant to stop play on to the end.
+   */
+  private async synthesize(voiceId: string, text: string, cancellable = false): Promise<unknown | null> {
     const controller = new AbortController();
-    this.inFlight = controller;
+    if (cancellable) this.inFlight = controller;
     const timer = setTimeout(() => controller.abort(), this.o.firstAudioTimeoutMs);
     try {
       const res = await this.fetchFn(
@@ -239,6 +258,7 @@ export class ElevenLabsProvider implements SpeakerProvider {
   }
 
   cancel(): void {
+    this.epoch++;
     this.inFlight?.abort();
     this.inFlight = null;
     this.playing?.stop();

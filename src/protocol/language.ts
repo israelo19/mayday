@@ -77,11 +77,34 @@ function distance(a: string, b: string): number {
   return prev[b.length];
 }
 
-/** Two stems of five letters or more tolerate one letter of recognizer error; anything shorter must be exact. */
+/**
+ * Pairs the rules above cannot separate, because they differ only in the middle and both ends
+ * match, yet one of them routes somewhere the other does not mean. "He's lying on the COUCH"
+ * fired the choking machine's 'coughing', which is the difference between a blocked airway
+ * and a piece of furniture.
+ */
+const CONFUSABLE = new Set(['couch|cough', 'coach|cough']);
+
+/**
+ * Two stems of five letters or more tolerate one letter of recognizer error; anything shorter
+ * must be exact. The onset must match: a substituted first letter does not turn a word into a
+ * misheard version of itself, it turns it into a different real word, and that word routes to
+ * the wrong protocol. "he can't make a sound" and "I found him on the floor" both reached
+ * `wound` and opened severe bleeding on a choking and a collapse; "flood" reached `blood` the
+ * same way. A recognizer error inside a word ("breething", "bloody") keeps its onset, so the
+ * tolerance that matters is untouched.
+ */
 export function sameWord(a: string, b: string): boolean {
   if (a === b) return true;
   if (Math.min(a.length, b.length) < 5) return false;
   if (Math.abs(a.length - b.length) > 1) return false;
+  if (a[0] !== b[0]) return false;
+  // A same-length difference is a substituted letter, and a substitution at either end makes a
+  // different word rather than a misheard one: "clear" reached the bleeding answer 'clean', so
+  // "the room is clear" answered a question nobody asked instead of opening the safety gate.
+  // A length difference is an inserted or dropped letter ("blood"/"bloody"), which is fine.
+  if (a.length === b.length && a[a.length - 1] !== b[b.length - 1]) return false;
+  if (CONFUSABLE.has(`${a}|${b}`) || CONFUSABLE.has(`${b}|${a}`)) return false;
   return distance(a, b) <= 1;
 }
 
@@ -101,6 +124,25 @@ const NEGATION = new Set(['no', 'not', 'never', 'cant', 'cannot', 'dont', 'doesn
  */
 const MAX_GAP = 2;
 
+/**
+ * And the gap may only be filler. Any word used to count, which let two words of ordinary
+ * speech stand in for the ones the phrase means: "the ambulance WILL BE here soon" matched
+ * 'ambulance here' and ended the session in the middle of CPR, and "he's STRUGGLING to
+ * breathe" matched "he's breathing" and walked the machine out of compressions and into the
+ * recovery hold. Both are sentences someone says while the camera is running. A closed list
+ * keeps what the gap was for, the copulas and articles a speaker slips in, and nothing else.
+ */
+const FILLER = new Set([
+  'is', 'are', 'was', 'were', 'be', 'been', 'am', 's',
+  'the', 'a', 'an', 'this', 'that',
+  'his', 'her', 'their', 'its', 'my', 'your', 'our',
+  'just', 'now', 'still', 'really', 'very', 'all', 'already', 'about', 'right', 'and',
+  // Arrival, in the past tense only: "the ambulance just GOT here" has arrived, while "the
+  // ambulance GETS here soon" and "WILL BE here" have not, and only the first should end the
+  // session. The stemmer keeps got and get apart, which is what makes the distinction hold.
+  'got', 'arrived', 'came', 'pulled',
+]);
+
 /** True when `phrase` occurs in `text` as whole words in order (both already tokenized). */
 export function containsTokens(text: readonly string[], phrase: readonly string[]): boolean {
   if (phrase.length === 0 || phrase.length > text.length) return false;
@@ -119,20 +161,48 @@ export function containsTokens(text: readonly string[], phrase: readonly string[
   return false;
 }
 
-/** Index of `word` at `from`..`from+gap` in `text`, or -1; a negation in the gap aborts. */
+/**
+ * Index of `word` at `from`..`from+gap` in `text`, or -1. A negation in the gap aborts, and so
+ * does anything that is not filler: a word carrying meaning of its own is not a gap, it is a
+ * different sentence.
+ */
 function nextWithin(text: readonly string[], from: number, word: string, gap: number): number {
   for (let k = from; k <= from + gap && k < text.length; k++) {
     if (sameWord(text[k], word)) return k;
     if (NEGATION.has(text[k])) return -1;
+    if (!FILLER.has(text[k])) return -1;
   }
   return -1;
 }
 
+/**
+ * True when the word at `i` is flipped by a negation directly before it. One word of lookback,
+ * the same reach `negatedAt` gives a phrase, so the cue scorer and the keyword matcher agree
+ * about what "no blood" and "not choking" mean.
+ */
+export function negatedWord(text: readonly string[], i: number): boolean {
+  return i > 0 && NEGATION.has(text[i - 1]);
+}
+
+/**
+ * Verbs of opinion a negation reaches straight through: "I do not THINK it is safe" is not
+ * safe, and the guard used to look only at the word immediately before the phrase, so the
+ * bleeding machine advanced past its scene-safety gate on a sentence that said the opposite.
+ * That gate is the one place this app can walk someone into danger.
+ */
+const HEDGES = new Set(['think', 'sure', 'believe', 'feel', 'know', 'certain', 'positive', 'reckon', 'sound', 'look', 'seem']);
+
 function negatedAt(text: readonly string[], start: number, phrase: readonly string[]): boolean {
   if (start === 0) return false;
-  const prev = text[start - 1];
-  if (!NEGATION.has(prev)) return false;
-  return !sameWord(phrase[0], prev);
+  // Walk back over hedges and filler only. Anything else carrying meaning ends the scan, so
+  // "he won't STOP bleeding" still reports bleeding: 'stop' is neither, and the negation
+  // belongs to it rather than to the phrase.
+  for (let i = start - 1; i >= 0 && start - i <= 3; i--) {
+    const w = text[i];
+    if (NEGATION.has(w)) return !sameWord(phrase[0], w);
+    if (!HEDGES.has(w) && !FILLER.has(w)) return false;
+  }
+  return false;
 }
 
 /**

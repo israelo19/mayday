@@ -3,7 +3,7 @@
 // only show while the script is the one asking. Never a real line (CLAUDE.md principle 5): the
 // launch screen says so before the session starts, and nothing here repeats it, because a panel
 // that calls itself fake mid-emergency is not the panel we are building towards. Owned by P4.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { DispatcherLine, DispatcherStatus } from '../../session';
 import type { Sitrep } from '../../../src/types';
 import { dispatcherDone, repliesFor } from '../../../src/voice';
@@ -40,6 +40,15 @@ export function DispatcherPanel({ status, lines, sitrep, onReply, onHangUp }: Pr
   useEffect(() => {
     if (done) setOpen(false);
   }, [done]);
+  // The exchange scrolls, and the answers sit at the bottom of it. Left alone, the scroller
+  // stays where it was, so the question just asked and the buttons that answer it drop below
+  // the fold: on a 375 px screen three lines plus two replies overflow the panel by ~56 px,
+  // and the last reply is simply not on the screen. Pin it to the bottom on every new line.
+  const scroll = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scroll.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [lines, open, replies.length]);
   return (
     <div className={`live-dispatch${open ? '' : ' collapsed'}`}>
       <div className="live-dispatch-head" onClick={() => setOpen((o) => !o)}>
@@ -53,7 +62,7 @@ export function DispatcherPanel({ status, lines, sitrep, onReply, onHangUp }: Pr
           {/* Head and Hang up stay put; only the exchange scrolls. On a 320 px phone the whole
               panel used to scroll as one, which pushed Hang up out of reach exactly when the
               screen was most crowded. */}
-          <div className="live-dispatch-scroll">
+          <div className="live-dispatch-scroll" ref={scroll}>
             <div className="live-dispatch-lines">
               {recent.length === 0 && <p className="live-dispatch-line muted">Connecting you to a call-taker</p>}
               {recent.map((l, i) => (

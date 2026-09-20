@@ -24,10 +24,21 @@ export class RuleEvaluator {
   private since = new Map<string, number>();
   private anchor = 0;
 
-  /** Per-state timers restart; cooldowns deliberately survive. */
+  /** Per-state timers restart; cooldowns deliberately survive across states within a run. */
   enterState(now: number): void {
     this.since = new Map();
     this.anchor = now;
+  }
+
+  /**
+   * A new run, not a new state: forget every cooldown too. The evaluator outlives a session
+   * because the engine is built once, so a second run through the same protocol inherited the
+   * first one's history. A blind line that fired 3 s into take one was suppressed for another
+   * twelve seconds in take two, which is exactly the beat the take was being redone for.
+   */
+  reset(now: number): void {
+    this.lastFired.clear();
+    this.enterState(now);
   }
 
   evaluate(rules: readonly Rule[], facts: PerceptionFacts, ctx: RuleContext, now: number): Rule[] {

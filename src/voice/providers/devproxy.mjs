@@ -81,9 +81,18 @@ export const MODEL_PROVIDERS = {
     keyEnv: 'XAI_API_KEY',
     modelEnv: 'XAI_MODEL',
     // The HopHacks xAI credits. Classification and rewording need no reasoning pass, and the
-    // fast non-reasoning tier answers in well under a second. Chosen for the text routes; the
+    // non-reasoning tier answers in well under a second. Chosen for the text routes; the
     // scene frame has not been tried on it, so keep a Gemini or Featherless key for that.
-    defaultModel: 'grok-4-1-fast-non-reasoning',
+    //
+    // The id matters more than it looks. grok-4-1-fast-non-reasoning is not on this account's
+    // model list, and xAI does not say so: it quietly served grok-4.3, which thinks first.
+    // Measured on the intent prompt, five sentences each: grok-4.3 answered 3/5 with a median
+    // of 4.8 s and every call over the router's 3 s budget; grok-4.5 3/5 at 3.8 s; this one
+    // 4/5 at 580 ms with nothing over budget. A wrong model id here reads as a flaky feature.
+    defaultModel: 'grok-4.20-0309-non-reasoning',
+    // Which is enforced rather than remembered: the frame route skips this provider, so
+    // MODEL_PROVIDER=xai gives Grok the text routes and leaves the camera frame on Gemini.
+    vision: false,
   },
 };
 
@@ -91,20 +100,29 @@ export const MODEL_PROVIDERS = {
 export const DEFAULT_PROVIDER = 'gemini';
 /** A 640 px JPEG is well under this; anything bigger is not a frame from the app. */
 const MAX_IMAGE_CHARS = 2_000_000;
-const ENV_LOCAL = new URL('../../../.env.local', import.meta.url);
+/**
+ * Both are read, .env.local first, because both are what people actually create: .env.example
+ * says to copy it to .env.local, and the habit of every other project says .env. A key in one
+ * and not the other used to be simply invisible, with no error and no log line, which reads
+ * exactly like a key that does not work. Both are gitignored.
+ */
+const ENV_FILES = [new URL('../../../.env.local', import.meta.url), new URL('../../../.env', import.meta.url)];
 
-/** Value of `name` from the environment, else from .env.local, else null. */
+/** Value of `name` from the environment, else from .env.local, else .env, else null. */
 export function readLocalEnv(name) {
   if (process.env[name]) return process.env[name];
-  try {
-    const line = readFileSync(ENV_LOCAL, 'utf8')
-      .split('\n')
-      .find((l) => l.startsWith(`${name}=`));
-    const value = line?.slice(name.length + 1).trim();
-    return value ? value : null;
-  } catch {
-    return null; // no .env.local: the caller decides whether that is fatal
+  for (const file of ENV_FILES) {
+    try {
+      const line = readFileSync(file, 'utf8')
+        .split('\n')
+        .find((l) => l.startsWith(`${name}=`));
+      const value = line?.slice(name.length + 1).trim();
+      if (value) return value;
+    } catch {
+      continue; // absent is normal: the other file, or the caller, decides
+    }
   }
+  return null;
 }
 
 /**
@@ -113,8 +131,15 @@ export function readLocalEnv(name) {
  * Vite mount, the standalone server and scripts/assess-frame.mjs can never disagree about which
  * model ran. Switching providers is this one environment variable and nothing else.
  */
-export function resolveProvider(name = readLocalEnv('MODEL_PROVIDER')) {
-  const wanted = name && MODEL_PROVIDERS[name] ? [name] : [DEFAULT_PROVIDER, 'featherless', 'xai'];
+export function resolveProvider(name = readLocalEnv('MODEL_PROVIDER'), { vision = false } = {}) {
+  // A named provider wins, then the default order. With `vision`, providers we have not tried
+  // on a frame drop out of both: MODEL_PROVIDER=xai then serves the text routes while the
+  // camera frame falls through to whichever vision key is present, instead of going to a
+  // model that has never been asked to find a person in a photograph.
+  const named = name && MODEL_PROVIDERS[name] ? [name] : [];
+  const wanted = [...named, DEFAULT_PROVIDER, 'featherless', 'xai'].filter(
+    (id) => !vision || MODEL_PROVIDERS[id].vision !== false,
+  );
   for (const id of wanted) {
     const provider = MODEL_PROVIDERS[id];
     const key = readLocalEnv(provider.keyEnv);
@@ -163,6 +188,13 @@ export async function askModel({ provider = DEFAULT_PROVIDER, chat, key, model, 
 }
 
 function sendJson(res, status, body) {
+  // The audio route writes its own head, so an error after that point would land here and
+  // write a second one. In Node that throws inside an async middleware, and an unhandled
+  // rejection there takes the dev server down in the middle of a session.
+  if (res.headersSent) {
+    res.end();
+    return;
+  }
   res.writeHead(status, { 'content-type': 'application/json' });
   res.end(JSON.stringify(body));
 }
@@ -181,7 +213,7 @@ function readBody(req) {
  * dispatcher, WebSpeech, no scene assessment). `coachVoice` may be null too: /voice answers
  * `{ coach: null }` and the browser keeps its default voice.
  */
-export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = null, provider = null }) {
+export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = null, provider = null, visionProvider = provider }) {
   if (!apiKey && !provider) throw new Error('createKeyProxy needs a key: ELEVENLABS_API_KEY, GEMINI_API_KEY, FEATHERLESS_API_KEY or XAI_API_KEY in .env.local.');
 
   const forward = async (path, init) => {
@@ -232,7 +264,14 @@ export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = nul
       }
       if (req.method === 'POST' && (url.pathname === VISION_ROUTE || url.pathname === INTENT_ROUTE || url.pathname === TEXT_ROUTE)) {
         const wantsImage = url.pathname === VISION_ROUTE;
-        if (!provider) return sendJson(res, 404, { error: 'No model key configured: GEMINI_API_KEY, FEATHERLESS_API_KEY or XAI_API_KEY' });
+        const chosen = wantsImage ? visionProvider : provider;
+        if (!chosen) {
+          return sendJson(res, 404, {
+            error: wantsImage
+              ? 'No vision model key configured: GEMINI_API_KEY or FEATHERLESS_API_KEY'
+              : 'No model key configured: GEMINI_API_KEY, FEATHERLESS_API_KEY or XAI_API_KEY',
+          });
+        }
         const raw = await readBody(req);
         let body;
         try {
@@ -244,10 +283,10 @@ export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = nul
         if (typeof system !== 'string' || typeof user !== 'string') return sendJson(res, 400, { error: 'system and user prompts are required' });
         if (wantsImage && (typeof image !== 'string' || image.length === 0 || image.length > MAX_IMAGE_CHARS)) return sendJson(res, 400, { error: 'image must be a base64 string of a small JPEG' });
         const reply = await askModel({
-          provider: provider.id,
-          chat: provider.chat,
-          key: provider.key,
-          model: provider.model,
+          provider: chosen.id,
+          chat: chosen.chat,
+          key: chosen.key,
+          model: chosen.model,
           image: wantsImage ? image : null,
           mime: mime === 'image/png' ? 'image/png' : 'image/jpeg',
           system,
@@ -274,13 +313,18 @@ export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = nul
           headers: { 'content-type': req.headers['content-type'] ?? 'application/json' },
           body: await readBody(req),
         });
+        // Read the whole body before writing the head: a fault while reading then still has
+        // somewhere to report itself, instead of arriving after the response has begun.
+        const audio = Buffer.from(await upstream.arrayBuffer());
         res.writeHead(upstream.status, {
           'content-type': upstream.headers.get('content-type') ?? 'application/octet-stream',
         });
-        return res.end(Buffer.from(await upstream.arrayBuffer()));
+        return res.end(audio);
       }
       return sendJson(res, 404, { error: `not proxied: ${req.method} ${url.pathname}` });
     } catch (err) {
+      // One line per upstream failure, or a dead model looks like a dead feature.
+      console.warn(`  [proxy] ${req.method} ${url.pathname} failed: ${String(err).slice(0, 200)}`);
       return sendJson(res, 502, { error: String(err) });
     }
   };

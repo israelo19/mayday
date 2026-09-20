@@ -29,6 +29,26 @@ describe('word comparison', () => {
     expect(sameWord('shot', 'shop')).toBe(false);
     expect(sameWord('blood', 'bloody')).toBe(true);
   });
+
+  it('will not swap a letter at either end, which makes a different word', () => {
+    // A substituted first or last letter turns one real word into another, and the other one
+    // routes somewhere else: "sound" and "found" reached the bleeding keyword 'wound', and
+    // "clear" reached the bleeding answer 'clean', so "the room is clear" answered a question
+    // nobody asked instead of opening the scene-safety gate.
+    for (const [a, b] of [
+      ['sound', 'wound'],
+      ['found', 'wound'],
+      ['round', 'wound'],
+      ['flood', 'blood'],
+      ['clear', 'clean'],
+    ] as const) {
+      expect(sameWord(a, b), `${a}/${b}`).toBe(false);
+    }
+    // A letter misheard in the middle, and a letter added on the end, both still match.
+    expect(sameWord('breeth', 'breath')).toBe(true);
+    expect(sameWord('blood', 'bloody')).toBe(true);
+  });
+
 });
 
 describe('matchKeyword', () => {
@@ -78,6 +98,19 @@ describe('matchKeyword', () => {
     expect(matchKeyword('something is stuck', ['something stuck'])).toBe('something stuck');
   });
 
+  it('only lets real filler into the gap, not a word carrying its own meaning', () => {
+    // Every one of these matched before the gap was restricted to a closed list, and each
+    // ends or derails a session: 'ambulance here' is a terminal transition, and "he's
+    // breathing" walks the machine out of compressions into the recovery hold.
+    expect(matchKeyword('the ambulance will be here soon', ['ambulance here'])).toBeNull();
+    expect(matchKeyword('is the ambulance nearly here', ['ambulance here'])).toBeNull();
+    expect(matchKeyword('i hope the ambulance gets here fast', ['ambulance here'])).toBeNull();
+    expect(matchKeyword('hes struggling to breathe', ["he's breathing"])).toBeNull();
+    // And the ones that mean what the phrase means still land.
+    expect(matchKeyword('the ambulance just got here', ['ambulance here'])).toBe('ambulance here');
+    expect(matchKeyword('the paramedics are here', ['paramedics are here'])).toBe('paramedics are here');
+  });
+
   it('never lets a gap flip the meaning', () => {
     // A negation inside the gap kills the match: "is not here" must not mean here.
     expect(matchKeyword('the ambulance is not here yet', ['ambulance here'])).toBeNull();
@@ -86,6 +119,22 @@ describe('matchKeyword', () => {
     // "no, there's a pulse" would read as 'no pulse' and mean the opposite.
     expect(matchKeyword('no theres a pulse', ['no pulse'])).toBeNull();
     expect(matchKeyword('there is no pulse', ['no pulse'])).toBe('no pulse');
+  });
+
+  it('lets a negation reach through a verb of opinion', () => {
+    // The bleeding machine's scene-safety gate is the one place this app can walk someone
+    // into danger, and the guard looked only at the word immediately before the phrase.
+    expect(matchKeyword("i dont think its safe", ['safe', "it's safe"])).toBeNull();
+    expect(matchKeyword("im not sure its safe", ['safe', "it's safe"])).toBeNull();
+    // And a negation that belongs to another verb still leaves the phrase alone.
+    expect(matchKeyword("he won't stop bleeding", ['still bleeding', 'bleeding'])).toBe('bleeding');
+    expect(matchKeyword('it is safe now', ['safe now', 'safe'])).toBe('safe now');
+    expect(matchKeyword('i am safe', ['safe'])).toBe('safe');
+  });
+
+  it('keeps a piece of furniture out of the choking machine', () => {
+    expect(matchKeyword('hes lying on the couch', ['coughing'])).toBeNull();
+    expect(matchKeyword('he is coughing', ['coughing'])).toBe('coughing');
   });
 
   it('hears the wider family of negations', () => {

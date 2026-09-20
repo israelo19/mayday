@@ -25,7 +25,9 @@ export function buildSitrep(log: EventLog, geo: GeoFix | null, now: number): Sit
     currentState: currentStateKey(entries),
     metrics,
     readAloud: readAloud(geo, emergency ?? 'Medical emergency.', began, metrics, machine, now),
-    timeline: entries,
+    // A copy: log.entries() hands back the live array, so a report that kept the
+    // reference went on growing after the session froze it.
+    timeline: [...entries],
   };
 }
 
@@ -42,7 +44,9 @@ export function buildHandoff(log: EventLog, now: number, geo: GeoFix | null = nu
     location: geo,
     metrics,
     headline: headline(metrics, began, now, machine),
-    timeline: entries,
+    // A copy: log.entries() hands back the live array, so a report that kept the
+    // reference went on growing after the session froze it.
+    timeline: [...entries],
   };
 }
 
@@ -154,7 +158,15 @@ export function handoffQrPayload(report: HandoffReport, maxChars = 500): string 
   return payload;
 }
 
-/** Metric heartbeats are noise on a printed timeline; state changes and spoken lines are not. */
+/**
+ * Metric heartbeats are noise on a printed timeline; state changes and spoken lines are not.
+ * Neither is the phone talking about itself: the QR is scanned by a paramedic, and it was
+ * carrying recognizer errors, intent-router confidence and the text of rewordings the
+ * validator had already refused. Same rule as the handoff screen (web/ui/live/HandoffPanel).
+ */
+const PHONE_INTERNAL =
+  /^(speech recognition error|simulated dispatcher:|already on the line|intent router|no match from the intent router|rewording refused|said as:|sounds like |camera guidance:|camera: )/;
+
 function significant(timeline: readonly EventLogEntry[]): EventLogEntry[] {
-  return timeline.filter((e) => e.kind !== 'metric');
+  return timeline.filter((e) => e.kind !== 'metric' && !(e.kind === 'system' && PHONE_INTERNAL.test(e.detail)));
 }

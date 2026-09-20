@@ -3,7 +3,7 @@
 // read from the session snapshot; nothing here decides what to say. Owned by P4 (docs/07);
 // first cut by P1 on the `listen` branch so the voice -> engine -> screen loop is demoable.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { createPerception, primeMediaPermissions, type Perception } from '../../../src/perception';
+import { createPerception, HAND_MODEL_URL, primeMediaPermissions, type Perception } from '../../../src/perception';
 import { createFakePerception, isFakeRequested, type FakePerceptionHandle } from '../../../src/perception/fake';
 import { canonicalLines, createSession, WATCHING_STATES, type Eyes } from '../../session';
 import type { LiveSource } from '../guide';
@@ -27,9 +27,44 @@ function readPlatform(): Platform {
   return { standalone: nav.standalone === true, iOS: /iP(hone|ad|od)/.test(navigator.userAgent) };
 }
 
-function requestWakeLock(): void {
-  const nav = navigator as Navigator & { wakeLock?: { request(type: 'screen'): Promise<unknown> } };
-  nav.wakeLock?.request('screen').catch(() => {});
+/**
+ * Keep the screen awake for the whole session. The lock has to be re-taken by hand: the spec
+ * releases it whenever the document is hidden, and going to another app or pulling the
+ * notification shade does exactly that. Taking it once at LAUNCH left a propped-up phone to
+ * black out mid-compression on its own display timeout, with no tap coming to wake it.
+ * Returns the teardown. DebugScreen has carried this same effect all along.
+ */
+function holdWakeLock(): () => void {
+  const nav = navigator as Navigator & { wakeLock?: { request(type: 'screen'): Promise<WakeLockSentinel> } };
+  let sentinel: WakeLockSentinel | null = null;
+  const take = async () => {
+    try {
+      sentinel = (await nav.wakeLock?.request('screen')) ?? null;
+    } catch {
+      /* not granted or unsupported; the session is unaffected */
+    }
+  };
+  void take();
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') void take();
+  };
+  document.addEventListener('visibilitychange', onVisible);
+  return () => {
+    document.removeEventListener('visibilitychange', onVisible);
+    void sentinel?.release();
+  };
+}
+
+/**
+ * Pull the hand model into the service worker's cache while the network is still there.
+ * Perception only asks for it on entry to a bleeding pressure state, and nothing precaches a
+ * .task file, so on the wifi-off run that fetch fails, perception reverts to pose without
+ * saying so and no hands-off line ever comes. One background request at LAUNCH makes the
+ * offline run behave like the online one. It lives here, not in src/perception: the reflex
+ * path makes no network calls of its own, and tests/boundaries.test.ts enforces that.
+ */
+function warmHandModel(): void {
+  void fetch(HAND_MODEL_URL, { cache: 'force-cache' }).catch(() => {});
 }
 
 function requestFullscreen(): void {
@@ -105,15 +140,21 @@ export function LiveApp() {
     };
   }, [session]);
 
+  // Held for as long as a session is on screen, and re-taken every time the page comes back
+  // into view. The request needs a visible document, not a gesture, so an effect one render
+  // after the LAUNCH tap is soon enough.
+  const running = snap.phase !== 'idle';
+  useEffect(() => (running ? holdWakeLock() : undefined), [running]);
+
   if (snap.phase === 'idle') {
     return (
       <LaunchScreen
         onStart={() => {
           requestFullscreen();
-          requestWakeLock();
           // Combined camera+mic prompt in this tap. CameraView's getUserMedia is video-only
           // and runs after paint, which is why iOS asked for the microphone on the next card.
           void primeMediaPermissions();
+          warmHandModel();
           session.start();
           void coachReady.then(() => warmSpeaker(speaker, canonicalLines()));
         }}
