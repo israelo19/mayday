@@ -4,7 +4,7 @@
 // literature. Facts for the screen and for triage's question, never a route. Pure: the
 // module feeds it every frame and scene.test.ts drives it with numbers. Owned by P1 (docs/07).
 import type { PersonObservation, Posture, SceneObservation } from '../types';
-import { LEFT_HIP, LEFT_SHOULDER, RIGHT_HIP, RIGHT_SHOULDER, torsoAngleDeg } from './signal';
+import { headOf, LEFT_HIP, LEFT_SHOULDER, RIGHT_HIP, RIGHT_SHOULDER, torsoAngleDeg } from './signal';
 
 type LandmarkLike = { x: number; y: number; visibility: number };
 
@@ -18,16 +18,33 @@ export const LYING_MAX_DEG = 25;
 export const UPRIGHT_MIN_DEG = 50;
 /** A box centre moving slower than this, in image widths per second, counts as still. */
 export const STILL_MAX_SPEED = 0.05;
+/**
+ * Time constant for smoothing the box centre before its speed is measured, in ms.
+ *
+ * Speed used to be the raw frame-to-frame step divided by the frame interval. Landmark noise
+ * does not shrink as frames get closer together but the allowance does, so at 30 fps the
+ * centre was allowed about one pixel of a 640 px frame per frame and a motionless person read
+ * "moving" forever. Worse, a faster camera was stricter than a slow one. Smoothing first puts
+ * a floor under the interval: jitter is attenuated by roughly dt/tau while real movement
+ * passes through at its own speed, so the threshold means the same thing at any frame rate.
+ */
+export const STILL_SMOOTH_MS = 400;
 /** A pose whose box centre is within this of a tracked one is the same person. */
 export const SAME_PERSON_MAX_DIST = 0.2;
 /** A tracked person unseen for this long is forgotten; shorter gaps must not reset a stillness count. */
 export const TRACK_KEEP_MS = 1000;
 
-type Track = { cx: number; cy: number; t: number; stillSince: number | null };
+type Track = { cx: number; cy: number; t: number; stillSince: number | null; sx: number; sy: number };
 
 const clamp = (v: number): number => Math.min(1, Math.max(0, v));
 
-/** The box around the visible landmarks, or null when too little of the person is seen. */
+/**
+ * The box around the person, or null when too little of them is seen.
+ *
+ * The visible landmarks set most of it, but BlazePose's topmost point is an eye or an ear, so
+ * landmarks alone stop at the eyebrows and the box appears to cut the head off. `headOf`
+ * estimates the rest of the skull and the box is widened to hold it.
+ */
 export function boxOf(lm: readonly LandmarkLike[]): { box: PersonObservation['box']; confidence: number } | null {
   let minX = 1;
   let minY = 1;
@@ -43,6 +60,13 @@ export function boxOf(lm: readonly LandmarkLike[]): { box: PersonObservation['bo
     if (p.y > maxY) maxY = p.y;
   }
   if (seen < 4) return null;
+  const head = headOf(lm);
+  if (head) {
+    minX = Math.min(minX, head.cx - head.r);
+    minY = Math.min(minY, head.cy - head.r);
+    maxX = Math.max(maxX, head.cx + head.r);
+    maxY = Math.max(maxY, head.cy + head.r);
+  }
   const x = clamp(minX - BOX_PAD);
   const y = clamp(minY - BOX_PAD);
   const box = { x, y, w: clamp(maxX + BOX_PAD) - x, h: clamp(maxY + BOX_PAD) - y };
@@ -93,11 +117,18 @@ export class SceneTracker {
       });
       const prev = best >= 0 ? free.splice(best, 1)[0] : null;
       let stillSince: number | null = null;
+      // The smoothed centre is what the speed is measured on; the raw one still does matching.
+      let sx = cx;
+      let sy = cy;
       if (prev) {
         const seconds = Math.max(1, now - prev.t) / 1000;
-        stillSince = bestDist / seconds <= STILL_MAX_SPEED ? (prev.stillSince ?? prev.t) : null;
+        const alpha = Math.min(1, (seconds * 1000) / STILL_SMOOTH_MS);
+        sx = prev.sx + alpha * (cx - prev.sx);
+        sy = prev.sy + alpha * (cy - prev.sy);
+        const speed = Math.hypot(sx - prev.sx, sy - prev.sy) / seconds;
+        stillSince = speed <= STILL_MAX_SPEED ? (prev.stillSince ?? prev.t) : null;
       }
-      next.push({ cx, cy, t: now, stillSince });
+      next.push({ cx, cy, t: now, stillSince, sx, sy });
       people.push({
         box: found.box,
         posture: postureOf(lm),
