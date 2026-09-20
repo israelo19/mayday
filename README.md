@@ -1,24 +1,21 @@
-<h1 align="center">
-  <img src="public/icon.svg" width="44" alt="Mayday icon, a red cross on black">
-  Mayday
-</h1>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/wordmark-dark.svg">
+    <img src="docs/images/wordmark-light.svg" width="300" alt="Mayday">
+  </picture>
+</p>
 
 <p align="center"><strong>The minutes before the ambulance, coached.</strong></p>
-
-<p align="center">
-  <img alt="326 tests passing" src="https://img.shields.io/badge/tests-326_passing-2ea043">
-  <img alt="Coaching works with the network off" src="https://img.shields.io/badge/coaching-works_with_wifi_off-2ea043">
-  <a href="LICENSE"><img alt="Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue"></a>
-</p>
 
 > Built at HopHacks 2026, Johns Hopkins, September 18 to 20, for the Most Philanthropic Hack
 > track, with the Gemini API, ElevenLabs and SpaceXAI sponsor challenges.
 
-Mayday turns a phone into a first-aid coach that can see. When someone collapses or is bleeding
-badly, a bystander with no training opens it, says what is happening, props the phone up, and
-the app talks them through the right steps until the ambulance arrives. The camera watches the
-whole time: it counts chest compressions and says "faster", and it notices hands leaving a
-wound and says "press". When the paramedics arrive, it shows them a timeline of what happened.
+Someone collapses in front of you. The ambulance is seven minutes away, and the 911 dispatcher
+cannot see what you are doing. Mayday turns the phone already in your pocket into a first-aid
+coach that can see: it tells you what to do, watches you do it, and corrects you until help
+arrives. It counts your chest compressions and says "faster". It sees your hands leave a wound
+and says "press". When the paramedics arrive, it hands them a timeline of everything that
+happened.
 
 Every step it speaks is a line from a published first-aid guideline, written into the app as a
 script. No AI makes up a step. The camera and the coaching run on the phone and keep working
@@ -55,9 +52,18 @@ and an AI coach has out-performed dispatchers over audio ([JAMA Internal Medicin
 Mayday puts the eyes on the phone itself.
 
 This is a philanthropy problem before it is a technology problem. It falls hardest on the people
-with the least: no training, no equipment, an ambulance thirteen minutes away. Mayday costs
-nothing, needs no account or app store, works without a signal, teaches the real guideline every
-time it is used, and is open source so any community can add the emergency it faces most.
+with the least: no training, no equipment, an ambulance thirteen minutes away.
+
+## ❤️ Why we built it
+
+In most emergencies the first responder is whoever happens to be there, and they want to help.
+Mayday gives them a way. It is already in their pocket, needs no account, no app store and no
+signal, and turns the first minutes from waiting into care. It puts CALL 911 on the screen from
+the first second and hands the caller a running situation report to read out, so the dispatcher
+hears where, what and how long instead of panic. It teaches the real guideline every time it is
+used, and it is open source, so any community can add the emergency it faces most. That is the
+philanthropy: not replacing the ambulance, but making sure someone is doing the right thing
+until it arrives.
 
 ## 💡 What a session looks like
 
@@ -80,13 +86,18 @@ leaving it.
 ## 🏗️ How it works
 
 <p align="center">
-  <img src="docs/images/how-it-works.svg" width="100%" alt="How Mayday works: the phone's camera feeds the Eyes, the Brain follows the published first-aid script, the Voice speaks and keeps the beat; you answer with taps and voice; Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge">
+  <img src="docs/images/how-it-works.svg" width="100%" alt="How Mayday works: the Eyes see the scene and the helper, the Ears hear what you say, the Brain interprets both and picks the next line from the guideline script, the Voice speaks and keeps the beat; you answer with taps and voice; Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge">
 </p>
 
-Facts flow one way. The Eyes report measurements, never advice. The Brain turns measurements
-into the guideline's own words. The Voice says only what the Brain hands it. Everything is
-logged, and the report for the paramedics is built from that log, so it can only claim what the
-session recorded.
+Four parts on the phone do the work. The **Eyes** see the scene: a box around every person in
+view, who is lying still, one photo to a vision model at the start to size up what kind of
+emergency this is, and then the helper's hands and shoulders while they work. The **Ears** hear
+what the bystander says, in their own panicked words, and turn it into the answer the script
+needs. The **Brain** interprets what the Eyes and Ears report and decides what to say next, from
+a script written line by line from the published guideline. It interprets; it never invents.
+The **Voice** speaks the step, keeps the beat, and corrects within a second. The vision model and
+the voices in the cloud make each part better when the network is there, and none is ever in
+charge.
 
 ## 🧭 Why you can trust it
 
@@ -124,7 +135,8 @@ bleeding and choking scripts have the same shape.
 ## 👀 What the camera measures
 
 Google's MediaPipe pose and hand tracking runs inside the browser, models included in the app,
-so no video ever leaves the phone. It watches the helper, not the patient.
+so no video ever leaves the phone. It boxes everyone in view to read the scene, and during
+coaching it watches the helper's hands and shoulders, which is where the corrections come from.
 
 | It measures | How | Which becomes |
 |---|---|---|
@@ -133,7 +145,7 @@ so no video ever leaves the phone. It watches the helper, not the patient.
 | Chest recoil | how far the chest comes back up between pushes, an estimate | "Let the chest come all the way back up." |
 | Hands on the wound | palms inside a circle locked where they first settled | "Don't let go! Hands back on the wound." |
 | Confidence | whether the shoulders are visible enough to trust | the "I can't see you clearly" line, and the beat continues |
-| Someone down | a body lying flat and still for two seconds | "Looks like Collapsed?", a question |
+| The scene | a box around each person, their posture and stillness, and one photo to a vision model at the start | "Looks like Collapsed?", a question |
 
 ## 🗣️ How it talks and listens
 
@@ -143,6 +155,38 @@ audio clock so a busy camera cannot make it stutter. Listening is keyword spotti
 answers the current step accepts, and every keyword also has a button. The default voice is the
 browser's own, which needs no key and no network. Every line has a hand-drawn picture; browse
 them at `?guide=1`.
+
+## 🚑 The handoff
+
+<p align="center">
+  <img src="docs/images/handoff.svg" width="100%" alt="The handoff: one log of every event feeds the lines read to the 911 dispatcher while the call is open, and the paramedic's headline numbers, timeline and QR code when the ambulance arrives">
+</p>
+
+Everything the session hears, sees and says goes into one log: what was said, which step began
+when, the rate, every pause, every second the camera could not see. Two reports are folded out
+of it. While the 911 call is open, the situation report is rebuilt every second as lines to
+read aloud, in the order a dispatcher asks: where, what, how long, when CPR started, the
+average rate, the longest pause. When the ambulance arrives, the handoff screen gives the
+paramedic the headline numbers, the timeline, and a QR code that carries the report itself,
+not a link, so it scans with no signal. Time the camera could not see is printed as not
+measured, never as a pause.
+
+## 🧰 Tech stack
+
+| Part | Technology | What it does |
+|---|---|---|
+| The app | Vite, React 19, TypeScript, installable as a PWA | one page, no store, caches itself for wifi off |
+| Eyes, on the phone | MediaPipe Pose and Hand Landmarker, WASM in the browser | boxes, posture, stillness, compression rate, hands on the wound |
+| Eyes, in the cloud | Gemini API, `gemini-3.6-flash`, key from Google AI Studio | one photo to a closed label and a box; a missed sentence to a button |
+| Ears | Web Speech recognition as keyword spotting; the Grok API, landing now | what you said, turned into the answer the script needs |
+| Brain | a hand-rolled state machine engine in TypeScript, scripts as data | the guideline, one line at a time, no dependencies |
+| Voice | Web Speech synthesis and a Web Audio metronome; ElevenLabs Flash v2.5 and ElevenLabs Agents | speech, the beat, the human voice, the call-taker |
+| Handoff | Geolocation with reverse geocoding, the event log, `qrcode` | the SITREP, the timeline, the QR |
+| Keys | a small proxy the dev server mounts at `/api/proxy` | every cloud key stays on the server |
+
+Camera and microphone feed the on-device models, the engine turns their output into the
+guideline's words, and speech and the screen deliver them. The cloud hangs off the side of that
+loop and never sits inside it.
 
 ## 🤝 Sponsor challenges
 

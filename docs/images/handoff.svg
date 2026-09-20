@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" width="1200" height="480" role="img" aria-label="The handoff. Everything the session hears, sees and says goes into one log. While the 911 call is open, the log becomes lines to read to the dispatcher. When the ambulance arrives, the same log becomes the paramedic's headline numbers, a timeline, and a QR code that carries the report itself.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9aa3b2"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #e8eaed; }
+    .h { font-size: 30px; font-weight: 700; }
+    .sub { font-size: 16px; fill: #9aa3b2; }
+    .title { font-size: 16px; font-weight: 800; letter-spacing: 1px; }
+    .note { font-size: 13px; fill: #9aa3b2; }
+    .t { font-size: 13px; fill: #6b7280; }
+    .ev { font-size: 14px; fill: #e8eaed; }
+    .q { font-size: 13px; fill: #fbbf24; }
+    .m { font-size: 14px; fill: #e8eaed; }
+    .lbl { font-size: 13px; fill: #9aa3b2; }
+    .foot { font-size: 14px; fill: #9aa3b2; }
+    .mint { fill: #34d399; } .red { fill: #ff3b30; } .blue { fill: #60a5fa; } .amber { fill: #fbbf24; }
+  </style>
+  <rect width="1200" height="480" rx="18" fill="#0b0d10"/>
+
+  <text class="h" x="48" y="56">The handoff</text>
+  <text class="sub" x="48" y="84">One log of everything the session heard, saw and said. Two reports are folded out of it, and both can only claim what was recorded.</text>
+
+  <!-- THE LOG -->
+  <rect x="48" y="112" width="330" height="300" rx="14" fill="#171a21" stroke="#2a2f3a"/>
+  <text class="title mint" x="68" y="140">THE LOG</text>
+  <text class="note" x="68" y="160">every event, timestamped</text>
+  <text class="t" x="68" y="192">0:00</text><text class="ev" x="118" y="192">I NEED HELP</text>
+  <text class="t" x="68" y="216">0:04</text><text class="ev" x="118" y="216">heard "he's not breathing"</text>
+  <text class="t" x="68" y="240">0:06</text><text class="ev" x="118" y="240">cardiac: check breathing</text>
+  <text class="t" x="68" y="264">0:21</text><text class="ev" x="118" y="264">CALL 911</text>
+  <text class="t" x="68" y="288">0:34</text><text class="ev" x="118" y="288">compressions started</text>
+  <text class="t" x="68" y="312">1:10</text><text class="ev" x="118" y="312">rate 92, said "Faster"</text>
+  <text class="t" x="68" y="336">2:30</text><text class="ev amber" x="118" y="336">camera blocked for 8 s</text>
+  <text class="t" x="68" y="360">4:05</text><text class="ev" x="118" y="360">ambulance here</text>
+
+  <line x1="380" y1="262" x2="428" y2="262" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- SITREP -->
+  <rect x="430" y="112" width="350" height="300" rx="14" fill="#171a21" stroke="#60a5fa"/>
+  <text class="title blue" x="450" y="140">SAY THIS TO THE DISPATCHER</text>
+  <text class="note" x="450" y="160">while the call is open, rebuilt every second</text>
+  <text class="q" x="450" y="196">"My location is 3400 North Charles Street."</text>
+  <text class="q" x="450" y="222">"Cardiac arrest, not breathing. CPR in progress."</text>
+  <text class="q" x="450" y="248">"This started 4 minutes ago."</text>
+  <text class="q" x="450" y="274">"I started CPR 3 minutes ago."</text>
+  <text class="q" x="450" y="300">"Compressions are averaging 108 a minute."</text>
+  <text class="q" x="450" y="326">"I have not stopped for more than ten seconds."</text>
+  <text class="note" x="450" y="372">The call-taker hears facts, not panic.</text>
+
+  <line x1="782" y1="262" x2="820" y2="262" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- HANDOFF -->
+  <rect x="822" y="112" width="330" height="300" rx="14" fill="#171a21" stroke="#ff3b30"/>
+  <text class="title red" x="842" y="140">HANDOFF</text>
+  <text class="note" x="842" y="160">when the ambulance arrives</text>
+  <text class="m" x="842" y="192">Bystander care: 4 min 5 s</text>
+  <text class="m" x="842" y="216">CPR started: 07:41:34 PM</text>
+  <text class="m" x="842" y="240">Average rate: 108/min</text>
+  <text class="m" x="842" y="264">Pauses over 10 s: 0</text>
+  <text class="m amber" x="842" y="288">Not measured: 8 s</text>
+  <!-- QR -->
+  <rect x="1050" y="184" width="84" height="84" rx="4" fill="#ffffff"/>
+  <g fill="#0b0d10">
+    <rect x="1056" y="190" width="18" height="18"/><rect x="1060" y="194" width="10" height="10" fill="#ffffff"/>
+    <rect x="1110" y="190" width="18" height="18"/><rect x="1114" y="194" width="10" height="10" fill="#ffffff"/>
+    <rect x="1056" y="244" width="18" height="18"/><rect x="1060" y="248" width="10" height="10" fill="#ffffff"/>
+    <rect x="1080" y="190" width="6" height="6"/><rect x="1092" y="196" width="6" height="6"/><rect x="1086" y="208" width="6" height="6"/>
+    <rect x="1080" y="220" width="6" height="6"/><rect x="1098" y="220" width="6" height="6"/><rect x="1110" y="226" width="6" height="6"/>
+    <rect x="1122" y="220" width="6" height="6"/><rect x="1086" y="232" width="6" height="6"/><rect x="1104" y="238" width="6" height="6"/>
+    <rect x="1116" y="244" width="6" height="6"/><rect x="1080" y="250" width="6" height="6"/><rect x="1092" y="256" width="6" height="6"/>
+    <rect x="1110" y="256" width="6" height="6"/><rect x="1122" y="250" width="6" height="6"/><rect x="1098" y="244" width="6" height="6"/>
+    <rect x="1062" y="220" width="6" height="6"/><rect x="1068" y="232" width="6" height="6"/><rect x="1128" y="238" width="6" height="6"/>
+  </g>
+  <text class="note" x="842" y="330">Scan the QR: it carries the report</text>
+  <text class="note" x="842" y="350">itself, not a link, so it works</text>
+  <text class="note" x="842" y="370">with no signal. The timeline is</text>
+  <text class="note" x="842" y="390">below it on the screen.</text>
+
+  <text class="foot" x="48" y="456">Time the camera could not see is printed as "not measured", never as a pause. The report never claims more than the log recorded.</text>
+</svg>
