@@ -159,7 +159,7 @@ Open the app, or `?fake=1` on a laptop with no camera. Tap "I NEED HELP".
 3. In compressions the metronome runs and the pill shows the live rate. Stop pushing for three
    seconds: "Don't stop." Cover the lens: the blind line, the beat continues.
 4. In bleeding pressure, lift both hands: "Don't let go!" within about two seconds.
-5. CALL 911 opens the simulated dispatcher under a red label; the SITREP lines answer it.
+5. CALL 911 opens the simulated dispatcher; the SITREP lines answer it. The panel reads as a real call because LAUNCH already said it is not one.
 6. The handoff shows the read-aloud block, the paramedic headline, the timeline and a QR.
 
 `window.mayday.log.entries()` in the console lists what was heard and said.

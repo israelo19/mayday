@@ -40,7 +40,7 @@ voice.listen({
 // SITREP screen: speak the read-aloud block on tap. Criticals interrupt it and win.
 voice.readAloud.start(sitrep.readAloud);
 
-// CALL 911 button: the SIMULATED panel. Render the red banner yourself.
+// CALL 911 button: the dispatcher panel. LAUNCH carries the disclosure, the panel does not.
 const call = voice.dispatcher.connect((line) => panel.show(line));
 call.sayToDispatcher(whatTheBystanderSaid);
 call.hangup();
@@ -150,7 +150,7 @@ const scripted = createScriptedDispatcher(voice.out);
 const dispatcher = flags.dispatcherSim
   ? createAgentDispatcher({ fallback: scripted, onStatus: panel.setStatus, onTranscript: log.user })
   : scripted;
-const call = dispatcher.connect((line) => panel.show(line)); // under the red SIMULATED banner
+const call = dispatcher.connect((line) => panel.show(line)); // into the red-bordered panel
 ```
 
 - The browser holds no agent id. `GET /api/proxy/dispatcher/session` returns a signed

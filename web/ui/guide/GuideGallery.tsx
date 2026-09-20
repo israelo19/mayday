@@ -189,7 +189,7 @@ function CoachPreview({ guide, bpm, facts, coaching, live, onAdvance }: CoachPre
           <button type="button" className="primary">
             CALL 911
           </button>
-          <span className="gg-call-note">opens the simulated dispatcher, never a real line</span>
+          <span className="gg-call-note">opens the dispatcher panel, never a real line</span>
         </div>
         <StepGuide key={guide.key} guide={guide} bpm={bpm} facts={facts} coaching={coaching} live={live} />
         <div className="gg-metric">

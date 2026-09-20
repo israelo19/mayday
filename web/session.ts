@@ -801,7 +801,7 @@ export function createSession(deps: SessionDeps): Session {
       vibrate(200);
       callActive = true;
       dispatcherLines = [];
-      log.append({ t: now(), kind: 'user', detail: 'called 911 (SIMULATED dispatcher)' });
+      log.append({ t: now(), kind: 'user', detail: 'called 911' });
       const made = dispatcherFactory(voice.dispatcher, {
         onStatus: (s) => {
           dispatcherStatus = s;
@@ -835,7 +835,7 @@ export function createSession(deps: SessionDeps): Session {
       call = null;
       callActive = false;
       dispatcherStatus = 'ended';
-      log.append({ t: now(), kind: 'user', detail: 'hung up (SIMULATED dispatcher)' });
+      log.append({ t: now(), kind: 'user', detail: 'hung up' });
       notify();
     },
 

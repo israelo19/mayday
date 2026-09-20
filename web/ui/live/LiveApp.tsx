@@ -135,13 +135,12 @@ export function LiveApp() {
         <div className="live-top">
           <div className="live-top-row">
             <ListeningChip listening={snap.listening} speaking={snap.speaking} heard={snap.lastHeard} keyword={snap.lastKeyword} error={snap.listenError} platform={platform} onRetry={() => session.retryListening()} />
-            <div className="live-top-right">
-              {/* Every state keeps the button; states flagged call911 in the machine data make it pulse. It opens the SIMULATED dispatcher and never dials. */}
-              <button className={`live-call${snap.call911 && !snap.callActive ? ' urgent' : ''}`} onClick={() => session.call911()} disabled={snap.callActive}>
-                {snap.callActive ? 'On the line' : 'Call 911'}
-              </button>
-              {snap.callActive && <span className="live-sim">Simulated dispatcher</span>}
-            </div>
+            {/* Every state keeps the button; states flagged call911 in the machine data make it pulse. It opens the scripted
+                dispatcher and never dials. The disclosure that the call-taker is not real lives on the launch screen, so the
+                call itself reads the way the real one will (DECISIONS.md Sat, the simulated labels). */}
+            <button className={`live-call${snap.call911 && !snap.callActive ? ' urgent' : ''}`} onClick={() => session.call911()} disabled={snap.callActive}>
+              {snap.callActive ? 'On the line' : 'Call 911'}
+            </button>
           </div>
           <EyesChip eyes={snap.eyes} triage={snap.phase === 'triage'} assessing={snap.assessing} saw={snap.suggestion?.source === 'camera' ? (snap.assessment && snap.suggestion.heard.startsWith('camera: ') && snap.suggestion.heard.length > 44 ? snap.suggestion.label.toLowerCase() : snap.suggestion.heard.replace(/^camera: /, '')) : null} />
           <Metric snap={snap} />
