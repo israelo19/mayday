@@ -14,17 +14,18 @@
 import type { CoachingEvent, GeoFix, HandoffReport, PerceptionFacts, SceneAssessment, Sitrep, State } from '../src/types';
 import type { SceneAssessor } from '../src/ai/assess';
 import { ASSESS_FRAME_PX } from '../src/ai/assess';
+import type { IntentMatch, IntentRouter } from '../src/ai/intent';
 import type { DispatcherSim } from '../src/ai/dispatcher';
 import type { Perception, RoiState } from '../src/perception';
 import { GUIDANCE } from '../src/perception';
 import type { Voice, VoiceInStatus } from '../src/voice';
-import { ASSESSMENT_HINTS, CONFIRM_WORDS, createEngine, machines, matchKeyword, REJECT_WORDS, routeKeyword, SCENE_HINTS, STALE_FACTS_MS, suggestRoute, TRIAGE_ROUTES, type Engine, type TriageRoute } from '../src/protocol';
+import { ASSESSMENT_HINTS, confirmLine, CONFIRM_WORDS, createEngine, machines, matchKeyword, REJECT_WORDS, routeKeyword, SCENE_HINTS, STALE_FACTS_MS, suggestRoute, TRIAGE_ROUTES, type Engine } from '../src/protocol';
 import { buildHandoff, buildSitrep, createEventLog, handoffQrPayload, qrDataUrl, type EventLog } from '../src/sitrep';
 
 export type SessionPhase = 'idle' | 'triage' | 'coaching' | 'handoff';
 
 /** A route the app thinks it heard but no keyword matched; entered only on yes, by its keyword. */
-export type RouteSuggestion = { label: string; keyword: string; to: string; heard: string; source: 'voice' | 'camera' };
+export type RouteSuggestion = { label: string; keyword: string; to: string; heard: string; source: 'voice' | 'camera' | 'model' };
 
 /** 'scripted' is the offline call-taker; the rest are the ElevenLabs agent's states (docs/04 item 3). */
 export type DispatcherStatus = 'scripted' | 'connecting' | 'live' | 'fallback' | 'ended';
@@ -166,6 +167,8 @@ export type SessionDeps = {
   micTrace?: (name: string, detail?: string) => void;
   /** One frame to a scene model in triage (docs/04 item 7). Absent: the camera's own cues only. */
   assessor?: SceneAssessor;
+  /** A missed sentence to a text model (docs/04 item 8). Absent: the local phrase cues only. */
+  router?: IntentRouter;
 };
 
 export const MACHINE_LABEL: Record<string, string> = {
@@ -198,6 +201,9 @@ const ASSESS_AFTER_MS = 1_200;
 /** An unclear answer is tried once more, later; a clear one stands. */
 const ASSESS_RETRY_MS = 6_000;
 const ASSESS_MAX_TRIES = 2;
+/** One sentence at a time to the intent router, and a breath between tries, so a talkative
+ * bystander cannot turn a missed keyword into a stream of questions. */
+const INTENT_COOLDOWN_MS = 8_000;
 
 /** Not medical: this is about the camera, spoken once per state when the hands never settle. */
 export const ROI_FAILED_LINE = "I can't find your hands on the wound. I'll keep coaching by voice.";
@@ -237,7 +243,7 @@ export function createSession(deps: SessionDeps): Session {
   let lastKeyword: string | null = null;
   let lastKeywordAt = -Infinity;
   let pendingTranscript: { text: string; t: number } | null = null;
-  let suggestion: (RouteSuggestion & { route: TriageRoute; at: number }) | null = null;
+  let suggestion: (RouteSuggestion & { at: number }) | null = null;
   // After a camera suggestion is rejected or ignored, the camera waits this long before asking again.
   let sceneAskedAt = -Infinity;
   let callActive = false;
@@ -255,6 +261,8 @@ export function createSession(deps: SessionDeps): Session {
   let assessing = false;
   let assessTries = 0;
   let assessedAt = -Infinity;
+  let routing = false;
+  let routedAt = -Infinity;
   // A camera question the person said no to waits SCENE_HINT_RETRY_MS before either camera
   // source may ask about that route again (docs/03: a rejected hint waits 30 s).
   const rejectedAt = new Map<string, number>();
@@ -419,8 +427,9 @@ export function createSession(deps: SessionDeps): Session {
 
   /**
    * A final transcript that fired no keyword: while a suggestion is open it can be the yes or
-   * the no; in triage it can earn a suggestion from the phrase cues. Runs one tick after the
-   * transcript so the listener's own keyword pass has already had its turn.
+   * the no; in triage it can earn a suggestion from the phrase cues; and if those miss, the
+   * intent router gets a turn. Runs one tick after the transcript so the listener's own
+   * keyword pass has already had its turn.
    */
   function considerTranscript(t: number): void {
     const p = pendingTranscript;
@@ -432,12 +441,50 @@ export function createSession(deps: SessionDeps): Session {
       if (matchKeyword(p.text, REJECT_WORDS)) return session.rejectSuggestion();
       return;
     }
-    if (phase !== 'triage') return;
-    const found = suggestRoute(p.text);
-    if (!found) return;
-    suggestion = { route: found.route, at: t, label: found.route.label, keyword: routeKeyword(found.route), to: found.route.to, heard: p.text, source: 'voice' };
-    log.append({ t, kind: 'system', detail: `sounds like ${found.route.label} (score ${found.score}): "${p.text}"` });
-    voice.out.enqueue({ priority: 'correction', text: found.route.confirm, stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'suggest', cooldownMs: 3000, t });
+    if (phase === 'triage') {
+      const found = suggestRoute(p.text);
+      if (found) {
+          suggestion = { at: t, label: found.route.label, keyword: routeKeyword(found.route), to: found.route.to, heard: p.text, source: 'voice' };
+        log.append({ t, kind: 'system', detail: `sounds like ${found.route.label} (score ${found.score}): "${p.text}"` });
+        voice.out.enqueue({ priority: 'correction', text: found.route.confirm, stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'suggest', cooldownMs: 3000, t });
+        return;
+      }
+    }
+    considerIntent(p.text, t);
+  }
+
+  /**
+   * The cloud upgrade to the phrase cues (docs/04 item 8): a sentence both the matcher and
+   * `suggestRoute` missed, and the buttons that are on the screen right now. The model answers
+   * with the number of one of them, never with words, so the worst it can do is point at the
+   * wrong button the person is already looking at. It earns the same Yes/No question a heard
+   * phrase does, and the engine still moves only on the keyword the human confirms.
+   */
+  function considerIntent(transcript: string, t: number): void {
+    const router = deps.router;
+    if (!router || routing || phase === 'idle' || phase === 'handoff') return;
+    if (t - routedAt < INTENT_COOLDOWN_MS) return;
+    const options = twinsOf(engine.currentState()?.state ?? null).map((twin) => ({ keyword: twin.keyword, label: twin.label }));
+    if (options.length === 0) return;
+    routing = true;
+    void router.route({ transcript, options }).then((match) => {
+      routing = false;
+      routedAt = now();
+      if (match) suggestFromIntent(match, transcript);
+      else log.append({ t: now(), kind: 'system', detail: `no match from the intent router: "${transcript}"` });
+      notify();
+    });
+  }
+
+  function suggestFromIntent(match: IntentMatch, transcript: string): void {
+    const t = now();
+    if (suggestion) return; // something else asked while the model was thinking
+    const twin = twinsOf(engine.currentState()?.state ?? null).find((b) => b.keyword === match.keyword);
+    if (!twin) return; // the state moved on under the answer
+    const route = TRIAGE_ROUTES.find((r) => r.to === twin.to);
+    suggestion = { at: t, label: twin.label, keyword: twin.keyword, to: twin.to, heard: transcript, source: 'model' };
+    log.append({ t, kind: 'system', detail: `intent router (${match.model}, ${match.confidence}) reads "${transcript}" as ${twin.label}` });
+    voice.out.enqueue({ priority: 'correction', text: route?.confirm ?? confirmLine(twin.label), stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'suggest', cooldownMs: 3000, t });
   }
 
   /**
@@ -452,7 +499,7 @@ export function createSession(deps: SessionDeps): Session {
     const route = TRIAGE_ROUTES.find((r) => r.to === hint.to);
     if (!route || t - (rejectedAt.get(hint.to) ?? -Infinity) < SCENE_HINT_RETRY_MS) return;
     sceneAskedAt = t;
-    suggestion = { route, at: t, label: hint.label, keyword: hint.keyword, to: hint.to, heard: 'camera: a person lying still', source: 'camera' };
+    suggestion = { at: t, label: hint.label, keyword: hint.keyword, to: hint.to, heard: 'camera: a person lying still', source: 'camera' };
     log.append({ t, kind: 'system', detail: 'camera: a person lying still, asked whether someone collapsed' });
     voice.out.enqueue({ priority: 'correction', text: hint.confirm, stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'suggest', cooldownMs: 3000, t });
   }
@@ -497,7 +544,7 @@ export function createSession(deps: SessionDeps): Session {
     const route = TRIAGE_ROUTES.find((r) => r.to === hint.to);
     const t = now();
     if (!route || t - (rejectedAt.get(hint.to) ?? -Infinity) < SCENE_HINT_RETRY_MS) return;
-    suggestion = { route, at: t, label: hint.label, keyword: hint.keyword, to: hint.to, heard: `camera: ${a.scene || a.label}`, source: 'camera' };
+    suggestion = { at: t, label: hint.label, keyword: hint.keyword, to: hint.to, heard: `camera: ${a.scene || a.label}`, source: 'camera' };
     voice.out.enqueue({ priority: 'correction', text: hint.confirm, stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'suggest', cooldownMs: 3000, t });
   }
 
@@ -737,6 +784,8 @@ export function createSession(deps: SessionDeps): Session {
       assessing = false;
       assessTries = 0;
       rejectedAt.clear();
+      routing = false;
+      routedAt = -Infinity;
       skipCallPrompt = false;
       session.start();
     },

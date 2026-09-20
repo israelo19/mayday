@@ -3,6 +3,7 @@ import { createFakePerception } from '../src/perception/fake';
 import { createSession, ROI_FAILED_LINE, type Session, type SessionDeps } from './session';
 import type { Voice, VoiceInOptions, VoiceInStatus } from '../src/voice';
 import type { CoachingEvent } from '../src/types';
+import type { IntentRequest, IntentRouter } from '../src/ai/intent';
 
 const T0 = 1_700_000_000_000;
 
@@ -336,6 +337,107 @@ describe('session', () => {
     s.say('not breathing');
     v.mic()!.onTranscript('there is a pool of red stuff coming out of his leg and it is soaking his pants');
     tick(100);
+    expect(s.snapshot().suggestion).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The intent router (docs/04 item 8): a sentence the matcher and the phrase cues both missed,
+// mapped to a move the state already offers. Still a question, never a route.
+// ---------------------------------------------------------------------------
+
+/** A router that answers with whichever option the test names, and records what it was given. */
+function fakeRouter(pick: (labels: string[]) => number | null) {
+  const asked: IntentRequest[] = [];
+  const router: IntentRouter = {
+    async route(req) {
+      asked.push(req);
+      const i = pick(req.options.map((o) => o.label));
+      return i === null ? null : { ...req.options[i], confidence: 'high', model: 'fake', latencyMs: 5 };
+    },
+  };
+  return { router, asked };
+}
+
+describe('intent router', () => {
+  const flush = async (tick: (ms: number) => void, ms = 100) => {
+    tick(ms);
+    await Promise.resolve();
+    await Promise.resolve();
+    tick(ms);
+  };
+
+  it('asks about a sentence the phrase cues missed, and routes on yes', async () => {
+    const { router, asked } = fakeRouter((labels) => labels.findIndex((l) => l === 'Not breathing'));
+    const { s, v, tick } = rig({ router });
+    s.start();
+    v.mic()!.onTranscript('the poor man went down in the hallway and he is grey');
+    await flush(tick);
+    expect(asked[0].options.map((o) => o.label)).toEqual(['Not breathing', 'Shot or bleeding', 'Choking']);
+    expect(s.snapshot().suggestion).toMatchObject({ source: 'model', keyword: 'not breathing' });
+    v.mic()!.onTranscript('yes');
+    tick(100);
+    expect(s.snapshot().stateKey).toBe('cardiac.scene_check');
+  });
+
+  it('only sees moves the state already offers, so it cannot name a step that is not on screen', async () => {
+    const { router, asked } = fakeRouter(() => null);
+    const { s, v, tick } = rig({ router });
+    s.start();
+    s.say('not breathing');
+    v.mic()!.onTranscript('what am I even supposed to do with my hands here');
+    await flush(tick);
+    const offered = asked[0].options.map((o) => o.keyword);
+    expect(offered.length).toBeGreaterThan(0);
+    expect(offered.every((k) => s.engine.keywords().includes(k))).toBe(true);
+    expect(s.snapshot().suggestion).toBeNull();
+  });
+
+  it('is never asked when a keyword or a phrase cue already answered', async () => {
+    const { router, asked } = fakeRouter(() => 0);
+    const { s, v, tick } = rig({ router });
+    s.start();
+    // The listener fires both callbacks for a final transcript that held a keyword (src/voice/in.ts).
+    v.mic()!.onKeyword('not breathing');
+    v.mic()!.onTranscript('he is not breathing');
+    await flush(tick);
+    s.restart();
+    v.mic()!.onTranscript("he ate something and now he's silent and holding his neck");
+    await flush(tick);
+    expect(s.snapshot().suggestion?.source).toBe('voice');
+    expect(asked).toEqual([]);
+  });
+
+  it('asks one sentence at a time, then waits out the cooldown', async () => {
+    const { router, asked } = fakeRouter(() => null);
+    const { s, v, tick } = rig({ router });
+    s.start();
+    v.mic()!.onTranscript('oh god oh god what is happening to him');
+    await flush(tick);
+    v.mic()!.onTranscript('somebody please tell me what to do right now');
+    await flush(tick);
+    expect(asked).toHaveLength(1);
+    tick(9000);
+    v.mic()!.onTranscript('somebody please tell me what to do right now');
+    await flush(tick);
+    expect(asked).toHaveLength(2);
+  });
+
+  it('drops an answer that arrived after the state moved on', async () => {
+    let release: (() => void) | null = null;
+    const router: IntentRouter = {
+      route: (req) =>
+        new Promise((resolve) => {
+          release = () => resolve({ ...req.options[0], confidence: 'high', model: 'fake', latencyMs: 5 });
+        }),
+    };
+    const { s, v, tick } = rig({ router });
+    s.start();
+    v.mic()!.onTranscript('please please please help him');
+    tick(100);
+    s.say('bleeding');
+    release!();
+    await flush(tick);
     expect(s.snapshot().suggestion).toBeNull();
   });
 });

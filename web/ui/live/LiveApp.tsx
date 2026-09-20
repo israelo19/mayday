@@ -9,7 +9,7 @@ import { canonicalLines, createSession, WATCHING_STATES, type Eyes } from '../..
 import type { LiveSource } from '../guide';
 import { reverseGeocode } from '../../geocode';
 import { createVoice } from '../../../src/voice';
-import { configureCoachVoice, createAssessor, createDispatcher, createSpeaker, warmSpeaker } from '../../providers';
+import { configureCoachVoice, createAssessor, createDispatcher, createRouter, createSpeaker, warmSpeaker } from '../../providers';
 import type { Box, SceneAssessment } from '../../../src/types';
 import { CameraView } from '../CameraView';
 import { LaunchScreen } from '../LaunchScreen';
@@ -49,9 +49,11 @@ export function LiveApp() {
     () => createAssessor(fake ? { pick: () => (perception as FakePerceptionHandle).controls.scene } : null),
     [perception, fake],
   );
+  // The intent router, behind its flag: a sentence no keyword matched (docs/04 item 8).
+  const router = useMemo(() => createRouter(fake), [fake]);
   const session = useMemo(
-    () => createSession({ perception, voice, dispatcher: createDispatcher, reverseGeocode, micTrace: traceRequested() ? micTrace : undefined, assessor }),
-    [perception, voice, assessor],
+    () => createSession({ perception, voice, dispatcher: createDispatcher, reverseGeocode, micTrace: traceRequested() ? micTrace : undefined, assessor, router }),
+    [perception, voice, assessor, router],
   );
   const snap = useSession(session);
   const platform = useMemo(readPlatform, []);

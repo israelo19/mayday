@@ -520,6 +520,18 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   control. The prompt lives in TypeScript so `scripts/assess-frame.mjs` runs the app's exact
   question on a photo. Cards, buttons and NEXT are untouched: the model proposes, the human
   disposes, and the tap path is the same as before for anyone who prefers it.
+- **Sat 19:40 (Ricky, `gemini-api` worktree)** Gemini is the scene model, the adapter DECISIONS
+  Sat 08:40 said would be one more row in the same route. `devproxy.mjs` now holds a
+  `VISION_PROVIDERS` table instead of a Featherless constant: both providers speak OpenAI chat
+  completions, so one request body serves both and only the URL, the key and the model name
+  differ (Gemini through `v1beta/openai/chat/completions`, ai.google.dev/gemini-api/docs/openai).
+  `resolveVisionProvider()` picks one, and the Vite mount, the standalone server and
+  `scripts/assess-frame.mjs` all call it, so they can never disagree about which model ran.
+  Order: `VISION_PROVIDER` if it names one with a key, else Gemini, else Featherless, else
+  nothing and the route 404s as before. Default `gemini-3.6-flash`, overridable by
+  `GEMINI_VISION_MODEL`. Not one line of `src/ai/assess.ts` changed: it already asked for boxes
+  on the 0 to 1000 scale, which is Gemini's own convention, and it already collapsed every
+  failure to null. The LM seams (docs/04 items 5 and 8) are untouched and still stubs.
 - **Sat 19:45 (Ricky, `11labs-voice-config`)** The coach's ElevenLabs voice is configurable
   next to the key, not in the app. `ELEVENLABS_COACH_VOICE` in `.env.local` takes a voice id or
   a library name; the proxy resolves it once and serves `GET /api/proxy/voice`, the app asks
@@ -527,6 +539,42 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   Brian stays the default and any miss keeps Brian. An in-app voice picker was built first and
   removed the same evening: a bystander opens the app and taps once, and a settings layer,
   however small, is a layer between them and "I NEED HELP". Sarah, the dispatcher, is fixed.
+- **Sat 19:55 (Ricky, `gemini-api` worktree)** The intent router, docs/04 item 8, on the same
+  Gemini key and the same proxy: `POST /intent/route` is the vision route without a picture, so
+  `assessWithVisionModel` became `askModel` with an optional `image` and there is still one
+  upstream call in the file. Two narrowings against the doc. First, the options are the button
+  twins of the current state, not `engine.keywords()`: the model only ever sees moves the screen
+  is already offering, which drops `repeat`, `next` and the keyword answers from its reach and
+  makes the suggestion match a button the person can see. Second, the model answers with the
+  NUMBER of an option, not its keyword, and `parseIntent` returns the option object the engine
+  minted, so inventing a step is not expressible rather than merely rejected. Low confidence is a
+  miss, like no answer at all: an unsure question while someone is counting compressions is worse
+  than silence. It runs in any phase but only after `matchKeyword` and `suggestRoute` have both
+  missed, one sentence in flight, 8 s between tries. `RouteSuggestion.source` gained `'model'`,
+  which the amber bar already renders as "Sounds like" since it is not the camera. The dead
+  `route: TriageRoute` field on the stored suggestion went with it: nothing had read it since it
+  was added. Behind `?flag=intentRoute`, `?fake=1` gets a word overlap stub.
+- **Sat 20:05 (Ricky, `gemini-api` worktree)** The provider layer lost its `vision` prefix now
+  that it serves the intent route too: `MODEL_PROVIDERS`, `resolveProvider()`, `MODEL_PROVIDER`.
+  Switching models is that one environment variable and nothing else; no app code names a
+  provider. A blind rename also rewrote the `/vision/assess` route constant, which the tests
+  did not catch because nothing tests the proxy. Caught by curling both routes against the real
+  upstream with a bad key, which is now the check to run after any edit to devproxy.mjs.
+- **Sat 20:15 (Ricky, `gemini-api` worktree)** Three things a real Gemini key found that no test
+  could. One: gemini-3.x thinks before it answers and the thinking tokens come out of
+  `max_tokens`, so at this app's budgets the reply arrived truncated (`completion_tokens: 3`,
+  `finish_reason: length`) or empty. Both calls here are classification against a closed list,
+  not reasoning, so the gemini row carries `body: { reasoning_effort: 'none' }`, which the
+  request spreads in per provider; Featherless never sees a field it might reject. 907 ms and 88
+  tokens for the intent call, down from 3.4 s and 471. Two: `ASSESS_TIMEOUT_MS` 4 s to 6 s, since
+  one 640 px frame measured 2.7 s on a laptop and a phone on venue wifi gets to be twice that;
+  nothing waits on that call. Three: the intent prompt stacked two abstention mechanisms, "pick 0
+  rather than guess" in the prompt AND the parser dropping low confidence, and Gemini answered 0
+  to "the poor man went down in the hallway and he is grey", the exact sentence the feature
+  exists to catch. Now 0 means only "not about any of these" and doubt goes in `confidence`, so
+  `parseIntent` is the single gate: 4 of 4 on three emergencies plus one genuinely ambiguous
+  sentence. The free tier 429s after roughly six calls a minute, which is the demo's real
+  constraint, not cost; both routes already return null on a 429 and the app carries on.
 - **Sat 20:15 (Ricky, `first-card-permissions-flow`)** The camera is an open question, not an
   instant, and the screen now says so. Sat 07:10 moved the prompt onto I NEED HELP with
   `primeMediaPermissions()`; an instrumented run showed what that left behind. One tap issues
@@ -557,7 +605,14 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   Ask-then-commit (a readiness step in front of I NEED HELP) was designed and deliberately not
   built: it retires more of this at the cost of docs/05's zero-navigation launch, and that is
   the team's call, not a bug fix.
-
+- **Sat 20:20 (Ricky, `gemini-api` worktree)** Measured the intent router's variance on one
+  sentence, five identical calls at temperature 0: three matched, one abstained with `choice: 0`
+  and *high* confidence, one 429'd. So roughly three in four, the confidence field does not
+  separate the miss, and a retry is not affordable against this rate limit. Left as is, because
+  the failure mode is the designed one: no suggestion appears, the three buttons are still on
+  the screen, and the human was always going to confirm. The scene assessment is the steadier
+  Gemini demo and should lead. Featherless answered the same sentence correctly in 1.5 s if a
+  rehearsal needs determinism, one `MODEL_PROVIDER` away.
 - **Sat 20:35 (Ricky, `mobile-911-simulated-label`)** The word SIMULATED comes off the call, and
   the disclosure moves to LAUNCH. Three surfaces said it at once mid-emergency: a red
   "Simulated dispatcher" chip under the CALL 911 button, a "Simulated 911" header on the panel,

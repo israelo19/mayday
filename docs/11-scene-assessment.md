@@ -108,9 +108,11 @@ Tiers 1 and 2 above are in, each behind the seam the principles ask for.
 | The question | `ASSESSMENT_HINTS` in `src/protocol/phrases.ts`; the session asks, the human says yes or taps | The engine never moves on the camera (principle 1) |
 | The screen | eyes chip, "Camera: …" banner with cues, the patient's box over the video | Fail loud: a bad picture means no box, no banner (principle 4) |
 
-Flag: `?flag=sceneAssess`. Key: `FEATHERLESS_API_KEY` in `.env.local`, model by `FEATHERLESS_VISION_MODEL`
-(development default `Qwen/Qwen2.5-VL-7B-Instruct`; `Qwen/Qwen3-VL-8B-Instruct` or `google/gemma-3-27b-it`
-for the judged run). `node scripts/assess-frame.mjs photo.jpg [model]` runs the app's exact question on a
+Flag: `?flag=sceneAssess`. Key: `GEMINI_API_KEY` in `.env.local`, model by `GEMINI_VISION_MODEL`
+(default `gemini-3.6-flash`; `gemini-3.5-flash-lite` is quicker and weaker). Gemini answers boxes on the
+0 to 1000 scale `parseBox` already reads, so the client is provider-agnostic. `FEATHERLESS_API_KEY` is the
+fallback (`Qwen/Qwen2.5-VL-7B-Instruct`, or `Qwen/Qwen3-VL-8B-Instruct` for a sharper run), chosen by
+`MODEL_PROVIDER` or by being the only key present. `node scripts/assess-frame.mjs photo.jpg [model]` runs the app's exact question on a
 photo, for comparing models before the demo. `?fake=1&flag=sceneAssess` demos the whole flow with a canned
 model ("model says" in the fake controls). The cards and buttons are unchanged.
 

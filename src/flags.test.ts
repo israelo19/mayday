@@ -12,6 +12,7 @@ describe('parseFlags', () => {
       visionDescribe: false,
       narrationFlavor: false,
       sceneAssess: false,
+      intentRoute: false,
     });
   });
 

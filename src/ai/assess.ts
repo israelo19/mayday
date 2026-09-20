@@ -14,7 +14,9 @@ const CONFIDENCE: readonly SceneAssessment['confidence'][] = ['low', 'medium', '
 
 /** Longest side of the frame the session sends; the parser needs it for pixel coordinates. */
 export const ASSESS_FRAME_PX = 640;
-export const ASSESS_TIMEOUT_MS = 4000;
+/** Measured 2.7 s for one 640 px frame on a laptop with thinking off; a phone on venue wifi
+ * gets room to be twice that. Nothing waits on this call, so a longer ceiling costs nothing. */
+export const ASSESS_TIMEOUT_MS = 6000;
 export const DEFAULT_ASSESS_ENDPOINT = '/api/proxy/vision/assess';
 
 export const ASSESS_SYSTEM =

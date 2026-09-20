@@ -99,18 +99,35 @@ One camera frame goes to a vision model at the start of triage, and its answer b
 question the person confirms (docs/04 item 7, docs/11). Behind a flag; the cards and buttons
 stay for anyone who prefers to tap.
 
-1. Put `FEATHERLESS_API_KEY=...` in `.env.local`. `npm run dev` then mounts `/api/proxy/vision/assess`
-   and prints `Scene model: <model> via /api/proxy/vision/assess`. `FEATHERLESS_VISION_MODEL`
-   picks the model; the default is the small `Qwen/Qwen2.5-VL-7B-Instruct`, try
-   `Qwen/Qwen3-VL-8B-Instruct` for the judged run.
+1. Put `GEMINI_API_KEY=...` in `.env.local` (a free key from [AI Studio](https://aistudio.google.com/apikey)).
+   `npm run dev` then mounts `/api/proxy/vision/assess` and prints
+   `Scene model: gemini-3.6-flash (gemini) via /api/proxy/vision/assess`. `GEMINI_VISION_MODEL`
+   picks another model; `gemini-3.5-flash-lite` is quicker and weaker. `FEATHERLESS_API_KEY`
+   is the fallback provider, used when there is no Gemini key or when `MODEL_PROVIDER=featherless`.
 2. Open the phone URL with `?flag=sceneAssess`. After "I NEED HELP" the look card reads "One
    picture is with the model", then the eyes chip reads "Saw: …", a box lands on the person,
    and the app asks "It looks like someone is bleeding badly. Say yes, or tap."
 3. No key, or no answer within four seconds: nothing happens, and the camera's own cues carry on.
 
-`node scripts/assess-frame.mjs photo.jpg [model]` runs the app's exact question on a photo.
+`node scripts/assess-frame.mjs photo.jpg [model]` runs the app's exact question on a photo, which is
+how two models get compared before the judged run.
 `?fake=1&flag=sceneAssess` demos the flow with a canned model: pick what it says in the fake controls,
 then "Start over", since the frame goes out about a second into triage.
+
+### The intent router
+
+A bystander in a panic does not say "not breathing", they say "the poor man went down in the hallway
+and he is grey". The local matcher misses that and so do the phrase cues, and then the same model
+gets the sentence and the buttons that are on the screen right now (docs/04 item 8).
+
+1. Same `GEMINI_API_KEY`, same proxy, no picture: the route is `/api/proxy/intent/route`.
+2. Open the phone URL with `?flag=intentRoute`. Say something none of the buttons say. The amber
+   "Sounds like Not breathing?" bar appears, and yes or a tap enters the state.
+3. The model answers with the NUMBER of a button, never with words, so it cannot name a step the
+   state is not already offering. Anything else, or low confidence, or no answer in three seconds:
+   nothing happens and the buttons carry the demo.
+
+`?fake=1&flag=intentRoute` uses a word overlap stub, so the yes/no flow demos with no key.
 
 ## M0 demo check
 

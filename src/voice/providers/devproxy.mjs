@@ -12,7 +12,7 @@
 //      talks to the same https origin it loaded the page from, so there is no mixed-content
 //      block and no CORS. This is why `npm run dev` is the only command the demo needs.
 //   2. Standalone, for a laptop console session or another dev server:
-//        ELEVENLABS_API_KEY=sk_... node src/voice/providers/devproxy.mjs [port, default 8788]
+//        GEMINI_API_KEY=... node src/voice/providers/devproxy.mjs [port, default 8788]
 //
 // Routes, relative to the mount point:
 //   POST /v1/text-to-speech/*        forwarded to ElevenLabs with the key header added
@@ -25,10 +25,15 @@
 //                                    firstMessage is the agent's configured opening line: the
 //                                    socket delivers it as audio only, so the panel needs it here.
 //   POST /vision/assess              { image, mime, system, user, maxTokens } -> one frame to the
-//                                    scene model on Featherless (docs/04 item 7, docs/11); the
-//                                    answer comes back as { text, model, provider, latencyMs } and
+//                                    scene model (docs/04 items 4 and 7, docs/11); the answer comes
+//                                    back as { text, model, provider, latencyMs } and
 //                                    src/ai/assess.ts decides what, if anything, it means. The
-//                                    model is FEATHERLESS_VISION_MODEL; 404 without a key.
+//                                    provider is Gemini when GEMINI_API_KEY is set, else
+//                                    Featherless; 404 when neither key is there.
+//   POST /intent/route               { system, user, maxTokens } -> the same model without a
+//                                    picture (docs/04 item 8): which of the moves the engine is
+//                                    offering did the bystander mean. Same reply shape, and
+//                                    src/ai/intent.ts validates the answer against its own list.
 // Nothing else is forwarded: the proxy exposes exactly what the app calls, not the API.
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
@@ -38,9 +43,39 @@ const TTS_PREFIX = '/v1/text-to-speech/';
 const SESSION_ROUTE = '/dispatcher/session';
 const VOICE_ROUTE = '/voice';
 const VISION_ROUTE = '/vision/assess';
-const FEATHERLESS_CHAT = 'https://api.featherless.ai/v1/chat/completions';
-/** Cheap and warm, and it answers with boxes: the development default. Qwen3-VL-8B for the demo. */
-export const DEFAULT_VISION_MODEL = 'Qwen/Qwen2.5-VL-7B-Instruct';
+const INTENT_ROUTE = '/intent/route';
+/**
+ * The scene-model providers. Both speak OpenAI chat completions, so one request body serves
+ * both and only the URL, the key and the model name differ: Gemini through its
+ * OpenAI-compatible endpoint (ai.google.dev/gemini-api/docs/openai), Featherless natively.
+ * Adding a third is a row here, not a branch anywhere else.
+ */
+export const MODEL_PROVIDERS = {
+  gemini: {
+    chat: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    keyEnv: 'GEMINI_API_KEY',
+    modelEnv: 'GEMINI_VISION_MODEL',
+    // Flash speed with the spatial reasoning the patient box needs, and it answers on the
+    // 0 to 1000 scale src/ai/assess.ts already reads. gemini-3.5-flash-lite is quicker and
+    // weaker; compare them on a real photo with scripts/assess-frame.mjs before the judged run.
+    defaultModel: 'gemini-3.6-flash',
+    // Gemini 3.x thinks before it answers and the thinking tokens come out of max_tokens, so
+    // at this app's budgets the reply arrived truncated or empty. Both calls here are
+    // classification against a closed list, not reasoning. Off: 907 ms and 88 tokens for the
+    // intent call instead of 3.4 s and 471, which also stretches a tight free tier much further.
+    body: { reasoning_effort: 'none' },
+  },
+  featherless: {
+    chat: 'https://api.featherless.ai/v1/chat/completions',
+    keyEnv: 'FEATHERLESS_API_KEY',
+    modelEnv: 'FEATHERLESS_VISION_MODEL',
+    /** Small, warm, and it answers with boxes. Qwen/Qwen3-VL-8B-Instruct for a sharper run. */
+    defaultModel: 'Qwen/Qwen2.5-VL-7B-Instruct',
+  },
+};
+
+/** Gemini first: it is the sponsor track (docs/04 items 4 and 7) and the boxes come back better. */
+export const DEFAULT_PROVIDER = 'gemini';
 /** A 640 px JPEG is well under this; anything bigger is not a frame from the app. */
 const MAX_IMAGE_CHARS = 2_000_000;
 const ENV_LOCAL = new URL('../../../.env.local', import.meta.url);
@@ -60,36 +95,58 @@ export function readLocalEnv(name) {
 }
 
 /**
- * One frame and the app's question to a Featherless vision model, OpenAI chat-completions
- * style: the image rides along as a data URL content part (featherless.ai/docs/vision).
- * Returns the model's text untouched; the client parses and validates it.
+ * The model this machine can actually reach, for both AI routes: the provider named by
+ * MODEL_PROVIDER if it has a key, else Gemini, else Featherless, else null. One resolver so the
+ * Vite mount, the standalone server and scripts/assess-frame.mjs can never disagree about which
+ * model ran. Switching providers is this one environment variable and nothing else.
  */
-export async function assessWithFeatherless({ key, model, image, mime = 'image/jpeg', system, user, maxTokens = 320 }) {
+export function resolveProvider(name = readLocalEnv('MODEL_PROVIDER')) {
+  const wanted = name && MODEL_PROVIDERS[name] ? [name] : [DEFAULT_PROVIDER, 'featherless'];
+  for (const id of wanted) {
+    const provider = MODEL_PROVIDERS[id];
+    const key = readLocalEnv(provider.keyEnv);
+    if (key) return { id, key, chat: provider.chat, model: readLocalEnv(provider.modelEnv) ?? provider.defaultModel };
+  }
+  return null;
+}
+
+/**
+ * The app's question to the model, OpenAI chat-completions style. With `image`, the frame
+ * rides along as a data URL content part and the call is the scene assessment; without one it
+ * is the intent router. Returns the model's text untouched: every judgement about whether the
+ * answer is usable belongs to src/ai, which is the side that knows what it asked for.
+ */
+export async function askModel({ provider = DEFAULT_PROVIDER, chat, key, model, image = null, mime = 'image/jpeg', system, user, maxTokens = 320 }) {
+  const endpoint = chat ?? MODEL_PROVIDERS[provider]?.chat;
+  if (!endpoint) throw new Error(`unknown provider: ${provider}`);
   const started = Date.now();
-  const upstream = await fetch(FEATHERLESS_CHAT, {
+  const upstream = await fetch(endpoint, {
     method: 'POST',
     headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
     body: JSON.stringify({
       model,
       temperature: 0,
       max_tokens: maxTokens,
+      ...(MODEL_PROVIDERS[provider]?.body ?? {}),
       messages: [
         { role: 'system', content: system },
         {
           role: 'user',
-          content: [
-            { type: 'text', text: user },
-            { type: 'image_url', image_url: { url: `data:${mime};base64,${image}` } },
-          ],
+          content: image
+            ? [
+                { type: 'text', text: user },
+                { type: 'image_url', image_url: { url: `data:${mime};base64,${image}` } },
+              ]
+            : user,
         },
       ],
     }),
   });
-  if (!upstream.ok) throw new Error(`featherless ${upstream.status}: ${(await upstream.text()).slice(0, 300)}`);
+  if (!upstream.ok) throw new Error(`${provider} ${upstream.status}: ${(await upstream.text()).slice(0, 300)}`);
   const json = await upstream.json();
   const content = json.choices?.[0]?.message?.content;
   const text = typeof content === 'string' ? content : Array.isArray(content) ? content.map((c) => c?.text ?? '').join('') : '';
-  return { text, model: json.model ?? model, provider: 'featherless', latencyMs: Date.now() - started };
+  return { text, model: json.model ?? model, provider, latencyMs: Date.now() - started };
 }
 
 function sendJson(res, status, body) {
@@ -111,8 +168,8 @@ function readBody(req) {
  * dispatcher, WebSpeech, no scene assessment). `coachVoice` may be null too: /voice answers
  * `{ coach: null }` and the browser keeps its default voice.
  */
-export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = null, visionKey = null, visionModel = DEFAULT_VISION_MODEL }) {
-  if (!apiKey && !visionKey) throw new Error('createKeyProxy needs a key: ELEVENLABS_API_KEY or FEATHERLESS_API_KEY in .env.local.');
+export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = null, provider = null }) {
+  if (!apiKey && !provider) throw new Error('createKeyProxy needs a key: ELEVENLABS_API_KEY, GEMINI_API_KEY or FEATHERLESS_API_KEY in .env.local.');
 
   const forward = async (path, init) => {
     const upstream = await fetch(UPSTREAM + path, {
@@ -160,8 +217,9 @@ export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = nul
       if (req.method === 'GET' && url.pathname === VOICE_ROUTE) {
         return sendJson(res, 200, { coach: await resolveCoachVoice() });
       }
-      if (req.method === 'POST' && url.pathname === VISION_ROUTE) {
-        if (!visionKey) return sendJson(res, 404, { error: 'No FEATHERLESS_API_KEY configured' });
+      if (req.method === 'POST' && (url.pathname === VISION_ROUTE || url.pathname === INTENT_ROUTE)) {
+        const wantsImage = url.pathname === VISION_ROUTE;
+        if (!provider) return sendJson(res, 404, { error: 'No model key configured: GEMINI_API_KEY or FEATHERLESS_API_KEY' });
         const raw = await readBody(req);
         let body;
         try {
@@ -170,16 +228,18 @@ export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = nul
           return sendJson(res, 400, { error: 'body is not JSON' });
         }
         const { image, mime, system, user, maxTokens } = body ?? {};
-        if (typeof image !== 'string' || image.length === 0 || image.length > MAX_IMAGE_CHARS) return sendJson(res, 400, { error: 'image must be a base64 string of a small JPEG' });
         if (typeof system !== 'string' || typeof user !== 'string') return sendJson(res, 400, { error: 'system and user prompts are required' });
-        const reply = await assessWithFeatherless({
-          key: visionKey,
-          model: visionModel,
-          image,
+        if (wantsImage && (typeof image !== 'string' || image.length === 0 || image.length > MAX_IMAGE_CHARS)) return sendJson(res, 400, { error: 'image must be a base64 string of a small JPEG' });
+        const reply = await askModel({
+          provider: provider.id,
+          chat: provider.chat,
+          key: provider.key,
+          model: provider.model,
+          image: wantsImage ? image : null,
           mime: mime === 'image/png' ? 'image/png' : 'image/jpeg',
           system,
           user,
-          maxTokens: typeof maxTokens === 'number' ? Math.min(600, Math.max(64, maxTokens)) : undefined,
+          maxTokens: typeof maxTokens === 'number' ? Math.min(600, Math.max(32, maxTokens)) : undefined,
         });
         return sendJson(res, 200, reply);
       }
@@ -217,15 +277,14 @@ export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = nul
 const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/^.*\//, '/'));
 if (isMain) {
   const apiKey = readLocalEnv('ELEVENLABS_API_KEY');
-  const visionKey = readLocalEnv('FEATHERLESS_API_KEY');
-  if (!apiKey && !visionKey) {
-    console.error('No key. Set ELEVENLABS_API_KEY or FEATHERLESS_API_KEY in the environment or .env.local.');
+  const provider = resolveProvider();
+  if (!apiKey && !provider) {
+    console.error('No key. Set ELEVENLABS_API_KEY, GEMINI_API_KEY or FEATHERLESS_API_KEY in the environment or .env.local.');
     process.exit(1);
   }
   const agentId = readLocalEnv('ELEVENLABS_AGENT_ID');
   const coachVoice = readLocalEnv('ELEVENLABS_COACH_VOICE');
-  const visionModel = readLocalEnv('FEATHERLESS_VISION_MODEL') ?? DEFAULT_VISION_MODEL;
-  const handle = createKeyProxy({ apiKey, agentId, coachVoice, visionKey, visionModel });
+  const handle = createKeyProxy({ apiKey, agentId, coachVoice, provider });
   const port = Number(process.argv[2] ?? 8788);
   createServer((req, res) => {
     // Dev CORS: a page on another port calls this directly. Under Vite it is same-origin.
@@ -236,7 +295,7 @@ if (isMain) {
     void handle(req, res);
   }).listen(port, () => {
     console.log(
-      `dev proxy on http://localhost:${port}: elevenlabs ${apiKey ? `on, agent ${agentId ? 'set' : 'not set'}` : 'off'}; vision ${visionKey ? `on (${visionModel})` : 'off'}`,
+      `dev proxy on http://localhost:${port}: elevenlabs ${apiKey ? `on, agent ${agentId ? 'set' : 'not set'}` : 'off'}; model ${provider ? `on (${provider.id} ${provider.model})` : 'off'}`,
     );
   });
 }

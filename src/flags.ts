@@ -11,6 +11,8 @@ export interface Flags {
   narrationFlavor: boolean;
   /** One frame to a scene model in triage (docs/04 item 7, docs/11). The frame leaves the phone. */
   sceneAssess: boolean;
+  /** A sentence no keyword matched to a text model (docs/04 item 8). The words leave the phone. */
+  intentRoute: boolean;
 }
 
 const DEFAULTS: Flags = {
@@ -19,6 +21,7 @@ const DEFAULTS: Flags = {
   visionDescribe: false,
   narrationFlavor: false,
   sceneAssess: false,
+  intentRoute: false,
 };
 
 /** Flags for a query string such as `?flag=elevenLabs,dispatcherSim`; unknown names are ignored. */
