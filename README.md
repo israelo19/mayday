@@ -129,6 +129,26 @@ gets the sentence and the buttons that are on the screen right now (docs/04 item
 
 `?fake=1&flag=intentRoute` uses a word overlap stub, so the yes/no flow demos with no key.
 
+### Answers, rewording, and Grok
+
+Two more behind flags, both bound by CLAUDE.md principle 1: the model interprets and rewords,
+the machine decides (docs/04 items 5 and 8, DECISIONS.md Sat 20:40 and 21:55).
+
+1. Answers. The cardiac and bleeding machines carry 25 cited answers to what people ask mid
+   protocol ("am I pushing hard enough?", "can I use a belt?"). Say the phrase and it speaks.
+   With `?flag=intentRoute` the router is offered them as questions next to the buttons, so
+   "did I just crack something in his chest?" gets the rib answer at once, no yes/no, and
+   "the paramedics just pulled up" earns the handoff question.
+2. `?flag=narrationFlavor`: each line reworded for the moment through `/api/proxy/text/complete`.
+   The next step's lines are reworded before you get there; a nag ("Faster. Push with the beat.")
+   is canonical the first time and, on its repeat, opens with what you said and what the camera
+   measures. Every rewording passes `src/protocol/validate.ts` or the line speaks as written;
+   `mayday.log.entries()` shows `said as:` and `rewording refused` lines.
+3. Grok: put `XAI_API_KEY=...` in `.env.local` (the HopHacks credits). It is picked when it is
+   the only model key, or with `MODEL_PROVIDER=xai`; the dev server prints
+   `Model: grok-4-1-fast-non-reasoning (xai)`. No key, or wifi off: both flags do nothing and
+   the matcher, the buttons and the canonical lines carry the demo.
+
 ## M0 demo check
 
 1. Open `?debug=1`. The footer reads `status: running`, fps is above 10, the pose skeleton is

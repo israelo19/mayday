@@ -14,6 +14,7 @@ Single speaker queue with priorities:
 ## Voice in (/src/voice/in.ts)
 - Web Speech API SpeechRecognition, continuous, interimResults on. KEYWORD SPOTTING ONLY: lowercase transcript, match against the active state's keyword list + the global keywords (`next`, `repeat`; 'ambulance here' is a per-state keyword and a standing button). No free-text goes anywhere near the protocol engine or any LLM authority path.
 - Chrome-only reality: feature-detect; if unavailable, hide voice affordances, buttons carry the demo. Buttons ALWAYS exist for every transition regardless.
+- A final transcript nothing spotted falls through, in order: triage cue scoring (src/protocol/phrases.ts) -> the intent router (`?flag=intentRoute`, src/ai/intent.ts) with the state's moves and the machine's approved answers -> a spoken acknowledgment. Each layer can only ever ASK or speak an approved answer; the engine still moves on keywords and taps alone (DECISIONS.md Sat 07:45, 21:55).
 - Mic transcript lines are logged to EventLog as kind:'user' (they enrich the handoff report).
 
 ## Episodic AI (/src/ai) - ALL STUBBED NOW
@@ -34,10 +35,12 @@ export interface VisionDescriber {
   describeScene(frameJpegB64: string): Promise<{ sceneLine: string; materials: string[] }>;
 }
 export interface NarrationFlavor {
-  // Paraphrases the canonical line. MUST return one of state.approvedLines
-  // semantically; validator checks output contains required keywords for the
-  // state (e.g. compressions: 'push'); on any miss, caller uses canonical text.
-  flavor(canonical: string, stateId: string): Promise<string>;
+  // Rewords ONE canonical line for the moment: what the person just said, what the
+  // camera measures (plain phrases, numbers listed), how often the line has been said,
+  // and the validator's length budget. Returns one line or null. The session runs
+  // validateNarration (numbers kept and none invented, required words, length, no
+  // forbidden terms) and speaks the canonical line on any miss (docs/04 item 5).
+  flavor(canonical: string, ctx: FlavorContext): Promise<string | null>;
 }
 export interface DispatcherSim {
   // Demo-only simulated 911 dispatcher. Disclosed on the LAUNCH screen, never on the panel.
@@ -52,10 +55,10 @@ export interface DispatcherSim {
 | 2 | ElevenLabs streaming TTS | ElevenLabs | ElevenLabsProvider | Pick ONE warm authoritative voice; latency budget 400ms to first audio or fall back. Sponsor prize x2. |
 | 3 | Simulated dispatcher agent | ElevenLabs Agents | DispatcherSim | Dispatcher persona; asks location, nature, patient status; our SITREP answers. Disclosed on LAUNCH, not on the panel. |
 | 4 | Vision scene describe | Gemini API (sponsor prize) | VisionDescriber | Prompt: strictly describe visible scene + list cloth/materials usable for bleeding control; no advice, no diagnosis. Temperature low. |
-| 5 | Narration flavor | Claude Haiku or Gemini | NarrationFlavor | OPTIONAL. Cut first if time is short; canonical lines are already written to be spoken. |
+| 5 | Narration flavor, SHIPPED | Whichever provider the proxy holds, through `/text/complete` (Gemini, Featherless, or xAI/Grok on the HopHacks credits) | `ModelNarrationFlavor` in `src/ai/narration.ts`; the validated cache in `web/session.ts` | Behind `?flag=narrationFlavor` (DECISIONS.md Sat 20:40). ONE canonical line plus the moment (what the person just said, the camera's numbers as plain phrases, how often the line has been said, a length budget) goes to the model; `validateNarration` keeps the line's numbers, refuses any number it was not shown, keeps the required words, bounds the length and bans the forbidden terms; the canonical line speaks on any miss. Never late: a step's own lines are reworded before the step is reached; a nag is canonical the first time and personal on its repeat. |
 | 6 | Domain | GoDaddy (sponsor prize) | DNS -> DO app | 10 minutes, do during a lull. |
 | 7 | Emergency suggestion from one frame, SHIPPED | Gemini API, `gemini-3.6-flash` (sponsor prize), through `/vision/assess` in the proxy; Featherless is the fallback provider in the same route | `EmergencyClassifier` in src/ai; session calls it once on `triage.listening` entry with `captureFrame()` | Closed label set {collapsed, bleeding, choking, unclear}; any other output is unclear. The label picks which pre-written triage line plays ("It looks like someone is down and not moving. Is he breathing?") and which button is highlighted; the human answers by voice or tap and the machine transitions. It never transitions by itself and never speaks model text. 3 s timeout, no effect on a miss. The on-device person-down cue in docs/03 is shipped and feeds the same suggestion row; this item is the cloud upgrade for the unclear case. |
-| 8 | Intent to keyword, SHIPPED | Gemini API through `/intent/route` in the same proxy, no picture | `IntentRouter` in `src/ai/intent.ts`, called from `considerTranscript` only after `matchKeyword` AND `suggestRoute` have both missed | Narrowed from `engine.keywords()` to the button twins the current state offers, which is the same list the screen is showing. The model answers with the NUMBER of one of them and `parseIntent` returns the option object the engine minted, so an invented step is not expressible, not merely rejected. 0, out of range, low confidence, bad JSON or a 3 s timeout all mean null and nothing happens. The suggestion is the same amber Yes/No bar a heard phrase earns; the engine moves only on the confirmed keyword. One sentence in flight at a time, 8 s between tries. Behind `?flag=intentRoute`. |
+| 8 | Intent to keyword, SHIPPED | Gemini API through `/intent/route` in the same proxy, no picture | `IntentRouter` in `src/ai/intent.ts`, called from `considerTranscript` only after `matchKeyword` AND `suggestRoute` have both missed | Narrowed from `engine.keywords()` to the button twins the current state offers, which is the same list the screen is showing. The model answers with the NUMBER of one of them and `parseIntent` returns the option object the engine minted, so an invented step is not expressible, not merely rejected. 0, out of range, low confidence, bad JSON or a 3 s timeout all mean null and nothing happens. The suggestion is the same amber Yes/No bar a heard phrase earns; the engine moves only on the confirmed keyword. One sentence in flight at a time, 8 s between tries. Behind `?flag=intentRoute`. Since Sat 21:55 the list also carries the machine's approved answers, marked Question (`KeywordResponse.label`; 25 across cardiac and bleeding), and the state's own keyword to the terminal step: an answer the model picks speaks at once, since nothing moves, and a sentence nothing could place earns one spoken acknowledgment. xAI/Grok serves the same route when it is the configured provider. |
 
 ## Sponsor prize mapping (so nobody forgets why a dependency exists)
-ElevenLabs opt-ins: items 2+3. Gemini opt-in: item 7 is the shipped one (one frame to `gemini-3.6-flash`, closed-label JSON, patient box on the 0 to 1000 scale); items 4 and 5 fold into it or stay stubs. DigitalOcean opt-in: item 1 + hosting. GoDaddy opt-in: item 6. If any integration is not stable by Sat 11 PM, its flag stays OFF and the stub ships; a working demo outranks every opt-in prize.
+ElevenLabs opt-ins: items 2+3. Gemini opt-in: item 7 is the shipped one (one frame to `gemini-3.6-flash`, closed-label JSON, patient box on the 0 to 1000 scale); items 4 and 5 fold into it or stay stubs. DigitalOcean opt-in: item 1 + hosting. GoDaddy opt-in: item 6. xAI (HopHacks credits): a provider row serving items 5 and 8, `MODEL_PROVIDER=xai`. If any integration is not stable by Sat 11 PM, its flag stays OFF and the stub ships; a working demo outranks every opt-in prize.
