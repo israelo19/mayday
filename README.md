@@ -68,14 +68,12 @@ leaving it.
 In most emergencies the first responder is whoever happens to be there, and they want to help.
 Mayday gives them a way, and gives it to everyone.
 
-- **Free, for anyone.** It costs nothing and runs on any phone with a browser. No account, no
-  app store.
-- **Works where the ambulance is slowest.** Coaching keeps going with no signal, which is
-  exactly where the wait is longest.
-- **Turns waiting into care.** The first minutes become compressions at the right rate, or
-  pressure that does not lift.
-- **Keeps the dispatcher informed.** Facts instead of panic: where, what, how long, the rate.
-- **Teaches as it coaches.** Every session is the real guideline, step by step.
+- It costs nothing and runs on any phone with a browser, with no account and no app store.
+- It keeps coaching with no signal, which is exactly where the ambulance takes longest.
+- It turns the first minutes from waiting into compressions at the right rate, or pressure
+  that does not lift.
+- It gives the dispatcher facts instead of panic: where, what, how long, the rate.
+- It teaches the real guideline, step by step, every time it is used.
 
 It does not replace the ambulance. It makes sure someone is doing the right thing until it
 arrives.
