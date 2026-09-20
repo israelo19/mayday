@@ -30,7 +30,7 @@ the wound and, within seconds, lifts it to look, which is the one thing that let
 start again.
 
 <p align="center">
-  <img src="docs/images/the-gap.svg" width="100%" alt="Timeline from a collapse to the ambulance: the gap Mayday covers, severe bleeding can kill in five minutes, the median ambulance arrives at seven, thirteen in rural areas">
+  <img src="docs/images/gap-timeline.svg" width="100%" alt="Timeline from a collapse to the ambulance: the gap Mayday covers, severe bleeding can kill in five minutes, the median ambulance arrives at seven, thirteen in rural areas">
 </p>
 
 Sources: [American Heart Association](https://cpr.heart.org/en/resources/cpr-facts-and-stats),
@@ -58,7 +58,7 @@ replace the ambulance. It makes sure someone is doing the right thing until it a
 ## 💡 What a session looks like
 
 <p align="center">
-  <img src="docs/images/session-flow.svg" width="100%" alt="A session in seven steps: tap I NEED HELP, say what happened, follow the beat, get corrected, keep going when the camera is covered, call 911 with the SITREP, hand off a timeline">
+  <img src="docs/images/session-steps.svg" width="100%" alt="A session in seven steps: tap I NEED HELP, say what happened, follow the beat, get corrected, keep going when the camera is covered, call 911 with the SITREP, hand off a timeline">
 </p>
 
 Bleeding runs on its own script: are you safe first, with no timer, then a circle locked around
@@ -70,12 +70,8 @@ leaving it.
 ## 🏗️ How it works
 
 <p align="center">
-  <img src="docs/images/how-mayday-works.svg" width="100%" alt="How Mayday works: the Eyes see the scene and the helper, the Ears hear what you say, the Brain interprets both and picks the next line from the guideline script, the Voice speaks and keeps the beat; you answer with taps and voice; Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge">
+  <img src="docs/images/four-parts.svg" width="100%" alt="How Mayday works: the Eyes see the scene and the helper, the Ears hear what you say, the Brain interprets both and picks the next line from the guideline script, the Voice speaks and keeps the beat; you answer with taps and voice; Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge">
 </p>
-
-The camera and microphone feed the Eyes and Ears, the Brain decides from the script, the Voice
-speaks only what the Brain hands it. The cloud helpers make each part better when the network
-is there, and none is ever in charge.
 
 ## 🧭 Why you can trust it
 
@@ -112,15 +108,13 @@ the helper's hands and shoulders, which is where the corrections come from.
 ## 🚑 The handoff
 
 <p align="center">
-  <img src="docs/images/handoff.svg" width="100%" alt="The handoff: one log of every event feeds the lines read to the 911 dispatcher while the call is open, and the paramedic's headline numbers, timeline and QR code when the ambulance arrives">
+  <img src="docs/images/handoff-report.svg" width="100%" alt="The handoff: one log of every event feeds the lines read to the 911 dispatcher while the call is open, and the paramedic's headline numbers, timeline and QR code when the ambulance arrives">
 </p>
-
-The QR carries the report itself, not a link, so it scans with no signal.
 
 ## 🧰 Under the hood
 
 <p align="center">
-  <img src="docs/images/tech-stack.svg" width="100%" alt="The Mayday stack: a PWA in the browser; on the device with no network calls, MediaPipe pose and hand tracking as WebAssembly, signal extraction, a state machine engine running four scripts as data, a voice queue with a Web Audio metronome, keyword spotting, and an event log that becomes the SITREP and the handoff; a key proxy on the same origin; behind it Gemini, xAI Grok and ElevenLabs">
+  <img src="docs/images/stack.svg" width="100%" alt="The Mayday stack: a PWA in the browser; on the device with no network calls, MediaPipe pose and hand tracking as WebAssembly, signal extraction, a state machine engine running four scripts as data, a voice queue with a Web Audio metronome, keyword spotting, and an event log that becomes the SITREP and the handoff; a key proxy on the same origin; behind it Gemini, xAI Grok and ElevenLabs">
 </p>
 
 ## 🏆 Tracks and challenges
