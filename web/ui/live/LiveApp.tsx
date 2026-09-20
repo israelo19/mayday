@@ -9,7 +9,7 @@ import { canonicalLines, createSession, WATCHING_STATES, type Eyes } from '../..
 import type { LiveSource } from '../guide';
 import { reverseGeocode } from '../../geocode';
 import { createVoice } from '../../../src/voice';
-import { configureCoachVoice, createAssessor, createDispatcher, createRouter, createSpeaker, warmSpeaker } from '../../providers';
+import { configureCoachVoice, createAssessor, createDispatcher, createFlavor, createRouter, createSpeaker, warmSpeaker } from '../../providers';
 import type { Box, SceneAssessment } from '../../../src/types';
 import { CameraView } from '../CameraView';
 import { LaunchScreen } from '../LaunchScreen';
@@ -52,7 +52,7 @@ export function LiveApp() {
   // The intent router, behind its flag: a sentence no keyword matched (docs/04 item 8).
   const router = useMemo(() => createRouter(fake), [fake]);
   const session = useMemo(
-    () => createSession({ perception, voice, dispatcher: createDispatcher, reverseGeocode, micTrace: traceRequested() ? micTrace : undefined, assessor, router }),
+    () => createSession({ perception, voice, dispatcher: createDispatcher, reverseGeocode, micTrace: traceRequested() ? micTrace : undefined, assessor, router, flavor: createFlavor() }),
     [perception, voice, assessor, router],
   );
   const snap = useSession(session);

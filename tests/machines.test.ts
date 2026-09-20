@@ -38,6 +38,15 @@ describe('machine data', () => {
     expect(answers.some((a) => a.keyword === 'tourniquet')).toBe(true);
   });
 
+  it('labels and cites every answer, so the intent model can offer it and a human can check it', () => {
+    for (const machine of machines) {
+      for (const a of machine.keywordResponses ?? []) {
+        expect(a.label, `${machine.id}: '${a.keyword}'`).toMatch(/\S/);
+        expect(a.source, `${machine.id}: '${a.keyword}'`).toMatch(/^https:\/\//);
+      }
+    }
+  });
+
   it('asks about scene safety before any bleeding instruction', () => {
     const bleeding = machines.find((m) => m.id === 'bleeding')!;
     expect(bleeding.initial).toBe('scene_safety');

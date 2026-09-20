@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { harness, T0 } from './harness';
-import { STALE_FACTS_MS } from '../src/protocol';
+import { createEngine, machines, STALE_FACTS_MS } from '../src/protocol';
 
 describe('coaching rules', () => {
   it('nags about a slow rate once per cooldown, not once per frame', () => {
@@ -248,5 +248,23 @@ describe("P2's M1 gate: cardiac end to end on fake facts, driven by taps alone",
       'cardiac.compressions',
       'cardiac.handoff',
     ]);
+  });
+});
+
+describe('answers', () => {
+  it('lists the questions the machine can answer, labelled, and speaks one without moving', () => {
+    const engine = createEngine(machines);
+    const spoken: string[] = [];
+    engine.subscribe((out) => {
+      if (out.type === 'coach') spoken.push(out.event.text);
+    });
+    engine.start('bleeding', 'pressure');
+    expect(engine.availableAnswers()).toContainEqual({ label: 'Should I use a tourniquet?', keyword: 'tourniquet' });
+    engine.onKeyword('tourniquet');
+    expect(engine.currentState()?.state.id).toBe('pressure');
+    expect(spoken.at(-1)).toContain('tourniquet');
+    // Triage routes only; it has nothing to answer.
+    engine.start('triage');
+    expect(engine.availableAnswers()).toEqual([]);
   });
 });

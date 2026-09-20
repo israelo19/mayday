@@ -170,6 +170,112 @@ export const cardiac: Machine = {
       transitions: [],
     },
   ],
+  // What people ask mid-CPR. Each is spoken only because the person asked, never as a step,
+  // and moves nothing; the keyword earns it on its own, and ?flag=grokIntent may pick it for a
+  // sentence the keyword missed (docs/04 item 8). Drafted from the cited pages the same way
+  // the states were: a human verifies each line against the live page before the demo.
+  keywordResponses: [
+    {
+      keyword: 'hard enough',
+      label: 'Am I pushing hard enough?',
+      priority: 'correction',
+      source: AHA_ADULT_BLS,
+      say: 'Push about two inches down, then let the chest come all the way back up. Hard is right.',
+    },
+    {
+      keyword: 'doing it right',
+      label: 'Am I doing it right?',
+      priority: 'correction',
+      source: AHA_HANDS_ONLY,
+      say: "You're doing it right. Push hard, push fast, and let the chest come all the way back up.",
+    },
+    {
+      keyword: 'ribs',
+      label: 'I felt a rib crack',
+      priority: 'correction',
+      source: AHA_HANDS_ONLY,
+      say: 'A crack or a pop can happen when you push hard enough. It is not a reason to stop. Keep going.',
+    },
+    {
+      keyword: 'hurting him',
+      label: 'Am I hurting him?',
+      priority: 'correction',
+      source: AHA_HANDS_ONLY,
+      say: 'You might, and that is okay. Pushing hard is what gives him a chance. Do not ease off.',
+    },
+    {
+      keyword: 'should i stop',
+      label: 'Should I stop?',
+      priority: 'correction',
+      source: AHA_HANDS_ONLY,
+      say: "Don't stop unless he starts breathing or moving on his own, or someone takes over. Keep pushing.",
+    },
+    {
+      // AHA: rotate compressors about every two minutes, and keep the switch under five seconds.
+      keyword: 'tired',
+      label: "I'm getting tired",
+      priority: 'correction',
+      source: AHA_ADULT_BLS,
+      say: 'If someone else is there, switch now, in under five seconds. If you are alone, keep going. Any CPR is better than none.',
+    },
+    {
+      keyword: 'turning blue',
+      label: "He's turning blue",
+      priority: 'correction',
+      source: AHA_HANDS_ONLY,
+      say: 'Blue lips mean he needs the blood you are pumping. Keep pushing hard and fast.',
+    },
+    {
+      // AHA: lay rescuers do not check for a pulse; the check costs compressions.
+      keyword: 'check for a pulse',
+      label: 'Should I check for a pulse?',
+      priority: 'correction',
+      source: AHA_ADULT_BLS,
+      say: "Don't stop to check for a pulse. Your pushing is his pulse right now.",
+    },
+    {
+      keyword: 'mouth to mouth',
+      label: 'Should I give breaths?',
+      priority: 'correction',
+      source: AHA_HANDS_ONLY,
+      say: 'No breaths. Hands-only CPR is what he needs from you. Just keep pushing.',
+    },
+    {
+      keyword: 'vomit',
+      label: "He's vomiting",
+      priority: 'correction',
+      source: AHA_ADULT_CPR,
+      say: 'Turn him onto his side, wipe out his mouth, roll him back, and keep pushing.',
+    },
+    {
+      keyword: 'aed',
+      label: 'Someone has an AED',
+      priority: 'correction',
+      source: AHA_HANDS_ONLY,
+      say: 'Turn the AED on and do exactly what it says. Keep pushing until it tells you to stop.',
+    },
+    {
+      keyword: 'alone',
+      label: "I'm alone",
+      priority: 'correction',
+      source: AHA_HANDS_ONLY,
+      say: 'You can do this alone. Hands-only CPR is enough. Keep the beat and keep pushing.',
+    },
+    {
+      keyword: 'how long',
+      label: 'How long do I keep going?',
+      priority: 'correction',
+      source: AHA_HANDS_ONLY,
+      say: "Until the paramedics take over, or he starts breathing on his own. Don't count the minutes. Keep the beat.",
+    },
+    {
+      keyword: 'scared',
+      label: "I'm scared",
+      priority: 'correction',
+      source: AHA_HANDS_ONLY,
+      say: "You are doing the right thing. Stay with the beat. I'm right here with you.",
+    },
+  ],
 };
 
 /** Exported so the blind rule and the perception gate can never drift apart. */

@@ -37,9 +37,11 @@ export type Validation = { ok: boolean; text: string; reason?: string };
 
 /**
  * Validates a paraphrase of one canonical line. `text` is what the app should speak: the
- * paraphrase when it passes, the canonical line whenever anything is off.
+ * paraphrase when it passes, the canonical line whenever anything is off. With
+ * `allowedNumbers` (the measurements the caller put in front of the model), any number in
+ * the paraphrase that is neither the line's own nor one of those is an invention and fails.
  */
-export function validateNarration(paraphrase: string, canonical: string, state: State): Validation {
+export function validateNarration(paraphrase: string, canonical: string, state: State, allowedNumbers?: readonly number[]): Validation {
   const fail = (reason: string): Validation => ({ ok: false, text: canonical, reason });
   const candidate = paraphrase.trim();
   if (!candidate) return fail('empty');
@@ -50,6 +52,12 @@ export function validateNarration(paraphrase: string, canonical: string, state: 
 
   for (const value of numbersIn(canon)) {
     if (!numbersIn(lower).has(value)) return fail(`dropped the number ${value}`);
+  }
+  if (allowedNumbers) {
+    const allowed = new Set([...numbersIn(canon), ...allowedNumbers.map((n) => String(n))]);
+    for (const value of numbersIn(lower)) {
+      if (!allowed.has(value)) return fail(`introduced the number ${value}`);
+    }
   }
   for (const word of state.requiredWords ?? []) {
     const required = word.toLowerCase();

@@ -34,6 +34,9 @@
 //                                    picture (docs/04 item 8): which of the moves the engine is
 //                                    offering did the bystander mean. Same reply shape, and
 //                                    src/ai/intent.ts validates the answer against its own list.
+//   POST /text/complete              The same call by a plainer name, for the rewording of one
+//                                    canonical line (docs/04 item 5); src/protocol/validate.ts
+//                                    decides whether the answer is ever spoken.
 // Nothing else is forwarded: the proxy exposes exactly what the app calls, not the API.
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
@@ -44,6 +47,7 @@ const SESSION_ROUTE = '/dispatcher/session';
 const VOICE_ROUTE = '/voice';
 const VISION_ROUTE = '/vision/assess';
 const INTENT_ROUTE = '/intent/route';
+const TEXT_ROUTE = '/text/complete';
 /**
  * The scene-model providers. Both speak OpenAI chat completions, so one request body serves
  * both and only the URL, the key and the model name differ: Gemini through its
@@ -71,6 +75,15 @@ export const MODEL_PROVIDERS = {
     modelEnv: 'FEATHERLESS_VISION_MODEL',
     /** Small, warm, and it answers with boxes. Qwen/Qwen3-VL-8B-Instruct for a sharper run. */
     defaultModel: 'Qwen/Qwen2.5-VL-7B-Instruct',
+  },
+  xai: {
+    chat: 'https://api.x.ai/v1/chat/completions',
+    keyEnv: 'XAI_API_KEY',
+    modelEnv: 'XAI_MODEL',
+    // The HopHacks xAI credits. Classification and rewording need no reasoning pass, and the
+    // fast non-reasoning tier answers in well under a second. Chosen for the text routes; the
+    // scene frame has not been tried on it, so keep a Gemini or Featherless key for that.
+    defaultModel: 'grok-4-1-fast-non-reasoning',
   },
 };
 
@@ -101,7 +114,7 @@ export function readLocalEnv(name) {
  * model ran. Switching providers is this one environment variable and nothing else.
  */
 export function resolveProvider(name = readLocalEnv('MODEL_PROVIDER')) {
-  const wanted = name && MODEL_PROVIDERS[name] ? [name] : [DEFAULT_PROVIDER, 'featherless'];
+  const wanted = name && MODEL_PROVIDERS[name] ? [name] : [DEFAULT_PROVIDER, 'featherless', 'xai'];
   for (const id of wanted) {
     const provider = MODEL_PROVIDERS[id];
     const key = readLocalEnv(provider.keyEnv);
@@ -169,7 +182,7 @@ function readBody(req) {
  * `{ coach: null }` and the browser keeps its default voice.
  */
 export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = null, provider = null }) {
-  if (!apiKey && !provider) throw new Error('createKeyProxy needs a key: ELEVENLABS_API_KEY, GEMINI_API_KEY or FEATHERLESS_API_KEY in .env.local.');
+  if (!apiKey && !provider) throw new Error('createKeyProxy needs a key: ELEVENLABS_API_KEY, GEMINI_API_KEY, FEATHERLESS_API_KEY or XAI_API_KEY in .env.local.');
 
   const forward = async (path, init) => {
     const upstream = await fetch(UPSTREAM + path, {
@@ -217,9 +230,9 @@ export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = nul
       if (req.method === 'GET' && url.pathname === VOICE_ROUTE) {
         return sendJson(res, 200, { coach: await resolveCoachVoice() });
       }
-      if (req.method === 'POST' && (url.pathname === VISION_ROUTE || url.pathname === INTENT_ROUTE)) {
+      if (req.method === 'POST' && (url.pathname === VISION_ROUTE || url.pathname === INTENT_ROUTE || url.pathname === TEXT_ROUTE)) {
         const wantsImage = url.pathname === VISION_ROUTE;
-        if (!provider) return sendJson(res, 404, { error: 'No model key configured: GEMINI_API_KEY or FEATHERLESS_API_KEY' });
+        if (!provider) return sendJson(res, 404, { error: 'No model key configured: GEMINI_API_KEY, FEATHERLESS_API_KEY or XAI_API_KEY' });
         const raw = await readBody(req);
         let body;
         try {
@@ -279,7 +292,7 @@ if (isMain) {
   const apiKey = readLocalEnv('ELEVENLABS_API_KEY');
   const provider = resolveProvider();
   if (!apiKey && !provider) {
-    console.error('No key. Set ELEVENLABS_API_KEY, GEMINI_API_KEY or FEATHERLESS_API_KEY in the environment or .env.local.');
+    console.error('No key. Set ELEVENLABS_API_KEY, GEMINI_API_KEY, FEATHERLESS_API_KEY or XAI_API_KEY in the environment or .env.local.');
     process.exit(1);
   }
   const agentId = readLocalEnv('ELEVENLABS_AGENT_ID');
