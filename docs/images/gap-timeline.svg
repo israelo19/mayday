@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 416" width="1200" height="416" role="img" aria-label="Timeline from a collapse to the ambulance. The gap Mayday covers runs from minute zero to the median ambulance arrival at seven minutes. Severe bleeding can kill in five. Rural ambulances take thirteen.">
+  <style>
+    text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #e8eaed; }
+    .h { font-size: 30px; font-weight: 700; }
+    .sub { font-size: 16px; fill: #9aa3b2; }
+    .gap { font-size: 26px; font-weight: 800; fill: #ff3b30; letter-spacing: 1px; }
+    .gapl { font-size: 18px; fill: #e8eaed; }
+    .gapb { font-size: 18px; font-weight: 700; fill: #ff3b30; }
+    .tick { font-size: 13px; fill: #6b7280; }
+    .mk { font-size: 18px; font-weight: 700; }
+    .ml { font-size: 15px; fill: #c7cdd6; }
+    .big { font-size: 34px; font-weight: 800; }
+    .cap { font-size: 15px; fill: #c7cdd6; }
+    .src { font-size: 12px; fill: #6b7280; }
+    .red { fill: #ff3b30; } .amber { fill: #fbbf24; } .blue { fill: #60a5fa; } .mint { fill: #34d399; }
+  </style>
+  <rect width="1200" height="416" rx="18" fill="#0b0d10"/>
+  <g transform="translate(0,-104)">
+
+  <!-- the gap band: minute 0 to minute 7 -->
+  <rect x="80" y="140" width="518" height="128" rx="10" fill="#ff3b30" fill-opacity="0.13" stroke="#ff3b30" stroke-opacity="0.45"/>
+  <text class="gap" x="100" y="178">THE GAP</text>
+  <text class="gapl" x="100" y="208">A bystander, a phone, no training. The dispatcher cannot see.</text>
+  <text class="gapb" x="100" y="240">Mayday coaches here.</text>
+
+  <!-- axis -->
+  <line x1="80" y1="292" x2="1116" y2="292" stroke="#3a4150" stroke-width="3" stroke-linecap="round"/>
+  <g class="tick" text-anchor="middle">
+    <line x1="80" y1="286" x2="80" y2="298" stroke="#3a4150" stroke-width="2"/><text x="80" y="318">0</text>
+    <line x1="154" y1="286" x2="154" y2="298" stroke="#3a4150" stroke-width="2"/><text x="154" y="318">1</text>
+    <line x1="228" y1="286" x2="228" y2="298" stroke="#3a4150" stroke-width="2"/><text x="228" y="318">2</text>
+    <line x1="302" y1="286" x2="302" y2="298" stroke="#3a4150" stroke-width="2"/><text x="302" y="318">3</text>
+    <line x1="376" y1="286" x2="376" y2="298" stroke="#3a4150" stroke-width="2"/><text x="376" y="318">4</text>
+    <line x1="450" y1="286" x2="450" y2="298" stroke="#3a4150" stroke-width="2"/><text x="450" y="318">5</text>
+    <line x1="524" y1="286" x2="524" y2="298" stroke="#3a4150" stroke-width="2"/><text x="524" y="318">6</text>
+    <line x1="598" y1="286" x2="598" y2="298" stroke="#3a4150" stroke-width="2"/><text x="598" y="318">7</text>
+    <line x1="672" y1="286" x2="672" y2="298" stroke="#3a4150" stroke-width="2"/><text x="672" y="318">8</text>
+    <line x1="746" y1="286" x2="746" y2="298" stroke="#3a4150" stroke-width="2"/><text x="746" y="318">9</text>
+    <line x1="820" y1="286" x2="820" y2="298" stroke="#3a4150" stroke-width="2"/><text x="820" y="318">10</text>
+    <line x1="894" y1="286" x2="894" y2="298" stroke="#3a4150" stroke-width="2"/><text x="894" y="318">11</text>
+    <line x1="968" y1="286" x2="968" y2="298" stroke="#3a4150" stroke-width="2"/><text x="968" y="318">12</text>
+    <line x1="1042" y1="286" x2="1042" y2="298" stroke="#3a4150" stroke-width="2"/><text x="1042" y="318">13</text>
+    <line x1="1116" y1="286" x2="1116" y2="298" stroke="#3a4150" stroke-width="2"/><text x="1116" y="318">14 min</text>
+  </g>
+
+  <!-- markers -->
+  <circle cx="80" cy="292" r="10" fill="#ff3b30"/>
+  <text class="mk red" x="80" y="350" text-anchor="start">0:00</text>
+  <text class="ml" x="80" y="372" text-anchor="start">Someone collapses,</text>
+  <text class="ml" x="80" y="392" text-anchor="start">or is bleeding badly</text>
+
+  <circle cx="450" cy="292" r="10" fill="#fbbf24"/>
+  <text class="mk amber" x="450" y="350" text-anchor="middle">5 min</text>
+  <text class="ml" x="450" y="372" text-anchor="middle">Severe bleeding can kill</text>
+  <text class="ml" x="450" y="392" text-anchor="middle">in as little as five minutes</text>
+
+  <circle cx="598" cy="292" r="10" fill="#60a5fa"/>
+  <text class="mk blue" x="598" y="350" text-anchor="start">7 min</text>
+  <text class="ml" x="598" y="372" text-anchor="start">Median ambulance arrival,</text>
+  <text class="ml" x="598" y="392" text-anchor="start">911 call to on scene</text>
+
+  <circle cx="1042" cy="292" r="10" fill="#60a5fa"/>
+  <text class="mk blue" x="1042" y="350" text-anchor="middle">13 min</text>
+  <text class="ml" x="1042" y="372" text-anchor="middle">Median arrival</text>
+  <text class="ml" x="1042" y="392" text-anchor="middle">in rural areas</text>
+
+  <!-- stat tiles -->
+  <g>
+    <rect x="48" y="420" width="340" height="72" rx="12" fill="#171a21" stroke="#2a2f3a"/>
+    <text class="big mint" x="68" y="466">2 to 3x</text>
+    <text class="cap" x="188" y="452">the chance of survival</text>
+    <text class="cap" x="188" y="474">with CPR from a bystander</text>
+
+    <rect x="430" y="420" width="340" height="72" rx="12" fill="#171a21" stroke="#2a2f3a"/>
+    <text class="big amber" x="450" y="466">40%</text>
+    <text class="cap" x="546" y="452">of victims get CPR</text>
+    <text class="cap" x="546" y="474">before the ambulance arrives</text>
+
+    <rect x="812" y="420" width="340" height="72" rx="12" fill="#171a21" stroke="#2a2f3a"/>
+    <text class="big red" x="832" y="466">&lt; 10%</text>
+    <text class="cap" x="946" y="452">survive a cardiac arrest</text>
+    <text class="cap" x="946" y="474">outside a hospital</text>
+  </g>
+
+  <text class="src" x="1152" y="510" text-anchor="end">Sources: American Heart Association CPR facts; JAMA Surgery 2017; American College of Surgeons, Stop the Bleed</text>
+  </g>
+</svg>
