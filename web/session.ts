@@ -11,15 +11,16 @@
 // originate here are about the phone and the camera, never about the patient.
 // Lives in web/ because it owns the clock, geolocation and the DOM; src/ stays the engine.
 // Zero network calls. Owned by P4 (docs/07); built by P1 on the `listen` branch.
-import type { CoachingEvent, GeoFix, HandoffReport, PerceptionFacts, SceneAssessment, Sitrep, State } from '../src/types';
+import type { CoachingEvent, GeoFix, HandoffReport, Machine, PerceptionFacts, SceneAssessment, Sitrep, State } from '../src/types';
 import type { SceneAssessor } from '../src/ai/assess';
 import { ASSESS_FRAME_PX } from '../src/ai/assess';
 import type { IntentMatch, IntentOption, IntentRouter } from '../src/ai/intent';
 import type { DispatcherSim } from '../src/ai/dispatcher';
+import type { FlavorContext, NarrationFlavor } from '../src/ai/narration';
 import type { Perception, RoiState } from '../src/perception';
 import { GUIDANCE } from '../src/perception';
 import type { Voice, VoiceInStatus } from '../src/voice';
-import { ASSESSMENT_HINTS, confirmLine, CONFIRM_WORDS, createEngine, machines, matchKeyword, REJECT_WORDS, routeKeyword, SCENE_HINTS, STALE_FACTS_MS, suggestRoute, TRIAGE_ROUTES, type Engine } from '../src/protocol';
+import { ASSESSMENT_HINTS, confirmLine, CONFIRM_WORDS, createEngine, machines, matchKeyword, REJECT_WORDS, routeKeyword, SCENE_HINTS, STALE_FACTS_MS, suggestRoute, TRIAGE_ROUTES, validateNarration, type Engine } from '../src/protocol';
 import { buildHandoff, buildSitrep, createEventLog, handoffQrPayload, qrDataUrl, type EventLog } from '../src/sitrep';
 
 export type SessionPhase = 'idle' | 'triage' | 'coaching' | 'handoff';
@@ -169,6 +170,11 @@ export type SessionDeps = {
   assessor?: SceneAssessor;
   /** A missed sentence to a text model (docs/04 item 8). Absent: the local phrase cues only. */
   router?: IntentRouter;
+  /** Rewords canonical lines for the moment (src/ai/narration.ts), behind ?flag=narrationFlavor.
+   * Every rewording passes src/protocol/validate.ts or the canonical line speaks; a step's own
+   * lines are reworded before the step is reached and a nag's first firing is always canonical,
+   * so nothing here ever waits on the network (principle 3). */
+  flavor?: NarrationFlavor;
 };
 
 export const MACHINE_LABEL: Record<string, string> = {
@@ -212,6 +218,12 @@ export const CAMERA_SAW_LINE = 'I can see you pushing.';
 /** Not medical: the mic heard a sentence nothing could place; dead air was the old answer. */
 export const HEARD_UNMATCHED_LINE = 'I heard you. If something has changed, say it simply, or tap a button.';
 const ACK_COOLDOWN_MS = 20_000;
+/** A rewording made with live context (what they said, the rate) fits the moment this long. */
+const FLAVOR_LIVE_MS = 20_000;
+/** A step's own lines, reworded ahead of time with no live context, keep for the session. */
+const FLAVOR_STEP_MS = 60 * 60_000;
+/** What the person said is context for a rewording this long. */
+const FLAVOR_HEARD_MS = 15_000;
 
 export function createSession(deps: SessionDeps): Session {
   const { perception, voice } = deps;
@@ -247,6 +259,13 @@ export function createSession(deps: SessionDeps): Session {
   let lastKeywordAt = -Infinity;
   let pendingTranscript: { text: string; t: number } | null = null;
   let suggestion: (RouteSuggestion & { at: number }) | null = null;
+  let sessionStartedAt = 0;
+  /** Validated rewordings by `${machine}.${state}|${canonical}`, good until the session clock passes `until`. */
+  const flavored = new Map<string, { text: string; until: number }>();
+  const flavorPending = new Set<string>();
+  /** Rewording -> canonical line, so the screen can still tell which step line was spoken. */
+  const canonicalOf = new Map<string, string>();
+  const saidCount = new Map<string, number>();
   // After a camera suggestion is rejected or ignored, the camera waits this long before asking again.
   let sceneAskedAt = -Infinity;
   let callActive = false;
@@ -316,6 +335,7 @@ export function createSession(deps: SessionDeps): Session {
       handsMode = false;
     }
 
+    prefetchNextSteps(machineId, state);
     if (machineId !== 'triage' && !geoRequested) {
       geoRequested = true;
       void geolocate().then((fix) => {
@@ -342,7 +362,7 @@ export function createSession(deps: SessionDeps): Session {
   }
 
   function onCoach(event: CoachingEvent): void {
-    voice.out.enqueue(event);
+    voice.out.enqueue({ ...event, text: spokenText(event) });
     const current = engine.currentState()?.state.id;
     if (event.priority !== 'narration' && event.stateId === current && !event.dedupeKey?.startsWith('answer:') && event.dedupeKey !== 'camera-saw') {
       coaching = event;
@@ -585,6 +605,121 @@ export function createSession(deps: SessionDeps): Session {
     voice.out.enqueue({ priority: 'correction', text: hint.confirm, stateId: engine.currentState()?.state.id ?? '', dedupeKey: 'suggest', cooldownMs: 3000, t });
   }
 
+  // ---- rewording (docs/04 item 5) ---------------------------------------------------------
+  //
+  // The one thing principle 1 lets a model do with a medical line: say it again in other
+  // words. The engine still chooses every line; this only chooses the wording, and only from
+  // rewordings the validator has passed. Two kinds: a step's own lines are reworded before
+  // the step is reached (no live context, kept for the session), and a nag or reminder is
+  // canonical the first time and reworded for its repeat with what the person said and what
+  // the camera measures (kept twenty seconds). Nothing ever waits on the network.
+
+  function flavorKey(machineId: string, stateId: string, canonical: string): string {
+    return `${machineId}.${stateId}|${canonical}`;
+  }
+
+  function stateOf(machineId: string, to: string): { machine: Machine; state: State } | null {
+    const [head, tail] = to.includes('.') ? to.split('.') : [machineId, to];
+    const machine = machines.find((m) => m.id === head);
+    const state = machine?.states.find((s) => s.id === tail);
+    return machine && state ? { machine, state } : null;
+  }
+
+  /** Ask once for a validated rewording; one that is pending, or still good for a while, is left alone. */
+  function requestFlavor(machineId: string, state: State, canonical: string, ctx: FlavorContext, keepMs: number): void {
+    const flavor = deps.flavor;
+    if (!flavor) return;
+    const key = flavorKey(machineId, state.id, canonical);
+    if (flavorPending.has(key)) return;
+    const have = flavored.get(key);
+    if (have && have.until - now() > keepMs / 2) return;
+    flavorPending.add(key);
+    void flavor
+      .flavor(canonical, ctx)
+      .catch(() => null)
+      .then((text) => {
+        flavorPending.delete(key);
+        if (phase === 'idle' || !text) return;
+        const v = validateNarration(text, canonical, state, ctx.numbers);
+        if (!v.ok) {
+          log.append({ t: now(), kind: 'system', detail: `rewording refused (${v.reason}), canonical stands: "${text}"` });
+          return;
+        }
+        flavored.set(key, { text: v.text, until: now() + keepMs });
+        canonicalOf.set(v.text, canonical);
+      });
+  }
+
+  /** The steps this one can lead to get their lines reworded now, so they are ready on arrival. */
+  function prefetchNextSteps(machineId: string, state: State | undefined): void {
+    if (!deps.flavor || !state) return;
+    for (const to of new Set(state.transitions.map((t) => t.to))) {
+      const next = stateOf(machineId, to);
+      if (!next) continue;
+      for (const line of next.state.say) {
+        requestFlavor(next.machine.id, next.state, line, stepContext(next.machine.id, next.state, line), FLAVOR_STEP_MS);
+      }
+    }
+  }
+
+  function stepContext(machineId: string, state: State, canonical: string): FlavorContext {
+    return { situation: MACHINE_LABEL[machineId] ?? machineId, step: state.id, heard: null, observations: [], numbers: [], repeat: 0, maxChars: canonical.length * 2 + 30 };
+  }
+
+  /** What the model may know about this moment: the person's last sentence and the camera's numbers, nothing else. */
+  function liveContext(machineId: string, state: State, canonical: string, repeat: number): FlavorContext {
+    const t = now();
+    const observations: string[] = [];
+    const numbers: number[] = [];
+    const f = facts;
+    if (f && t - f.t <= STALE_FACTS_MS && !blindNow()) {
+      if (f.compressionActive && f.compressionRate !== null) {
+        const rate = Math.round(f.compressionRate);
+        observations.push(`pushing at about ${rate} a minute`);
+        numbers.push(rate);
+      } else if (state.metronome && !f.compressionActive) {
+        observations.push('not pushing right now');
+      }
+      if (f.recoilRatio !== null && f.recoilRatio < 0.6) observations.push('not letting the chest come all the way back up');
+      if (f.handsOnRegion === true) observations.push('hands are on the wound');
+      if (f.handsOnRegion === false) observations.push('hands are off the wound');
+    }
+    const minutes = Math.floor((t - sessionStartedAt) / 60_000);
+    if (minutes >= 1) {
+      observations.push(`${minutes} minute${minutes === 1 ? '' : 's'} into this`);
+      numbers.push(minutes);
+    }
+    return {
+      situation: MACHINE_LABEL[machineId] ?? machineId,
+      step: state.id,
+      heard: lastHeard !== null && t - lastHeardAt <= FLAVOR_HEARD_MS ? lastHeard : null,
+      observations,
+      numbers,
+      repeat,
+      maxChars: canonical.length * 2 + 30,
+    };
+  }
+
+  /** The words to speak for an engine line: a validated rewording when one is ready, else the line itself. */
+  function spokenText(event: CoachingEvent): string {
+    const cur = engine.currentState();
+    if (!deps.flavor || !cur) return event.text;
+    // An answer is already a reply to what was said; it speaks as written.
+    if (event.dedupeKey?.startsWith('answer:')) return event.text;
+    const key = flavorKey(cur.machineId, cur.state.id, event.text);
+    const count = (saidCount.get(key) ?? 0) + 1;
+    saidCount.set(key, count);
+    const t = now();
+    const have = flavored.get(key);
+    const ready = have && have.until > t ? have.text : null;
+    // A step's own lines were reworded ahead of time and stand; a nag is refreshed for its next repeat.
+    if (!event.dedupeKey?.includes(':say:')) {
+      requestFlavor(cur.machineId, cur.state, event.text, liveContext(cur.machineId, cur.state, event.text, count - 1), FLAVOR_LIVE_MS);
+    }
+    if (ready !== null) log.append({ t, kind: 'system', detail: `said as: "${ready}"` });
+    return ready ?? event.text;
+  }
+
   function refreshReports(force: boolean): void {
     const t = now();
     if (!force && t - lastReportAt < REPORT_MS) return;
@@ -660,7 +795,7 @@ export function createSession(deps: SessionDeps): Session {
 
   function lineIndexOf(state: State | null): number {
     if (!state || state.say.length === 0) return 0;
-    const spoken = voice.out.recentlySpoken();
+    const spoken = voice.out.recentlySpoken().map((s) => canonicalOf.get(s) ?? s);
     for (let i = state.say.length - 1; i >= 0; i--) if (spoken.includes(state.say[i])) return i;
     return 0;
   }
@@ -769,6 +904,7 @@ export function createSession(deps: SessionDeps): Session {
 
     start(): void {
       if (phase !== 'idle') return;
+      sessionStartedAt = now();
       // No await before the first spoken line: iOS only allows speech that starts inside the tap.
       void voice.out.unlock();
       attachEngine();
@@ -813,6 +949,10 @@ export function createSession(deps: SessionDeps): Session {
       handoff = null;
       coaching = null;
       dispatcherLines = [];
+      flavored.clear();
+      flavorPending.clear();
+      canonicalOf.clear();
+      saidCount.clear();
       geoRequested = false;
       roiAnnouncedFor = null;
       cameraSaw = null;
