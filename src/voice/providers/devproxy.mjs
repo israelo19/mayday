@@ -84,6 +84,9 @@ export const MODEL_PROVIDERS = {
     // fast non-reasoning tier answers in well under a second. Chosen for the text routes; the
     // scene frame has not been tried on it, so keep a Gemini or Featherless key for that.
     defaultModel: 'grok-4-1-fast-non-reasoning',
+    // Which is enforced rather than remembered: the frame route skips this provider, so
+    // MODEL_PROVIDER=xai gives Grok the text routes and leaves the camera frame on Gemini.
+    vision: false,
   },
 };
 
@@ -113,8 +116,15 @@ export function readLocalEnv(name) {
  * Vite mount, the standalone server and scripts/assess-frame.mjs can never disagree about which
  * model ran. Switching providers is this one environment variable and nothing else.
  */
-export function resolveProvider(name = readLocalEnv('MODEL_PROVIDER')) {
-  const wanted = name && MODEL_PROVIDERS[name] ? [name] : [DEFAULT_PROVIDER, 'featherless', 'xai'];
+export function resolveProvider(name = readLocalEnv('MODEL_PROVIDER'), { vision = false } = {}) {
+  // A named provider wins, then the default order. With `vision`, providers we have not tried
+  // on a frame drop out of both: MODEL_PROVIDER=xai then serves the text routes while the
+  // camera frame falls through to whichever vision key is present, instead of going to a
+  // model that has never been asked to find a person in a photograph.
+  const named = name && MODEL_PROVIDERS[name] ? [name] : [];
+  const wanted = [...named, DEFAULT_PROVIDER, 'featherless', 'xai'].filter(
+    (id) => !vision || MODEL_PROVIDERS[id].vision !== false,
+  );
   for (const id of wanted) {
     const provider = MODEL_PROVIDERS[id];
     const key = readLocalEnv(provider.keyEnv);
@@ -181,7 +191,7 @@ function readBody(req) {
  * dispatcher, WebSpeech, no scene assessment). `coachVoice` may be null too: /voice answers
  * `{ coach: null }` and the browser keeps its default voice.
  */
-export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = null, provider = null }) {
+export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = null, provider = null, visionProvider = provider }) {
   if (!apiKey && !provider) throw new Error('createKeyProxy needs a key: ELEVENLABS_API_KEY, GEMINI_API_KEY, FEATHERLESS_API_KEY or XAI_API_KEY in .env.local.');
 
   const forward = async (path, init) => {
@@ -232,7 +242,14 @@ export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = nul
       }
       if (req.method === 'POST' && (url.pathname === VISION_ROUTE || url.pathname === INTENT_ROUTE || url.pathname === TEXT_ROUTE)) {
         const wantsImage = url.pathname === VISION_ROUTE;
-        if (!provider) return sendJson(res, 404, { error: 'No model key configured: GEMINI_API_KEY, FEATHERLESS_API_KEY or XAI_API_KEY' });
+        const chosen = wantsImage ? visionProvider : provider;
+        if (!chosen) {
+          return sendJson(res, 404, {
+            error: wantsImage
+              ? 'No vision model key configured: GEMINI_API_KEY or FEATHERLESS_API_KEY'
+              : 'No model key configured: GEMINI_API_KEY, FEATHERLESS_API_KEY or XAI_API_KEY',
+          });
+        }
         const raw = await readBody(req);
         let body;
         try {
@@ -244,10 +261,10 @@ export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = nul
         if (typeof system !== 'string' || typeof user !== 'string') return sendJson(res, 400, { error: 'system and user prompts are required' });
         if (wantsImage && (typeof image !== 'string' || image.length === 0 || image.length > MAX_IMAGE_CHARS)) return sendJson(res, 400, { error: 'image must be a base64 string of a small JPEG' });
         const reply = await askModel({
-          provider: provider.id,
-          chat: provider.chat,
-          key: provider.key,
-          model: provider.model,
+          provider: chosen.id,
+          chat: chosen.chat,
+          key: chosen.key,
+          model: chosen.model,
           image: wantsImage ? image : null,
           mime: mime === 'image/png' ? 'image/png' : 'image/jpeg',
           system,
