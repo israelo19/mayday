@@ -143,6 +143,7 @@ export const bleeding: Machine = {
       // Only ever spoken because the bystander said the word. We do not suggest tourniquets,
       // and we never coach an improvised one (docs/02).
       keyword: 'tourniquet',
+      label: 'Should I use a tourniquet?',
       priority: 'correction',
       source: STOP_THE_BLEED,
       say: 'If you have a real tourniquet kit, place it two to three inches above the wound, not on a joint, and tighten until the bleeding stops. Otherwise keep pressing.',

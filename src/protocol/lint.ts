@@ -71,6 +71,28 @@ export function lintMachines(machines: readonly Machine[]): LintIssue[] {
     }
   }
 
+  for (const machine of machines) {
+    const push = (message: string) => issues.push({ machineId: machine.id, message });
+    // An answer's phrase must not be one a step already owns: the matcher would hand the
+    // words to whichever candidate sorts longer, and a question could become a transition.
+    const owned = new Map<string, string>();
+    for (const state of machine.states) {
+      for (const t of state.transitions) if (t.on.kind === 'keyword') owned.set(stemKey(t.on.keyword), `${state.id}: '${t.on.keyword}'`);
+    }
+    const seen = new Map<string, string>();
+    for (const a of machine.keywordResponses ?? []) {
+      const key = stemKey(a.keyword);
+      const owner = owned.get(key);
+      if (owner) push(`answer '${a.keyword}' is also a step's keyword (${owner})`);
+      const twin = seen.get(key);
+      if (twin !== undefined) push(`duplicate answer keyword '${a.keyword}' (same words as '${twin}')`);
+      seen.set(key, a.keyword);
+      if (!a.label.trim()) push(`answer '${a.keyword}' has no label`);
+      if (!a.say.trim()) push(`answer '${a.keyword}' says nothing`);
+      if (machine.medical && !a.source.startsWith('http')) push(`answer '${a.keyword}' has no cited source URL`);
+    }
+  }
+
   issues.push(...reachability(machines, index));
   return issues;
 }
