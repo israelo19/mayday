@@ -31,6 +31,8 @@ export type EngineOutput =
 
 export interface Engine {
   start(machineId: string, stateId?: string): void;
+  /** Begin a fresh run: clears coaching-rule history that is meant to live for one session. */
+  reset(now: number): void;
   onFacts(f: PerceptionFacts): void;
   /** Raw transcript or an exact keyword; matching is phrase level and word bounded. */
   onKeyword(k: string): void;
@@ -61,6 +63,10 @@ class ProtocolEngine implements Engine {
 
   constructor(machines: readonly Machine[]) {
     for (const m of machines) this.registry.set(m.id, m);
+  }
+
+  reset(now: number): void {
+    this.evaluator.reset(now);
   }
 
   start(machineId: string, stateId?: string): void {

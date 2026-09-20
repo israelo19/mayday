@@ -333,7 +333,19 @@ export function createVoiceOut(opts: VoiceOutOptions): VoiceOutFull {
     // A chopped instruction was not delivered: narration goes back to the front of its lane
     // to replay when idle. Corrections are disposable — the engine re-emits them while the
     // condition holds — and a critical never gets here.
-    if (preempted.e.priority === 'narration' && !stale(preempted)) lanes.narration.unshift(preempted);
+    if (preempted.e.priority === 'narration' && !stale(preempted)) {
+      // Forget that it was ever audible. markAudible stamped the key the moment audio
+      // started, so the replay met its own 6 s cooldown and pump() dropped it: every critical
+      // on the coached path is short enough to fit inside that window, which meant a line cut
+      // one second in was simply never finished. Drop the repeat stamp too, or the replay
+      // reads as a repetition and the voice escalates its insistence for no reason.
+      if (preempted.e.dedupeKey) {
+        lastAudibleAt.delete(preempted.e.dedupeKey);
+        const hist = repeatHistory.get(preempted.e.dedupeKey);
+        hist?.pop();
+      }
+      lanes.narration.unshift(preempted);
+    }
   };
 
   const nextItem = (): Queued | null => {

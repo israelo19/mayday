@@ -168,6 +168,26 @@ describe('ElevenLabsProvider', () => {
     expect(fallback.cancelled).toBe(1);
   });
 
+  it('says nothing for a line cancelled while the network still had it', async () => {
+    // A narration line preempted by a critical: cancel() aborts the request, synthesize
+    // returns null, and the "network missed" branch used to hand the dead line to the local
+    // voice, which then spoke it over the critical that replaced it.
+    const { provider, fallback, played } = build(() => 'hang', { timeoutMs: 10_000 });
+    const speaking = provider.speak('Do not lift your hands to look.');
+    provider.cancel();
+    await speaking;
+    expect(fallback.spoken).toEqual([]);
+    expect(played.length).toBe(0);
+  });
+
+  it('keeps speaking normally after a cancel', async () => {
+    const { provider, played, fallback } = build(okAudio);
+    provider.cancel();
+    await provider.speak('Push hard and fast.');
+    expect(played.length).toBe(1);
+    expect(fallback.spoken).toEqual([]);
+  });
+
   it('names the ElevenLabs voice while healthy and the fallback once it has given up', async () => {
     const { provider } = build(okAudio);
     expect(provider.currentVoiceName()).toBe('ElevenLabs coachvoice');

@@ -25,7 +25,9 @@ export function buildSitrep(log: EventLog, geo: GeoFix | null, now: number): Sit
     currentState: currentStateKey(entries),
     metrics,
     readAloud: readAloud(geo, emergency ?? 'Medical emergency.', began, metrics, machine, now),
-    timeline: entries,
+    // A copy: log.entries() hands back the live array, so a report that kept the
+    // reference went on growing after the session froze it.
+    timeline: [...entries],
   };
 }
 
@@ -42,7 +44,9 @@ export function buildHandoff(log: EventLog, now: number, geo: GeoFix | null = nu
     location: geo,
     metrics,
     headline: headline(metrics, began, now, machine),
-    timeline: entries,
+    // A copy: log.entries() hands back the live array, so a report that kept the
+    // reference went on growing after the session froze it.
+    timeline: [...entries],
   };
 }
 

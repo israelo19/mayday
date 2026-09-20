@@ -48,9 +48,9 @@ instead -- that's what the M0 and M1 checks below are walking.
   only downloads them if they are missing. Nothing is fetched from a CDN at runtime.
 
 Other scripts: `npm run typecheck`, `npm test` (vitest), `npm run build` (output in `dist/`),
-`npm run preview`. Open `http://localhost:5173/?guide=1` (any of the dev modes) for the step
-guide gallery: every protocol picture, a simulated bystander to watch the guide react, and a
-coach-screen preview. No camera needed.
+`npm run preview`. Open `https://localhost:5173/?guide=1` for the step guide gallery: every
+protocol picture, a simulated bystander to watch the guide react, and a coach-screen preview.
+No camera needed. Under `MAYDAY_HTTP=1` it is `http://`, and under `npm run preview` port 4173.
 
 ## Run it on a phone
 
@@ -67,8 +67,13 @@ phone needs internet for it. Coaching, the beat and speech output need neither.
 2. Accept the self-signed certificate warning once (Advanced, proceed). Camera works after
    that because a secure context is about the https scheme, not certificate trust.
 3. Chrome menu, "Add to Home Screen": the app opens full screen from its own icon from then
-   on, and a reload with wifi off still loads once a session has run online
-   (`vite-plugin-pwa`, see Deploy). The deployed DigitalOcean URL skips step 2 entirely.
+   on. The deployed DigitalOcean URL skips step 2 entirely.
+
+Step 3 and the wifi-off reload need a *built* app: `vite-plugin-pwa` writes the manifest and
+the service worker at build time only, so `npm run dev` registers neither. Use `npm run preview`
+(port 4173) or the deployed URL for anything that shows the install or offline behaviour. The
+shell precaches; the MediaPipe models and WASM runtime cache on first successful fetch, so a
+wifi-off reload works once a session has loaded online at least once.
 
 Expo Go was tried and dropped: on the current SDK it refuses any project whose dev server
 is not signed in to an Expo account, on the laptop and on the phone (DECISIONS.md, Sat 05:00).
@@ -87,9 +92,12 @@ local stub underneath and fall back to it on any miss, so the wifi-off demo is u
 3. Scan the QR, then add the flags to the URL: `?flag=elevenLabs` for the coach voice (Brian)
    and the scripted dispatcher in a second voice (Sarah), `?flag=dispatcherSim` for the live
    agent that hears the phone mic, or `?flag=elevenLabs,dispatcherSim` for both.
-4. Tap I NEED HELP, then CALL 911. Allow the microphone. The panel header reads "Listening"
-   while the agent is live, and the panel shows what it heard you say. "Scripted (agent
-   unavailable)" means it fell back: no agent id, mic refused, or no session within 4 s.
+4. Tap I NEED HELP, then CALL 911. Allow the microphone. The panel header reads "Listening to
+   you" while the agent is live, and the panel shows what it heard you say. A fallback reads
+   "On the line", the same words the scripted call-taker uses, because which engine answers is
+   not the caller's business (CLAUDE.md principle 5). To tell them apart, read
+   `window.mayday.log.entries()`: the reasons are no agent id, mic refused, or no session
+   within 4 s.
 5. To hear the difference without the flow: `?debug=1&flag=elevenLabs`, the voice chip reads
    "ElevenLabs Brian", and "Speak a test line" goes through the proxy.
 
@@ -131,13 +139,13 @@ gets the sentence and the buttons that are on the screen right now (docs/04 item
 
 ## M0 demo check
 
-1. Open `?debug=1`. The footer reads `status: running`, fps is above 10, the pose skeleton is
-   drawn on the camera preview with both shoulders circled in red.
+1. Open `?debug=1`. The chip at the top reads `Live`, fps is above 10, and the pose skeleton is
+   drawn on the camera preview with both shoulders ringed in mint.
 2. Point the camera at a teammate doing chest compressions on a pillow, chest facing the
    camera, phone propped about 1.5 m away. The waveform oscillates with visible peaks, about
    two per second at 110 bpm. The confidence number stays above 0.5.
-3. Tap **Metronome 110 bpm**: it ticks with an accent every fourth beat and does not stutter
-   while the skeleton is being drawn. Tap **Test voice**: a line is spoken through Web Speech.
+3. Tap **Start the beat, 110**: it ticks with an accent every fourth beat and does not stutter
+   while the skeleton is being drawn. Tap **Speak a test line**: a line goes out through Web Speech.
 4. Turn wifi off and repeat step 3. Everything keeps working.
 
 DONE means: the waveform wiggles, confidence is on screen, the metronome ticks. Confirmed on

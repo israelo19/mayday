@@ -67,6 +67,27 @@ function setup(over?: { onSpoken?: (e: CoachingEvent, latencyMs: number | null) 
 }
 
 describe('the speaker queue', () => {
+  it('replays a chopped narration line that carries a dedupeKey, which is what the engine emits', async () => {
+    // The engine stamps every state-entry line with `<state>:say:<i>` (engine.ts), so the
+    // no-key case above was the only one covered and the real one was not. markAudible()
+    // stamped the key the instant audio started, so the replay met its own 6 s cooldown and
+    // was dropped: a line cut one second in was never finished. Every critical on the
+    // coached path is short enough to land inside that window.
+    const { speaker, voice, tick } = setup();
+    voice.enqueue(ev('narration', 'Do not lift your hands to look.', { dedupeKey: 'pressure:say:2' }));
+    voice.enqueue(ev('critical', 'Don’t let go! Press harder.'));
+    await flush();
+    expect(speaker.texts()).toEqual(['Do not lift your hands to look.', 'Don’t let go! Press harder.']);
+    tick(3500); // the critical plays; well inside the narration's cooldown window
+    speaker.finish();
+    await flush();
+    expect(speaker.texts()).toEqual([
+      'Do not lift your hands to look.',
+      'Don’t let go! Press harder.',
+      'Do not lift your hands to look.',
+    ]);
+  });
+
   it('preempts non-critical speech with a critical line, then replays the chopped narration', async () => {
     const { speaker, voice } = setup();
     voice.enqueue(ev('narration', 'Kneel beside his chest.'));

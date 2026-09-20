@@ -75,11 +75,20 @@ function distance(a: string, b: string): number {
   return prev[b.length];
 }
 
-/** Two stems of five letters or more tolerate one letter of recognizer error; anything shorter must be exact. */
+/**
+ * Two stems of five letters or more tolerate one letter of recognizer error; anything shorter
+ * must be exact. The onset must match: a substituted first letter does not turn a word into a
+ * misheard version of itself, it turns it into a different real word, and that word routes to
+ * the wrong protocol. "he can't make a sound" and "I found him on the floor" both reached
+ * `wound` and opened severe bleeding on a choking and a collapse; "flood" reached `blood` the
+ * same way. A recognizer error inside a word ("breething", "bloody") keeps its onset, so the
+ * tolerance that matters is untouched.
+ */
 export function sameWord(a: string, b: string): boolean {
   if (a === b) return true;
   if (Math.min(a.length, b.length) < 5) return false;
   if (Math.abs(a.length - b.length) > 1) return false;
+  if (a[0] !== b[0]) return false;
   return distance(a, b) <= 1;
 }
 

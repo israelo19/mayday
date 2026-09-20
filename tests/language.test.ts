@@ -29,6 +29,20 @@ describe('word comparison', () => {
     expect(sameWord('shot', 'shop')).toBe(false);
     expect(sameWord('blood', 'bloody')).toBe(true);
   });
+
+  it('will not swap the first letter, which makes a different word rather than a misheard one', () => {
+    // These pairs are one edit apart and both real words, so the tolerance used to route
+    // ordinary speech into the wrong protocol: "he can't make a sound" and "I found him on
+    // the floor" each matched the bleeding keyword 'wound'.
+    for (const [a, b] of [
+      ['sound', 'wound'],
+      ['found', 'wound'],
+      ['round', 'wound'],
+      ['flood', 'blood'],
+    ] as const) {
+      expect(sameWord(a, b), `${a}/${b}`).toBe(false);
+    }
+  });
 });
 
 describe('matchKeyword', () => {

@@ -65,7 +65,21 @@ class FakeRecognition implements SpeechRecognitionLike {
   start(): void {
     this.started++;
   }
+  /** Synchronous by default, which is convenient but not what a browser does. */
   stop(): void {
+    if (this.deferEnd) {
+      this.pendingEnd = true;
+      return;
+    }
+    this.onend?.();
+  }
+  /** Set to model the real thing: `end` arrives on a later task, after stop() returns. */
+  deferEnd = false;
+  pendingEnd = false;
+  /** Deliver the `end` that a deferred stop() left pending. */
+  flushEnd(): void {
+    if (!this.pendingEnd) return;
+    this.pendingEnd = false;
     this.onend?.();
   }
   hear(transcript: string, isFinal = true): void {
@@ -181,6 +195,30 @@ describe('the keyword listener', () => {
     s.voiceIn.stop();
     s.runPending();
     expect(s.recs.length).toBe(2); // no further restarts
+  });
+
+  it('a restart does not leave the recognizer it abandoned able to spawn another', () => {
+    // "Start over" between takes: session.stop() then session.start() in one tick. A real
+    // recognizer's `end` lands after that, and it used to find `running` back at true and
+    // attach a second instance next to the live one, so the app heard the room twice.
+    const s = setup();
+    const first = s.rec();
+    first.deferEnd = true;
+    expect(s.recs.length).toBe(1);
+
+    s.voiceIn.stop();
+    s.voiceIn.start({
+      keywords: () => ['not breathing'],
+      onKeyword: (k) => s.heardKeywords.push(k),
+      onTranscript: (x) => s.transcripts.push(x),
+      suppress: () => false,
+      echoText: () => [],
+    });
+    expect(s.recs.length).toBe(2); // the new take's recognizer
+
+    first.flushEnd(); // the abandoned one finally ends
+    s.runPending();
+    expect(s.recs.length).toBe(2); // and it must not have built a third
   });
 
   it('gives up for the session when the mic permission is denied', () => {

@@ -22,10 +22,12 @@ export function LaunchScreen({ onStart }: Props) {
           granted inside a tap. So this line no longer invites speech, it warns what the tap does,
           which is the prompt people were meeting with no warning at all. */}
       <p className="launch-note">Camera and microphone turn on when you tap.</p>
-      {/* The disclosure that boundaries.test.ts enforces. Quiet, but before the tap, not after. */}
+      {/* The disclosure that boundaries.test.ts enforces. Quiet, but before the tap, not after.
+          It says what the call-taker is, and nothing about the build it ships in: the screen is
+          the product, and a product does not call itself a demo to the person holding it. */}
       <p className="launch-fine">
-        Demo build. The 911 call-taker in this app is a simulated dispatcher and is not a real emergency line. In a real
-        emergency, dial 911 on your phone.
+        The 911 call-taker in this app is a simulated dispatcher, not a real emergency line. In a real emergency, dial
+        911 on your phone.
       </p>
     </div>
   );

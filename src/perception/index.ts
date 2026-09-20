@@ -42,6 +42,7 @@ export type { Facing } from './camera';
 export type { Sample, Tuning } from './signal';
 export { DEFAULT_TUNING, TUNING_RANGES, GUIDANCE } from './signal';
 export { primeMediaPermissions } from './camera';
+export { HAND_MODEL_URL } from './hands';
 
 /**
  * `awaiting-permission` is the stretch where getUserMedia has been called and the browser has

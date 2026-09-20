@@ -283,6 +283,10 @@ export function createSession(deps: SessionDeps): Session {
     const key = `${machineId}.${stateId}`;
     const state = engine.currentState()?.state;
     coaching = null;
+    // The machine has moved, so a question about where to move is stale. Every path that
+    // advances lands here, including the buttons, which used to leave "Sounds like choking?"
+    // painted over the next state for the rest of its 20 s life with a Yes that did nothing.
+    suggestion = null;
     stateEnteredAt = now();
     phase = machineId === 'triage' ? 'triage' : state?.terminal ? 'handoff' : 'coaching';
     if (callActive && state?.call911) skipCallPrompt = true;
@@ -291,6 +295,10 @@ export function createSession(deps: SessionDeps): Session {
       assessTries = 0;
       rejectedAt.clear();
     }
+
+    // The handoff is a final, stable report. Left listening, the recognizer kept appending
+    // whatever anyone said in the room to the timeline the screen was already showing.
+    if (phase === 'handoff') voice.stopListening();
 
     if (bpm === null) {
       if (metronomeBpm !== null) voice.out.stopMetronome();
@@ -579,6 +587,12 @@ export function createSession(deps: SessionDeps): Session {
         lastKeyword = k;
         lastKeywordAt = now();
         lastHeardAt = now();
+        // A suggestion on screen has just asked "say yes, or tap", so yes and no belong to it.
+        // Some states bind those bare words themselves (cardiac.check_breathing sends 'yes' to
+        // recovery_hold and 'no' to call_911), and the state keyword used to win, which sent
+        // the machine to the opposite branch of the one being confirmed.
+        if (suggestion && matchKeyword(k, CONFIRM_WORDS)) return session.confirmSuggestion();
+        if (suggestion && matchKeyword(k, REJECT_WORDS)) return session.rejectSuggestion();
         suggestion = null;
         engine.onKeyword(k);
         notify();
@@ -741,6 +755,7 @@ export function createSession(deps: SessionDeps): Session {
       // the permission sheet if speechSynthesis is already going (the prompt then waits until
       // the next tap, which was the looking card).
       listen();
+      engine.reset(now());
       engine.tick(now());
       engine.start('triage');
       cancelTick?.();
