@@ -388,6 +388,15 @@ export function createVoiceOut(opts: VoiceOutOptions): VoiceOutFull {
         lastEndedAt = now();
         q.onDone?.(); // natural end only: a preempted line replays before it counts as done
         pump();
+      })
+      // A provider that rejects, or never settles, used to end the session's voice: `current`
+      // stayed set, pump() returned at its first line, and nothing was ever spoken again. The
+      // app looked alive and said nothing, which is the one state principle 4 forbids.
+      .catch(() => {
+        if (current?.token !== myToken) return;
+        current = null;
+        lastEndedAt = now();
+        pump();
       });
   };
 

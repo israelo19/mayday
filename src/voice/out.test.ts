@@ -67,6 +67,28 @@ function setup(over?: { onSpoken?: (e: CoachingEvent, latencyMs: number | null) 
 }
 
 describe('the speaker queue', () => {
+  it('keeps speaking after a provider rejects', async () => {
+    // A rejecting speak() left `current` set forever, so pump() returned at its first line
+    // and the app never spoke again: alive on screen, silent in the room.
+    const speaker = new FakeSpeaker();
+    let t = 0;
+    const voice: VoiceOutFull = createVoiceOut({ provider: speaker, now: () => t, metronome: { start: () => {}, stop: () => {}, earcon: () => {} } });
+    const original = speaker.speak.bind(speaker);
+    let first = true;
+    speaker.speak = (text: string, opts?: SpeakOptions) => {
+      if (first) {
+        first = false;
+        return Promise.reject(new Error('audio device went away'));
+      }
+      return original(text, opts);
+    };
+    voice.enqueue(ev('narration', 'The line that fails.'));
+    await flush();
+    voice.enqueue(ev('narration', 'The line after it.'));
+    await flush();
+    expect(speaker.texts()).toContain('The line after it.');
+  });
+
   it('replays a chopped narration line that carries a dedupeKey, which is what the engine emits', async () => {
     // The engine stamps every state-entry line with `<state>:say:<i>` (engine.ts), so the
     // no-key case above was the only one covered and the real one was not. markAudible()

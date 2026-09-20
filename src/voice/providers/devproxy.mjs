@@ -188,6 +188,13 @@ export async function askModel({ provider = DEFAULT_PROVIDER, chat, key, model, 
 }
 
 function sendJson(res, status, body) {
+  // The audio route writes its own head, so an error after that point would land here and
+  // write a second one. In Node that throws inside an async middleware, and an unhandled
+  // rejection there takes the dev server down in the middle of a session.
+  if (res.headersSent) {
+    res.end();
+    return;
+  }
   res.writeHead(status, { 'content-type': 'application/json' });
   res.end(JSON.stringify(body));
 }
@@ -306,13 +313,18 @@ export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = nul
           headers: { 'content-type': req.headers['content-type'] ?? 'application/json' },
           body: await readBody(req),
         });
+        // Read the whole body before writing the head: a fault while reading then still has
+        // somewhere to report itself, instead of arriving after the response has begun.
+        const audio = Buffer.from(await upstream.arrayBuffer());
         res.writeHead(upstream.status, {
           'content-type': upstream.headers.get('content-type') ?? 'application/octet-stream',
         });
-        return res.end(Buffer.from(await upstream.arrayBuffer()));
+        return res.end(audio);
       }
       return sendJson(res, 404, { error: `not proxied: ${req.method} ${url.pathname}` });
     } catch (err) {
+      // One line per upstream failure, or a dead model looks like a dead feature.
+      console.warn(`  [proxy] ${req.method} ${url.pathname} failed: ${String(err).slice(0, 200)}`);
       return sendJson(res, 502, { error: String(err) });
     }
   };
