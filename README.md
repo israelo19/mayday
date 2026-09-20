@@ -45,16 +45,6 @@ a dispatcher changes the assessment in half of real calls ([BMC Emergency Medici
 and an AI coach has out-performed dispatchers over audio ([JAMA Internal Medicine, 2026](https://today.ucsd.edu/story/ai-powered-cpr-coach-outperforms-911-dispatchers-in-guiding-bystander-resuscitation)).
 Mayday puts the eyes on the phone itself.
 
-## ❤️ Why this is philanthropy
-
-In most emergencies the first responder is whoever happens to be there, and they want to help.
-Mayday gives them a way, and it gives it to everyone: it costs nothing, runs on any phone with a
-browser, and keeps coaching where there is no signal, which is where the ambulance takes
-longest. It turns the first minutes from waiting into care, keeps the dispatcher fed with facts
-instead of panic, and teaches the real guideline every time it is used. It is open source under
-Apache 2.0, so a community can add the emergency it faces most by adding one file. It does not
-replace the ambulance. It makes sure someone is doing the right thing until it arrives.
-
 ## 💡 What a session looks like
 
 <p align="center">
@@ -65,56 +55,28 @@ Bleeding runs on its own script: are you safe first, with no timer, then a circl
 the wound where your hands settle, and "Don't let go!" within about two seconds of both hands
 leaving it.
 
-**Demo video:** the link lands with the Devpost submission.
-
-## 🏗️ How it works
-
-<p align="center">
-  <img src="docs/images/four-parts.svg" width="100%" alt="How Mayday works: the Eyes see the scene and the helper, the Ears hear what you say, the Brain interprets both and picks the next line from the guideline script, the Voice speaks and keeps the beat; you answer with taps and voice; Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge">
-</p>
-
-## 🧭 Why you can trust it
-
-Five rules the app is built around. Breaking one is a bug even if the feature works, and each
-is enforced by a test a judge can open.
-
-| Rule | In plain words | How the code enforces it |
-|---|---|---|
-| **Authority is deterministic** | Every instruction is a line a human transcribed from AHA, Stop the Bleed or the Red Cross. AI may sort or reword; it never picks or invents a step. | The build fails on a medical step with no cited guideline. A reworded line is checked for the words the step requires, and the original plays if the check fails. The engine may not read the clock, the network or a random number. |
-| **Reflexes are local** | Camera to correction runs on the phone. Wifi off mid-session changes nothing in the coaching. | A test scans the coaching path for network calls. |
-| **Cognition is episodic** | The cloud gets one photo at the start and one sentence when the app did not understand you. Never in the loop. No answer in time, nothing happens. | The camera, script and voice code cannot import the AI module. Every cloud call has a timeout and a local fallback. |
-| **Fail loud, never wrong** | When the camera cannot see well, the numbers go blank, the app says so, and coaching continues by voice. Unwatched time is reported as unmeasured, never as a pause. | While blind, only lines marked safe may play. Unmeasured time is a named field in the report. |
-| **A human dials 911** | The app never places a call. The call-taker in the demo is simulated, and the launch screen says so once. | A test fails on any phone-dialing code, requires the disclosure on the launch screen, and forbids the word "simulated" on the call itself. |
-
-Behind that: 347 tests, four scripts with every medical step citing a live guideline page, an
-engine of 279 lines with no dependencies, and zero network calls in the coaching loop. The
-scripts are drawn from their data in [docs/protocol-diagrams.md](docs/protocol-diagrams.md).
-
-## 👀 What the camera measures
-
-Pose and hand tracking run inside the browser, models included in the app, so no video ever
-leaves the phone. It boxes everyone in view to read the scene, and during coaching it watches
-the helper's hands and shoulders, which is where the corrections come from.
-
-| It measures | How | Which becomes |
-|---|---|---|
-| Compression rate | the up-and-down of the helper's shoulders, peaks counted | "Faster. Push with the beat." or "A little slower." |
-| Still pushing | at least two pushes in the last two seconds | "Don't stop. Keep pushing. Help is coming." |
-| Chest recoil | how far the chest comes back up between pushes, an estimate | "Let the chest come all the way back up." |
-| Hands on the wound | palms inside a circle locked where they first settled | "Don't let go! Hands back on the wound." |
-| Confidence | whether the shoulders are visible enough to trust | the "I can't see you clearly" line, and the beat continues |
-| The scene | a box around each person, their posture and stillness, and one photo to a vision model at the start | "Looks like Collapsed?", a question |
-
-## 🚑 The handoff
+And when the ambulance arrives, what the paramedic gets:
 
 <p align="center">
   <img src="docs/images/handoff-report.svg" width="100%" alt="The handoff: one log of every event feeds the lines read to the 911 dispatcher while the call is open, and the paramedic's headline numbers, timeline and QR code when the ambulance arrives">
 </p>
 
-## 🧰 Under the hood
+**Demo video:** the link lands with the Devpost submission.
+
+## ❤️ Why this is philanthropy
+
+In most emergencies the first responder is whoever happens to be there, and they want to help.
+Mayday gives them a way, and it gives it to everyone: it costs nothing, runs on any phone with a
+browser, and keeps coaching where there is no signal, which is where the ambulance takes
+longest. It turns the first minutes from waiting into care, keeps the dispatcher fed with facts
+instead of panic, and teaches the real guideline every time it is used. It is open source under
+Apache 2.0, so a community can add the emergency it faces most by adding one file. It does not
+replace the ambulance. It makes sure someone is doing the right thing until it arrives.
+
+## 🏗️ How it works
 
 <p align="center">
-  <img src="docs/images/architecture.svg" width="100%" alt="The Mayday stack: a PWA in the browser; on the device with no network calls, MediaPipe pose and hand tracking as WebAssembly, signal extraction, a state machine engine running four scripts as data, a voice queue with a Web Audio metronome, keyword spotting, and an event log that becomes the SITREP and the handoff; a key proxy on the same origin; behind it Gemini, xAI Grok and ElevenLabs">
+  <img src="docs/images/four-parts.svg" width="100%" alt="How Mayday works: the Eyes see the scene and the helper, the Ears hear what you say, the Brain interprets both and picks the next line from the guideline script, the Voice speaks and keeps the beat; you answer with taps and voice; Gemini, ElevenLabs and Grok are optional cloud helpers that are never in charge">
 </p>
 
 ## 🏆 Tracks and challenges
@@ -144,6 +106,44 @@ required words before it is spoken, or the line plays as written.
 
 All three services are off by default, keep their keys on the server, and fall back to the
 phone's own voice, ears and cues, so the app is complete without them.
+
+## 🧭 Why you can trust it
+
+Five rules the app is built around. Breaking one is a bug even if the feature works, and each
+is enforced by a test a judge can open.
+
+| Rule | In plain words | How the code enforces it |
+|---|---|---|
+| **Authority is deterministic** | Every instruction is a line a human transcribed from AHA, Stop the Bleed or the Red Cross. AI may sort or reword; it never picks or invents a step. | The build fails on a medical step with no cited guideline. A reworded line is checked for the words the step requires, and the original plays if the check fails. The engine may not read the clock, the network or a random number. |
+| **Reflexes are local** | Camera to correction runs on the phone. Wifi off mid-session changes nothing in the coaching. | A test scans the coaching path for network calls. |
+| **Cognition is episodic** | The cloud gets one photo at the start and one sentence when the app did not understand you. Never in the loop. No answer in time, nothing happens. | The camera, script and voice code cannot import the AI module. Every cloud call has a timeout and a local fallback. |
+| **Fail loud, never wrong** | When the camera cannot see well, the numbers go blank, the app says so, and coaching continues by voice. Unwatched time is reported as unmeasured, never as a pause. | While blind, only lines marked safe may play. Unmeasured time is a named field in the report. |
+| **A human dials 911** | The app never places a call. The call-taker in the demo is simulated, and the launch screen says so once. | A test fails on any phone-dialing code, requires the disclosure on the launch screen, and forbids the word "simulated" on the call itself. |
+
+Behind that: 347 tests, four scripts with every medical step citing a live guideline page, an
+engine of 279 lines with no dependencies, and zero network calls in the coaching loop. The
+scripts are drawn from their data in [docs/protocol-diagrams.md](docs/protocol-diagrams.md).
+
+## 🧰 Under the hood
+
+<p align="center">
+  <img src="docs/images/architecture.svg" width="100%" alt="The Mayday stack: a PWA in the browser; on the device with no network calls, MediaPipe pose and hand tracking as WebAssembly, signal extraction, a state machine engine running four scripts as data, a voice queue with a Web Audio metronome, keyword spotting, and an event log that becomes the SITREP and the handoff; a key proxy on the same origin; behind it Gemini, xAI Grok and ElevenLabs">
+</p>
+
+## 👀 What the camera measures
+
+Pose and hand tracking run inside the browser, models included in the app, so no video ever
+leaves the phone. It boxes everyone in view to read the scene, and during coaching it watches
+the helper's hands and shoulders, which is where the corrections come from.
+
+| It measures | How | Which becomes |
+|---|---|---|
+| Compression rate | the up-and-down of the helper's shoulders, peaks counted | "Faster. Push with the beat." or "A little slower." |
+| Still pushing | at least two pushes in the last two seconds | "Don't stop. Keep pushing. Help is coming." |
+| Chest recoil | how far the chest comes back up between pushes, an estimate | "Let the chest come all the way back up." |
+| Hands on the wound | palms inside a circle locked where they first settled | "Don't let go! Hands back on the wound." |
+| Confidence | whether the shoulders are visible enough to trust | the "I can't see you clearly" line, and the beat continues |
+| The scene | a box around each person, their posture and stillness, and one photo to a vision model at the start | "Looks like Collapsed?", a question |
 
 ## 🚀 Run it
 
