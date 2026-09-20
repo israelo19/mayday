@@ -35,35 +35,24 @@ person is the one who could be saving a life.
   <img src="docs/images/gap-timeline.svg" width="100%" alt="Timeline from a collapse to the ambulance: the gap Mayday covers, severe bleeding can kill in five minutes, the median ambulance arrives at seven, thirteen in rural areas">
 </p>
 
-Sources: [American Heart Association](https://cpr.heart.org/en/resources/cpr-facts-and-stats),
-[JAMA Surgery, 2017](https://jamanetwork.com/journals/jamasurgery/fullarticle/2643992),
-[American College of Surgeons, Stop the Bleed](https://www.facs.org/media-center/press-releases/2025/may-is-national-stop-the-bleed-month-learn-how-to-save-a-life-with-three-simple-actions/).
+In practice it looks like this. A man collapses in a hallway. The woman next to him has never
+done CPR. The dispatcher tells her to push on his chest, hard and fast, but cannot see whether
+she is. If he is bleeding instead, she presses a cloth on the wound and, within seconds, lifts
+it to look, the one thing that lets the bleeding start again.
 
-The knowledge that closes this gap is public and free: the American Heart Association's
-hands-only CPR, the American College of Surgeons' Stop the Bleed, the Red Cross choking steps.
-What does not exist is a way to put it in a frightened stranger's hands in the minutes that
-matter, with someone watching whether they are doing it right. Video from the caller's phone to
-a dispatcher changes the assessment in half of real calls ([BMC Emergency Medicine, 2021](https://link.springer.com/article/10.1186/s12873-021-00493-5)),
-and an AI coach has out-performed dispatchers over audio ([JAMA Internal Medicine, 2026](https://today.ucsd.edu/story/ai-powered-cpr-coach-outperforms-911-dispatchers-in-guiding-bystander-resuscitation)).
-Mayday puts the eyes on the phone itself.
+### Why this approach is credible
 
-## 💡 What a session looks like
-
-<p align="center">
-  <img src="docs/images/session-steps.svg" width="100%" alt="A session in seven steps: tap I NEED HELP, say what happened, follow the beat, get corrected, keep going when the camera is covered, call 911 with the SITREP, hand off a timeline">
-</p>
-
-Bleeding runs on its own script: are you safe first, with no timer, then a circle locked around
-the wound where your hands settle, and "Don't let go!" within about two seconds of both hands
-leaving it.
-
-### When the ambulance arrives, what the paramedic gets
-
-<p align="center">
-  <img src="docs/images/handoff-report.svg" width="100%" alt="The handoff: one log of every event feeds the lines read to the 911 dispatcher while the call is open, and the paramedic's headline numbers, timeline and QR code when the ambulance arrives">
-</p>
-
-**Demo video:** the link lands with the Devpost submission.
+- The guidance already exists and is free: the American Heart Association's hands-only CPR,
+  the American College of Surgeons' Stop the Bleed, the Red Cross choking steps. Mayday
+  transcribes them; it does not invent them.
+- Video from the caller's phone to a dispatcher changed the assessment in half of 838 real
+  calls ([BMC Emergency Medicine, 2021](https://link.springer.com/article/10.1186/s12873-021-00493-5)).
+  Mayday puts the eyes on the phone itself.
+- An AI coach has out-performed human dispatchers over audio alone
+  ([JAMA Internal Medicine, 2026](https://today.ucsd.edu/story/ai-powered-cpr-coach-outperforms-911-dispatchers-in-guiding-bystander-resuscitation)).
+- The numbers in the picture: [American Heart Association](https://cpr.heart.org/en/resources/cpr-facts-and-stats),
+  [JAMA Surgery, 2017](https://jamanetwork.com/journals/jamasurgery/fullarticle/2643992),
+  [American College of Surgeons, Stop the Bleed](https://www.facs.org/media-center/press-releases/2025/may-is-national-stop-the-bleed-month-learn-how-to-save-a-life-with-three-simple-actions/).
 
 ## ❤️ Why this is philanthropy
 
