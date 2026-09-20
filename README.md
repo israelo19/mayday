@@ -10,17 +10,18 @@
 > Built at HopHacks 2026, Johns Hopkins, September 18 to 20, for the Most Philanthropic Hack
 > track, with the Gemini API, ElevenLabs and SpaceXAI sponsor challenges.
 
-Someone collapses in front of you. The ambulance is seven minutes away, and the 911 dispatcher
-cannot see what you are doing. Mayday turns the phone already in your pocket into a first-aid
-coach that can see: it tells you what to do, watches you do it, and corrects you until help
-arrives. It counts your chest compressions and says "faster". It sees your hands leave a wound
-and says "press". When the paramedics arrive, it hands them a timeline of everything that
-happened.
+Mayday is a first-aid coach that runs in a phone's browser and can see. Open it, say what is
+happening, prop the phone up, and it walks you through the right steps out loud, one at a time,
+with a picture for each, until the ambulance arrives. The camera watches you work: it counts
+your chest compressions against a metronome, tells you to speed up or slow down, and notices
+when your hands leave a wound. When you call 911, it gives you the words to say. When the
+paramedics arrive, it hands them a timeline of everything that happened.
 
-Every step it speaks is a line from a published first-aid guideline, written into the app as a
-script. No AI makes up a step. The camera and the coaching run on the phone and keep working
-with the network off. The app never dials 911; it puts a big CALL 911 button on the screen and
-tells the person what to say.
+It needs no account, no app store and no signal. Every instruction is a line from a published
+guideline, the American Heart Association, Stop the Bleed and the Red Cross, written into the
+app as a script. AI helps it see and hear; it never decides a step. Two emergencies ship today,
+cardiac arrest and severe bleeding, with choking behind them, and adding another is adding one
+file.
 
 ## 🚨 The problem
 
