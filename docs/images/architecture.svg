@@ -40,19 +40,21 @@
 
   <!-- mediapipe -->
   <line x1="174" y1="262" x2="196" y2="262" stroke="#9aa3b2" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="198" y="230" width="212" height="88" rx="10" fill="#171a21" stroke="#34d399"/>
+  <rect x="198" y="230" width="212" height="104" rx="10" fill="#171a21" stroke="#34d399"/>
   <text class="bt mint" x="214" y="254">MediaPipe</text>
-  <text class="b" x="214" y="274">Pose + Hand Landmarker as</text>
-  <text class="b" x="214" y="291">WebAssembly, 15 to 30 frames</text>
-  <text class="b" x="214" y="308">a second, two poses tracked</text>
+  <text class="b" x="214" y="273">Pose + Hand Landmarker as</text>
+  <text class="b" x="214" y="289">WebAssembly. 33 body and 21</text>
+  <text class="b" x="214" y="305">hand landmarks per frame,</text>
+  <text class="b" x="214" y="321">two poses tracked at once.</text>
 
   <!-- signals -->
   <line x1="412" y1="274" x2="434" y2="274" stroke="#9aa3b2" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="436" y="230" width="212" height="88" rx="10" fill="#171a21" stroke="#34d399"/>
+  <rect x="436" y="230" width="212" height="104" rx="10" fill="#171a21" stroke="#34d399"/>
   <text class="bt mint" x="452" y="254">Signals</text>
-  <text class="b" x="452" y="274">peaks and rate, recoil, hands</text>
-  <text class="b" x="452" y="291">on the wound, a box and</text>
-  <text class="b" x="452" y="308">stillness per person, blind gate</text>
+  <text class="b" x="452" y="273">compression rate and recoil,</text>
+  <text class="b" x="452" y="289">hands on the wound,</text>
+  <text class="b" x="452" y="305">bounding boxes with posture</text>
+  <text class="b" x="452" y="321">and stillness, a blind gate</text>
 
   <!-- recognition -->
   <line x1="174" y1="398" x2="196" y2="398" stroke="#9aa3b2" stroke-width="2" marker-end="url(#arrow)"/>
@@ -91,6 +93,7 @@
   <text class="b" x="938" y="417">Geolocation, address, a QR code.</text>
 
   <!-- proxy band -->
+  <text class="bandnote" x="618" y="512">one photo, one sentence, only behind a flag</text>
   <line x1="600" y1="486" x2="600" y2="530" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowblue)"/>
   <rect x="48" y="532" width="1104" height="54" rx="12" fill="#0f1a2c" stroke="#60a5fa"/>
   <text class="band blue" x="68" y="565">KEY PROXY</text>
@@ -100,9 +103,9 @@
   <!-- cloud row -->
   <line x1="600" y1="588" x2="600" y2="632" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowblue)"/>
   <rect x="48" y="634" width="356" height="96" rx="12" fill="#0f1a2c" stroke="#60a5fa" stroke-dasharray="8 6"/>
-  <text class="bt blue" x="68" y="660">Gemini API</text>
+  <text class="bt blue" x="68" y="660">Gemini API, a vision language model</text>
   <text class="mono" x="68" y="680">gemini-3.6-flash, Google AI Studio</text>
-  <text class="b" x="68" y="702">One photo in, a closed label and a box out.</text>
+  <text class="b" x="68" y="702">One photo in; a closed label and a bounding box out.</text>
   <text class="b" x="68" y="719">Thinking off: classification, not reasoning.</text>
 
   <rect x="422" y="634" width="356" height="96" rx="12" fill="#0f1a2c" stroke="#60a5fa" stroke-dasharray="8 6"/>
