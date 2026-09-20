@@ -217,3 +217,12 @@ integration once those keys are ready.
 - [Bryce Biyeba](https://www.linkedin.com/in/bryce-biyeba/)
 - [Ricky Chen](https://www.linkedin.com/in/ricky-ch3n/)
 - [Israel Ogwu](https://www.linkedin.com/in/israelogwu/)
+
+## License
+
+Apache License 2.0, full text in `LICENSE`. Attribution and the redistribution notice are in
+`NOTICE`; keep that file with any copy or derivative you ship.
+
+Mayday is a demonstration, not a certified medical device and not a substitute for emergency
+medical services. The simulated dispatcher is never connected to a real emergency line. The
+software is provided "as is", without warranty of any kind (LICENSE, Sections 7 and 8).

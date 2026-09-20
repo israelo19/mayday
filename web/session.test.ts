@@ -556,3 +556,58 @@ describe('scene assessment', () => {
     p.stop();
   });
 });
+
+/**
+ * The permission sheet used to be invisible to the whole app: `starting-camera` covered both a
+ * 17 MB model download and a modal prompt nobody had answered, and every opening deadline ran
+ * from the tap regardless. These pin the two facts the screen needs to stop doing that.
+ */
+describe('session: the camera as an open question', () => {
+  function rigWithStatus(): ReturnType<typeof rig> & { setStatus: (s: string) => void } {
+    const r = rig();
+    let status = 'idle';
+    // The fake reports 'running' as soon as it starts; the real module goes through a download
+    // and a permission wait first, which is what this replaces.
+    (r.p.debug as unknown as { status: () => string }).status = () => status;
+    return { ...r, setStatus: (s: string) => (status = s) };
+  }
+
+  it('reports an unanswered permission prompt as its own state, not as "starting"', () => {
+    const { s, setStatus } = rigWithStatus();
+    setStatus('loading-model');
+    s.start();
+    expect(s.snapshot().eyes.status).toBe('starting');
+
+    setStatus('awaiting-permission');
+    s.retryListening(); // any call that re-notifies
+    expect(s.snapshot().eyes.status).toBe('awaiting');
+  });
+
+  it('does not stamp the camera as ready at the tap, only when it actually settles', () => {
+    const { s, tick, clock, setStatus } = rigWithStatus();
+    setStatus('awaiting-permission');
+    s.start();
+    const tappedAt = clock.t;
+
+    expect(s.snapshot().eyesReadyAt).toBeNull();
+    tick(5000); // the person is reading the sheet
+    expect(s.snapshot().eyesReadyAt).toBeNull();
+
+    setStatus('running');
+    tick(100);
+    expect(s.snapshot().eyesReadyAt).toBe(clock.t);
+    expect(s.snapshot().eyesReadyAt).toBeGreaterThan(tappedAt);
+  });
+
+  it('stamps a refused camera as settled too, so the screen stops waiting on it', () => {
+    const { s, tick, setStatus } = rigWithStatus();
+    setStatus('awaiting-permission');
+    s.start();
+    expect(s.snapshot().eyesReadyAt).toBeNull();
+
+    setStatus('error');
+    tick(100);
+    expect(s.snapshot().eyes.status).toBe('error');
+    expect(s.snapshot().eyesReadyAt).not.toBeNull();
+  });
+});

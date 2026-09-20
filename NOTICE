@@ -1,0 +1,16 @@
+Mayday
+Copyright 2026 The Mayday Authors
+
+  Emmanuel Adedeji
+  Bryce Biyeba
+  Ricky Chen
+  Israel Ogwu
+
+This product includes software developed at HopHacks 2026.
+
+Mayday is a demonstration. It is not a certified medical device, it is not a
+substitute for emergency medical services, and its simulated dispatcher is not
+connected to any real emergency line. The first-aid protocols it coaches are
+transcribed from published guidelines (AHA, Stop the Bleed, Red Cross), cited in
+each machine file under src/protocol/machines. Anyone redistributing or modifying
+this software should read Sections 7 and 8 of the LICENSE.

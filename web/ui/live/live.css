@@ -75,6 +75,11 @@
 .live-banner.amber { color: var(--amber); border-color: rgba(255, 180, 84, 0.5); }
 .live-banner.red { color: var(--red); border-color: rgba(255, 69, 58, 0.6); }
 .live-banner.big { font-size: 20px; }
+/* The camera-off banner carries a way back, so it is a row: the reason on the left, Try again
+   on the right. Before this the camera could only be recovered by reloading the page. */
+.live-camera-off { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.live-camera-off button { flex: none; min-height: 40px; padding: 8px 14px; font-size: 15px; font-weight: 700; color: var(--red); border-color: rgba(255, 69, 58, 0.6); }
+.live-camera-why { display: block; font-weight: 400; font-size: 13px; opacity: 0.75; }
 
 .live-card { background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; }
 .live-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; width: 100%; background: transparent; border: 0; padding: 0; color: inherit; min-height: 0; text-align: left; cursor: pointer; }

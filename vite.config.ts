@@ -60,6 +60,7 @@ function phoneQr(): PluginOption {
 function keyProxy(): PluginOption {
   const apiKey = readLocalEnv('ELEVENLABS_API_KEY');
   const agentId = readLocalEnv('ELEVENLABS_AGENT_ID');
+  const coachVoice = readLocalEnv('ELEVENLABS_COACH_VOICE');
   const provider = resolveProvider();
   // Dev and preview servers share the connect stack, so one mount serves both hooks.
   const mount = (server: Pick<ViteDevServer, 'middlewares'>): void => {
@@ -67,8 +68,10 @@ function keyProxy(): PluginOption {
       console.log('  Keys: none in .env.local; WebSpeech carries the demo and the camera keeps its own cues');
       return;
     }
-    server.middlewares.use('/api/proxy', createKeyProxy({ apiKey, agentId, provider }));
-    console.log(`  ElevenLabs: ${apiKey ? `key proxy at /api/proxy, dispatcher agent ${agentId ? 'set' : 'NOT set'}` : 'off (no ELEVENLABS_API_KEY)'}`);
+    server.middlewares.use('/api/proxy', createKeyProxy({ apiKey, agentId, coachVoice, provider }));
+    console.log(
+      `  ElevenLabs: ${apiKey ? `key proxy at /api/proxy, dispatcher agent ${agentId ? 'set' : 'NOT set'}, coach voice ${coachVoice ? `"${coachVoice}"` : 'default'}` : 'off (no ELEVENLABS_API_KEY)'}`,
+    );
     console.log(`  Model: ${provider ? `${provider.model} (${provider.id}), serving ?flag=sceneAssess and ?flag=intentRoute` : 'off (no GEMINI_API_KEY or FEATHERLESS_API_KEY)'}`);
   };
   return { name: 'mayday-key-proxy', configureServer: mount, configurePreviewServer: mount };

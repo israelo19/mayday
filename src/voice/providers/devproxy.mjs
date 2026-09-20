@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // LOCAL stand-in for P4's /api/proxy (docs/04 TODO item 1), so the ElevenLabs voice and
 // dispatcher can be built and measured before the real DigitalOcean Function exists. The
-// API key and the agent id live HERE, server-side, read from the environment or .env.local;
-// they never reach the browser bundle (docs/01 threat model). Node only, never imported by
-// app code, and outside the *.ts globs so neither the test suite nor the bundle sees it.
+// API key, the agent id and the coach voice live HERE, server-side, read from the environment
+// or .env.local; they never reach the browser bundle (docs/01 threat model). Node only, never
+// imported by app code, and outside the *.ts globs so neither the test suite nor the bundle
+// sees it.
 //
 // Two ways to run it:
 //   1. In-process under Vite (the default): vite.config.ts mounts `createKeyProxy()` at
@@ -15,6 +16,10 @@
 //
 // Routes, relative to the mount point:
 //   POST /v1/text-to-speech/*        forwarded to ElevenLabs with the key header added
+//   GET  /voice                      { coach: { voiceId, voiceName } | null }: the coach voice
+//                                    named by ELEVENLABS_COACH_VOICE (a voice id or a name from
+//                                    the account's library), resolved once. null means "not set
+//                                    or not found": the browser keeps its default (Brian).
 //   GET  /dispatcher/session         { signedUrl, firstMessage } for the dispatcher agent named
 //                                    by ELEVENLABS_AGENT_ID; 404 when no agent is configured.
 //                                    firstMessage is the agent's configured opening line: the
@@ -36,6 +41,7 @@ import { readFileSync } from 'node:fs';
 const UPSTREAM = 'https://api.elevenlabs.io';
 const TTS_PREFIX = '/v1/text-to-speech/';
 const SESSION_ROUTE = '/dispatcher/session';
+const VOICE_ROUTE = '/voice';
 const VISION_ROUTE = '/vision/assess';
 const INTENT_ROUTE = '/intent/route';
 /**
@@ -159,9 +165,10 @@ function readBody(req) {
 /**
  * Request handler that adds the keys to the allowed upstream calls. Every key may be null: a
  * route whose key is missing answers 404 and the app keeps its local stub (the scripted
- * dispatcher, WebSpeech, no scene assessment).
+ * dispatcher, WebSpeech, no scene assessment). `coachVoice` may be null too: /voice answers
+ * `{ coach: null }` and the browser keeps its default voice.
  */
-export function createKeyProxy({ apiKey = null, agentId = null, provider = null }) {
+export function createKeyProxy({ apiKey = null, agentId = null, coachVoice = null, provider = null }) {
   if (!apiKey && !provider) throw new Error('createKeyProxy needs a key: ELEVENLABS_API_KEY, GEMINI_API_KEY or FEATHERLESS_API_KEY in .env.local.');
 
   const forward = async (path, init) => {
@@ -182,9 +189,34 @@ export function createKeyProxy({ apiKey = null, agentId = null, provider = null 
     return firstMessage;
   };
 
+  // The coach voice is configuration, fixed for the process: resolved once against the
+  // account's library, so a human can write "Daniel" instead of copying an id. A miss is
+  // logged once and answered as null, never as a silent different voice. The promise is what
+  // is kept, so two page loads racing the first answer share one library call.
+  const lookupCoachVoice = async () => {
+    if (!apiKey || !coachVoice?.trim()) return null; // no key: nothing to resolve against
+    const wanted = coachVoice.trim();
+    const upstream = await forward('/v1/voices', { method: 'GET', headers: {} });
+    const voices = upstream.ok ? ((await upstream.json()).voices ?? []) : [];
+    const byName = (test) => voices.find((v) => test(String(v.name).toLowerCase(), wanted.toLowerCase()));
+    const hit =
+      voices.find((v) => v.voice_id === wanted) ?? byName((name, w) => name === w) ?? byName((name, w) => name.startsWith(w));
+    if (!hit) {
+      console.warn(`  ElevenLabs: no voice matching ELEVENLABS_COACH_VOICE="${coachVoice}" in this account; the default coach voice speaks`);
+      return null;
+    }
+    console.log(`  ElevenLabs: coach voice ${hit.name} (${hit.voice_id})`);
+    return { voiceId: hit.voice_id, voiceName: hit.name };
+  };
+  let coachLookup;
+  const resolveCoachVoice = () => (coachLookup ??= lookupCoachVoice());
+
   return async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://proxy');
     try {
+      if (req.method === 'GET' && url.pathname === VOICE_ROUTE) {
+        return sendJson(res, 200, { coach: await resolveCoachVoice() });
+      }
       if (req.method === 'POST' && (url.pathname === VISION_ROUTE || url.pathname === INTENT_ROUTE)) {
         const wantsImage = url.pathname === VISION_ROUTE;
         if (!provider) return sendJson(res, 404, { error: 'No model key configured: GEMINI_API_KEY or FEATHERLESS_API_KEY' });
@@ -251,7 +283,8 @@ if (isMain) {
     process.exit(1);
   }
   const agentId = readLocalEnv('ELEVENLABS_AGENT_ID');
-  const handle = createKeyProxy({ apiKey, agentId, provider });
+  const coachVoice = readLocalEnv('ELEVENLABS_COACH_VOICE');
+  const handle = createKeyProxy({ apiKey, agentId, coachVoice, provider });
   const port = Number(process.argv[2] ?? 8788);
   createServer((req, res) => {
     // Dev CORS: a page on another port calls this directly. Under Vite it is same-origin.
