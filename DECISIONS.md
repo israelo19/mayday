@@ -567,3 +567,11 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   `parseIntent` is the single gate: 4 of 4 on three emergencies plus one genuinely ambiguous
   sentence. The free tier 429s after roughly six calls a minute, which is the demo's real
   constraint, not cost; both routes already return null on a 429 and the app carries on.
+- **Sat 20:20 (Ricky, `gemini-api` worktree)** Measured the intent router's variance on one
+  sentence, five identical calls at temperature 0: three matched, one abstained with `choice: 0`
+  and *high* confidence, one 429'd. So roughly three in four, the confidence field does not
+  separate the miss, and a retry is not affordable against this rate limit. Left as is, because
+  the failure mode is the designed one: no suggestion appears, the three buttons are still on
+  the screen, and the human was always going to confirm. The scene assessment is the steadier
+  Gemini demo and should lead. Featherless answered the same sentence correctly in 1.5 s if a
+  rehearsal needs determinism, one `MODEL_PROVIDER` away.
