@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { boxOf, postureOf, SceneTracker, STILL_MAX_SPEED, TRACK_KEEP_MS } from './scene';
+import { headOf } from './signal';
 import { LEFT_HIP, LEFT_SHOULDER, RIGHT_HIP, RIGHT_SHOULDER } from './signal';
 
 type Pt = { x: number; y: number; visibility: number };
@@ -76,5 +77,62 @@ describe('SceneTracker', () => {
     const drift = STILL_MAX_SPEED * 0.5; // per second, over one second
     const seen = tr.update([pose([0.3 + drift, 0.6], [0.6 + drift, 0.6])], 1000);
     expect(seen.people[0].stillMs).toBe(1000);
+  });
+
+  /**
+   * The regression the old tests could not see. Every other case here feeds a byte-identical
+   * pose, so the centre moves exactly zero and the threshold is never really exercised; the
+   * one moving case steps a whole second at a time. A real camera delivers a motionless
+   * person as a jittering one thirty times a second, and that used to read "moving" forever.
+   */
+  it('reads a motionless person as still despite landmark jitter, at any frame rate', () => {
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    const jittered = (amount: number) => {
+      const j = () => (rnd() * 2 - 1) * amount;
+      return pose([0.3 + j(), 0.6 + j()], [0.6 + j(), 0.6 + j()]);
+    };
+    for (const fps of [10, 30, 60]) {
+      const tr = new SceneTracker();
+      let best = 0;
+      for (let f = 0; f < fps * 3; f++) best = Math.max(best, tr.update([jittered(0.005)], (f * 1000) / fps).people[0].stillMs);
+      expect(best, `${fps} fps`).toBeGreaterThan(2000);
+    }
+  });
+
+  it('still calls real movement moving, at any frame rate', () => {
+    for (const fps of [10, 30, 60]) {
+      const tr = new SceneTracker();
+      let worst = Infinity;
+      // 0.3 widths per second, six times the threshold: unmistakably walking.
+      for (let f = 0; f < fps * 3; f++) {
+        const x = (f / fps) * 0.3;
+        worst = Math.min(worst, tr.update([pose([0.1 + x, 0.6], [0.4 + x, 0.6])], (f * 1000) / fps).people[0].stillMs);
+      }
+      expect(worst, `${fps} fps`).toBe(0);
+    }
+  });
+});
+
+describe('the head', () => {
+  it('is estimated above the ears, so the box holds the whole person', () => {
+    const lm = upright();
+    // Ears either side of the nose, a little above the shoulders.
+    lm[0] = { x: 0.5, y: 0.2, visibility: 0.9 };
+    lm[7] = { x: 0.47, y: 0.2, visibility: 0.9 };
+    lm[8] = { x: 0.53, y: 0.2, visibility: 0.9 };
+    const head = headOf(lm);
+    expect(head).not.toBeNull();
+    // The crown sits above the ear line, which is what BlazePose never marks.
+    expect(head!.cy - head!.r).toBeLessThan(0.2);
+    const box = boxOf(lm);
+    expect(box).not.toBeNull();
+    expect(box!.box.y).toBeLessThanOrEqual(head!.cy - head!.r);
+  });
+
+  it('is null when the shoulders are not visible, and never throws on a bare pose', () => {
+    const hidden = upright().map((p) => ({ ...p, visibility: 0 }));
+    expect(headOf(hidden)).toBeNull();
+    expect(() => headOf(upright())).not.toThrow();
   });
 });

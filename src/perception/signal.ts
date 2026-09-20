@@ -382,6 +382,55 @@ export function cameraGuidance(i: GuidanceInput): string | null {
 // Which person to measure when the camera sees two (docs/03 "Who the camera watches")
 // ---------------------------------------------------------------------------
 
+export const NOSE = 0;
+export const LEFT_EAR = 7;
+export const RIGHT_EAR = 8;
+/** A head landmark counts when at least this visible. */
+const HEAD_VISIBLE = 0.3;
+
+/**
+ * A circle over the head: centre and radius in normalized image units, or null when too
+ * little of the person shows.
+ *
+ * BlazePose marks the face but never the crown, so its topmost landmark is an eye or an ear.
+ * Anything derived from the raw landmarks alone therefore stops at the eyebrows, which is why
+ * the scene box used to cut a person's head off and the skeleton stopped at the shoulders.
+ * This estimates the rest of the skull.
+ *
+ * Ear to ear is the skull at its widest, so it sets the scale; a turned head collapses that
+ * distance, so shoulder span holds a floor under it. Ears and nose both sit below the crown,
+ * so the circle is pushed along the neck axis, which keeps it right for a person lying down
+ * or tilted rather than assuming up is up.
+ */
+export function headOf(lm: readonly LandmarkLike[]): { cx: number; cy: number; r: number } | null {
+  const ls = lm[LEFT_SHOULDER];
+  const rs = lm[RIGHT_SHOULDER];
+  if (!ls || !rs || Math.min(ls.visibility, rs.visibility) < HEAD_VISIBLE) return null;
+  const span = Math.hypot(ls.x - rs.x, ls.y - rs.y);
+  const le = lm[LEFT_EAR];
+  const re = lm[RIGHT_EAR];
+  const nose = lm[NOSE];
+  let ax: number;
+  let ay: number;
+  let r: number;
+  if (le && re && Math.min(le.visibility, re.visibility) >= HEAD_VISIBLE) {
+    ax = (le.x + re.x) / 2;
+    ay = (le.y + re.y) / 2;
+    r = Math.max(Math.hypot(le.x - re.x, le.y - re.y) * 0.85, span * 0.25);
+  } else if (nose && nose.visibility >= HEAD_VISIBLE) {
+    ax = nose.x;
+    ay = nose.y;
+    r = span * 0.3;
+  } else {
+    return null;
+  }
+  const dx = ax - shoulderMidX(lm);
+  const dy = ay - shoulderMidY(lm);
+  const len = Math.hypot(dx, dy);
+  if (len === 0) return { cx: ax, cy: ay, r };
+  return { cx: ax + (dx / len) * r * 0.35, cy: ay + (dy / len) * r * 0.35, r };
+}
+
 export const LEFT_HIP = 23;
 export const RIGHT_HIP = 24;
 

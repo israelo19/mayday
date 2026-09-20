@@ -704,3 +704,22 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   that fits its second job, the rewording (item 5), which is provider-agnostic and so is
   `ModelNarrationFlavor`. Nothing from the parallel build was pushed; it lives only in this
   entry.
+- **Sat 23:05 (Ricky, `perception-hud` worktree)** Three HUD bugs the eyes made obvious on a
+  phone, none of which touched a decision. One: the scene box cut people's heads off, because
+  BlazePose marks the face but never the crown, so the topmost landmark is an eye or an ear
+  and a landmark-only box stops at the eyebrows. `headOf` in signal.ts estimates the skull
+  from ear to ear with shoulder span as a floor under a turned head, pushed along the neck
+  axis so a lying person's head goes sideways rather than up; `boxOf` widens to hold it. Two:
+  the skeleton ended at the shoulders, because the eleven face landmarks were filtered out as
+  noise, which they are individually. The same circle plus a neck draws the head instead, so
+  the figure reads as a person. Three, the real bug: the stillness label read "moving" forever.
+  Speed was the raw frame-to-frame step over the frame interval, and landmark noise does not
+  shrink as frames get closer together while the allowance does, so at 30 fps the centre was
+  allowed about one pixel of a 640 px frame and a faster camera was stricter than a slow one.
+  The centre is now smoothed over `STILL_SMOOTH_MS` before its speed is taken, which puts a
+  floor under the interval: measured, a motionless person with 2% landmark jitter reads still
+  at 10, 30 and 60 fps, and 0.3 widths per second still reads moving at all three. The old
+  tests could not catch it because every stillness case fed a byte-identical pose, so the step
+  was exactly zero; the one moving case stepped a whole second. Both gaps now have tests.
+  Nothing here reaches triage: `PersonDownDetector` is torso angle and a hold, and `stillMs`
+  and the box are read only by `drawPeople`.
