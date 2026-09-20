@@ -81,9 +81,15 @@ export const MODEL_PROVIDERS = {
     keyEnv: 'XAI_API_KEY',
     modelEnv: 'XAI_MODEL',
     // The HopHacks xAI credits. Classification and rewording need no reasoning pass, and the
-    // fast non-reasoning tier answers in well under a second. Chosen for the text routes; the
+    // non-reasoning tier answers in well under a second. Chosen for the text routes; the
     // scene frame has not been tried on it, so keep a Gemini or Featherless key for that.
-    defaultModel: 'grok-4-1-fast-non-reasoning',
+    //
+    // The id matters more than it looks. grok-4-1-fast-non-reasoning is not on this account's
+    // model list, and xAI does not say so: it quietly served grok-4.3, which thinks first.
+    // Measured on the intent prompt, five sentences each: grok-4.3 answered 3/5 with a median
+    // of 4.8 s and every call over the router's 3 s budget; grok-4.5 3/5 at 3.8 s; this one
+    // 4/5 at 580 ms with nothing over budget. A wrong model id here reads as a flaky feature.
+    defaultModel: 'grok-4.20-0309-non-reasoning',
     // Which is enforced rather than remembered: the frame route skips this provider, so
     // MODEL_PROVIDER=xai gives Grok the text routes and leaves the camera frame on Gemini.
     vision: false,

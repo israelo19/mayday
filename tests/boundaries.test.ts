@@ -101,13 +101,10 @@ describe('a human dials 911 (principle 5)', () => {
     expect(offenders).toEqual([]);
   });
 
-  // The disclosure moved off the call panel and onto LAUNCH, so the call reads like the real
-  // one will. It still has to exist, and it has to be somewhere everyone passes through.
-  it('says on the launch screen that the dispatcher is not a real line', () => {
-    const launch = readFileSync('web/ui/LaunchScreen.tsx', 'utf8');
-    expect(launch).toMatch(/simulated dispatcher/i);
-    expect(launch).toMatch(/not a real emergency line/i);
-  });
+  // The launch screen carried a written disclosure until the owner removed it. What still
+  // holds, and is what these tests are really for, is that the app cannot reach a real line:
+  // no tel: link, no telephony, and nothing in the live UI claiming to be one. If the
+  // disclosure comes back, assert it here again.
 
   it('never calls the dispatcher simulated on the live screen or the call panel', () => {
     for (const f of ['web/ui/live/LiveApp.tsx', 'web/ui/live/DispatcherPanel.tsx']) {
