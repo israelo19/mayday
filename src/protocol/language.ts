@@ -137,6 +137,15 @@ function nextWithin(text: readonly string[], from: number, word: string, gap: nu
   return -1;
 }
 
+/**
+ * True when the word at `i` is flipped by a negation directly before it. One word of lookback,
+ * the same reach `negatedAt` gives a phrase, so the cue scorer and the keyword matcher agree
+ * about what "no blood" and "not choking" mean.
+ */
+export function negatedWord(text: readonly string[], i: number): boolean {
+  return i > 0 && NEGATION.has(text[i - 1]);
+}
+
 function negatedAt(text: readonly string[], start: number, phrase: readonly string[]): boolean {
   if (start === 0) return false;
   const prev = text[start - 1];

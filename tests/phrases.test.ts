@@ -44,3 +44,22 @@ describe('triage phrases', () => {
     for (const r of TRIAGE_ROUTES) expect(all).toContain(routeKeyword(r));
   });
 });
+
+
+describe('the cue scorer and the person who said the words', () => {
+  it('leaves the router its sentence', () => {
+    // The cues are meant to miss this one so the intent router has something real to catch.
+    expect(suggestRoute('the poor man went down in the hallway and he is grey')).toBeNull();
+  });
+
+  it('does not count a cue the person negated', () => {
+    expect(suggestRoute('there is no blood anywhere')).toBeNull();
+    expect(suggestRoute('he is not choking he just fainted')).toBeNull();
+    expect(suggestRoute('the ambulance is not here yet')).toBeNull();
+  });
+
+  it('still asks when the cue is not negated', () => {
+    expect(suggestRoute('there is blood everywhere on the floor')?.route.label).toBe('Shot or bleeding');
+    expect(suggestRoute('he was eating steak and now hes clutching at his neck')?.route.label).toBe('Choking');
+  });
+});

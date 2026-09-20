@@ -94,20 +94,29 @@ export const MODEL_PROVIDERS = {
 export const DEFAULT_PROVIDER = 'gemini';
 /** A 640 px JPEG is well under this; anything bigger is not a frame from the app. */
 const MAX_IMAGE_CHARS = 2_000_000;
-const ENV_LOCAL = new URL('../../../.env.local', import.meta.url);
+/**
+ * Both are read, .env.local first, because both are what people actually create: .env.example
+ * says to copy it to .env.local, and the habit of every other project says .env. A key in one
+ * and not the other used to be simply invisible, with no error and no log line, which reads
+ * exactly like a key that does not work. Both are gitignored.
+ */
+const ENV_FILES = [new URL('../../../.env.local', import.meta.url), new URL('../../../.env', import.meta.url)];
 
-/** Value of `name` from the environment, else from .env.local, else null. */
+/** Value of `name` from the environment, else from .env.local, else .env, else null. */
 export function readLocalEnv(name) {
   if (process.env[name]) return process.env[name];
-  try {
-    const line = readFileSync(ENV_LOCAL, 'utf8')
-      .split('\n')
-      .find((l) => l.startsWith(`${name}=`));
-    const value = line?.slice(name.length + 1).trim();
-    return value ? value : null;
-  } catch {
-    return null; // no .env.local: the caller decides whether that is fatal
+  for (const file of ENV_FILES) {
+    try {
+      const line = readFileSync(file, 'utf8')
+        .split('\n')
+        .find((l) => l.startsWith(`${name}=`));
+      const value = line?.slice(name.length + 1).trim();
+      if (value) return value;
+    } catch {
+      continue; // absent is normal: the other file, or the caller, decides
+    }
   }
+  return null;
 }
 
 /**

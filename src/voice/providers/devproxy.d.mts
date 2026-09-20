@@ -2,7 +2,7 @@
 // plain JavaScript on purpose: it is a Node script that also runs standalone (see its header).
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-/** Value of `name` from the environment, else from .env.local, else null. */
+/** Value of `name` from the environment, else from .env.local, else .env, else null. */
 export function readLocalEnv(name: string): string | null;
 
 export type ProviderId = 'gemini' | 'featherless' | 'xai';

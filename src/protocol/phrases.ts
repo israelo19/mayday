@@ -8,7 +8,7 @@
 // Owned by P2 (docs/07); built on `polish`. Keep entries in canonical inflection: "choking"
 // covers choke/choked/chokes through the stemmer, listing more than one would be a duplicate.
 import type { SceneHint, SceneLabel } from '../types';
-import { stemKey, tokens } from './language';
+import { negatedWord, stemKey, tokens } from './language';
 
 export type TriageRoute = {
   to: string;
@@ -51,6 +51,9 @@ export const TRIAGE_ROUTES: readonly TriageRoute[] = [
       'dropped dead',
       'flatlined',
     ],
+    // No grey/gray/ashen here on purpose: "the poor man went down in the hallway and he is
+    // grey" is the sentence the cues are meant to miss, so the intent router has something
+    // real to catch (README, and web/session.test.ts asserts the router is the one asked).
     cues: { heart: 2, puls: 2, collaps: 2, unconscious: 2, unrespons: 2, faint: 1, blue: 1, dead: 2, dying: 1, cpr: 2, cardiac: 2, arrest: 1, wak: 1, lifeless: 2, drop: 1, fell: 1, breath: 1, limp: 1, motionless: 2 },
   },
   {
@@ -163,16 +166,21 @@ export const SUGGEST_MIN_MARGIN = 1;
 /**
  * The most likely route for a sentence no keyword matched, or null when the cues are too weak
  * or too evenly split to ask about. Cue stems are compared to the stemmed transcript words
- * with the same one-letter slack the matcher uses.
+ * with the same one-letter slack the matcher uses, and a negated cue does not count: the
+ * matcher has always refused "it's not safe" as safe, while the scorer read "there is no blood
+ * anywhere" as bleeding and "he is not choking, he just fainted" as choking, which is the
+ * person being contradicted by the phone in the one sentence where they were most explicit.
  */
 export function suggestRoute(transcript: string, routes: readonly TriageRoute[] = TRIAGE_ROUTES): Suggestion | null {
   const words = tokens(transcript);
   if (words.length === 0) return null;
+  const hits = (cue: string): boolean =>
+    words.some((w, i) => (w === cue || (cue.length >= 4 && w.startsWith(cue))) && !negatedWord(words, i));
   const scored = routes
     .map((route) => {
       let score = 0;
       for (const [cue, weight] of Object.entries(route.cues)) {
-        if (words.some((w) => w === cue || (cue.length >= 4 && w.startsWith(cue)))) score += weight;
+        if (hits(cue)) score += weight;
       }
       return { route, score };
     })
