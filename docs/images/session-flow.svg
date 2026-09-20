@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" width="1200" height="420" role="img" aria-label="A session in seven steps: tap I NEED HELP; say what happened; follow the beat at 110; get corrected when the camera reads your rate; keep going by voice when the lens is covered; call 911 and read the SITREP; hand a timeline to the paramedics.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4b5563"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #e8eaed; }
+    .h { font-size: 30px; font-weight: 700; }
+    .sub { font-size: 16px; fill: #9aa3b2; }
+    .num { font-size: 13px; font-weight: 800; fill: #0b0d10; }
+    .t { font-size: 17px; font-weight: 700; }
+    .b { font-size: 14px; fill: #c7cdd6; }
+    .q { font-size: 14px; fill: #fbbf24; }
+    .foot { font-size: 14px; fill: #9aa3b2; }
+    .mint { fill: #34d399; } .red { fill: #ff3b30; } .blue { fill: #60a5fa; } .amber { fill: #fbbf24; }
+  </style>
+  <rect width="1200" height="420" rx="18" fill="#0b0d10"/>
+
+  <text class="h" x="48" y="56">A session, in seven steps</text>
+  <text class="sub" x="48" y="84">Cardiac arrest, the demo case. Every spoken line below is a line from the published guideline.</text>
+
+  <!-- card 1: tap -->
+  <rect x="48" y="112" width="144" height="236" rx="14" fill="#171a21" stroke="#2a2f3a"/>
+  <circle cx="70" cy="134" r="11" fill="#ff3b30"/><text class="num" x="70" y="139" text-anchor="middle">1</text>
+  <rect x="76" y="160" width="88" height="40" rx="8" fill="#ff3b30"/>
+  <text x="120" y="185" text-anchor="middle" font-size="11" font-weight="800" fill="#ffffff">I NEED HELP</text>
+  <text class="t" x="120" y="236" text-anchor="middle">Tap</text>
+  <text class="b" x="120" y="262" text-anchor="middle">One button.</text>
+  <text class="b" x="120" y="282" text-anchor="middle">No menu,</text>
+  <text class="b" x="120" y="302" text-anchor="middle">no sign-up.</text>
+
+  <line x1="196" y1="230" x2="210" y2="230" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- card 2: say -->
+  <rect x="208" y="112" width="144" height="236" rx="14" fill="#171a21" stroke="#2a2f3a"/>
+  <circle cx="230" cy="134" r="11" fill="#ff3b30"/><text class="num" x="230" y="139" text-anchor="middle">2</text>
+  <rect x="272" y="156" width="16" height="28" rx="8" fill="#60a5fa"/>
+  <path d="M 266 178 a 14 14 0 0 0 28 0" fill="none" stroke="#60a5fa" stroke-width="3"/>
+  <line x1="280" y1="192" x2="280" y2="200" stroke="#60a5fa" stroke-width="3"/>
+  <text class="t" x="280" y="236" text-anchor="middle">Say it</text>
+  <text class="q" x="280" y="262" text-anchor="middle">"He's not breathing"</text>
+  <text class="b" x="280" y="282" text-anchor="middle">routes to CPR.</text>
+  <text class="b" x="280" y="302" text-anchor="middle">Or tap the button.</text>
+
+  <line x1="356" y1="230" x2="370" y2="230" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- card 3: the beat -->
+  <rect x="368" y="112" width="144" height="236" rx="14" fill="#171a21" stroke="#2a2f3a"/>
+  <circle cx="390" cy="134" r="11" fill="#ff3b30"/><text class="num" x="390" y="139" text-anchor="middle">3</text>
+  <path d="M 440 182 c -10 -10 -26 -6 -26 8 c 0 12 26 26 26 26 c 0 0 26 -14 26 -26 c 0 -14 -16 -18 -26 -8 z" fill="#ff3b30"/>
+  <text class="t" x="440" y="236" text-anchor="middle">Follow the beat</text>
+  <text class="b" x="440" y="262" text-anchor="middle">110 a minute.</text>
+  <text class="q" x="440" y="282" text-anchor="middle">"Push hard and fast."</text>
+  <text class="b" x="440" y="302" text-anchor="middle">A picture per step.</text>
+
+  <line x1="516" y1="230" x2="530" y2="230" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- card 4: corrected -->
+  <rect x="528" y="112" width="144" height="236" rx="14" fill="#171a21" stroke="#2a2f3a"/>
+  <circle cx="550" cy="134" r="11" fill="#ff3b30"/><text class="num" x="550" y="139" text-anchor="middle">4</text>
+  <polyline points="560,192 572,192 580,168 592,212 604,176 612,204 620,192 640,192" fill="none" stroke="#34d399" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <text class="t" x="600" y="236" text-anchor="middle">Get corrected</text>
+  <text class="b" x="600" y="262" text-anchor="middle">The camera reads</text>
+  <text class="b" x="600" y="282" text-anchor="middle">your rate.</text>
+  <text class="q" x="600" y="302" text-anchor="middle">"Faster. Push with</text>
+  <text class="q" x="600" y="322" text-anchor="middle">the beat."</text>
+
+  <line x1="676" y1="230" x2="690" y2="230" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- card 5: blind -->
+  <rect x="688" y="112" width="144" height="236" rx="14" fill="#171a21" stroke="#2a2f3a"/>
+  <circle cx="710" cy="134" r="11" fill="#ff3b30"/><text class="num" x="710" y="139" text-anchor="middle">5</text>
+  <path d="M 736 190 q 24 -26 48 0 q -24 26 -48 0 z" fill="none" stroke="#fbbf24" stroke-width="3"/>
+  <circle cx="760" cy="190" r="6" fill="#fbbf24"/>
+  <line x1="740" y1="210" x2="780" y2="170" stroke="#fbbf24" stroke-width="3" stroke-linecap="round"/>
+  <text class="t" x="760" y="236" text-anchor="middle">Lens covered?</text>
+  <text class="q" x="760" y="262" text-anchor="middle">"I'll keep coaching</text>
+  <text class="q" x="760" y="282" text-anchor="middle">by voice."</text>
+  <text class="b" x="760" y="302" text-anchor="middle">The beat continues.</text>
+
+  <line x1="836" y1="230" x2="850" y2="230" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- card 6: call 911 -->
+  <rect x="848" y="112" width="144" height="236" rx="14" fill="#171a21" stroke="#2a2f3a"/>
+  <circle cx="870" cy="134" r="11" fill="#ff3b30"/><text class="num" x="870" y="139" text-anchor="middle">6</text>
+  <rect x="884" y="164" width="72" height="30" rx="6" fill="#ff3b30"/>
+  <text x="920" y="184" text-anchor="middle" font-size="12" font-weight="800" fill="#ffffff">CALL 911</text>
+  <text class="t" x="920" y="236" text-anchor="middle">You call</text>
+  <text class="b" x="920" y="262" text-anchor="middle">The app shows what</text>
+  <text class="b" x="920" y="282" text-anchor="middle">to say: where, what,</text>
+  <text class="b" x="920" y="302" text-anchor="middle">how long, the rate.</text>
+
+  <line x1="996" y1="230" x2="1010" y2="230" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- card 7: handoff -->
+  <rect x="1008" y="112" width="144" height="236" rx="14" fill="#171a21" stroke="#2a2f3a"/>
+  <circle cx="1030" cy="134" r="11" fill="#ff3b30"/><text class="num" x="1030" y="139" text-anchor="middle">7</text>
+  <g fill="#e8eaed">
+    <rect x="1062" y="162" width="9" height="9"/><rect x="1075" y="162" width="9" height="9"/><rect x="1101" y="162" width="9" height="9"/>
+    <rect x="1062" y="175" width="9" height="9"/><rect x="1088" y="175" width="9" height="9"/><rect x="1101" y="175" width="9" height="9"/>
+    <rect x="1075" y="188" width="9" height="9"/><rect x="1088" y="188" width="9" height="9"/>
+    <rect x="1062" y="201" width="9" height="9"/><rect x="1101" y="201" width="9" height="9"/>
+  </g>
+  <text class="t" x="1080" y="236" text-anchor="middle">Handoff</text>
+  <text class="b" x="1080" y="262" text-anchor="middle">Ambulance is here.</text>
+  <text class="b" x="1080" y="282" text-anchor="middle">A timeline and a QR</text>
+  <text class="b" x="1080" y="302" text-anchor="middle">for the paramedics.</text>
+
+  <text class="foot" x="48" y="386">Bleeding runs the same way on its own script: are you safe first, then press, then "Don't let go!" the moment both hands leave the wound.</text>
+  <text class="foot" x="48" y="406">Wifi off at any point: the coaching, the corrections, the beat and the voice all continue.</text>
+</svg>

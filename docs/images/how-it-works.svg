@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="1200" height="660" role="img" aria-label="How Mayday works. The phone's camera and microphone feed the Eyes and the ears. The Brain follows the published first-aid script. The Voice speaks each line and keeps the beat. You answer by tapping or speaking. Gemini and ElevenLabs are optional cloud helpers that are never in charge. When paramedics arrive, the phone shows a timeline.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9aa3b2"/>
+    </marker>
+    <marker id="arrowdim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#60a5fa"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #e8eaed; }
+    .h { font-size: 30px; font-weight: 700; }
+    .sub { font-size: 16px; fill: #9aa3b2; }
+    .title { font-size: 22px; font-weight: 800; letter-spacing: 1px; }
+    .body { font-size: 16px; fill: #e8eaed; }
+    .note { font-size: 14px; fill: #9aa3b2; }
+    .lbl { font-size: 14px; fill: #9aa3b2; }
+    .you { font-size: 16px; fill: #e8eaed; }
+    .cloud { font-size: 16px; fill: #cfe3ff; }
+    .mint { fill: #34d399; } .red { fill: #ff3b30; } .blue { fill: #60a5fa; } .amber { fill: #fbbf24; }
+  </style>
+  <rect width="1200" height="660" rx="18" fill="#0b0d10"/>
+
+  <text class="h" x="48" y="56">How Mayday works, in one picture</text>
+  <text class="sub" x="48" y="84">Three parts on the phone do the work. Two cloud helpers make it better when the network is there. Neither is ever in charge.</text>
+
+  <!-- the phone -->
+  <rect x="48" y="118" width="176" height="300" rx="26" fill="#171a21" stroke="#2a2f3a" stroke-width="2"/>
+  <rect x="112" y="128" width="48" height="6" rx="3" fill="#2a2f3a"/>
+  <text class="title" x="136" y="170" text-anchor="middle" font-size="18">YOUR PHONE</text>
+  <!-- camera icon -->
+  <circle cx="96" cy="215" r="16" fill="none" stroke="#34d399" stroke-width="3"/>
+  <circle cx="96" cy="215" r="6" fill="#34d399"/>
+  <text class="body" x="122" y="221">Camera</text>
+  <!-- mic icon -->
+  <rect x="88" y="248" width="16" height="26" rx="8" fill="#60a5fa"/>
+  <path d="M 82 268 a 14 14 0 0 0 28 0" fill="none" stroke="#60a5fa" stroke-width="3"/>
+  <line x1="96" y1="282" x2="96" y2="290" stroke="#60a5fa" stroke-width="3"/>
+  <text class="body" x="122" y="271">Microphone</text>
+  <text class="note" x="136" y="330" text-anchor="middle">No app store.</text>
+  <text class="note" x="136" y="352" text-anchor="middle">No account.</text>
+  <text class="note" x="136" y="374" text-anchor="middle">No signal needed</text>
+  <text class="note" x="136" y="396" text-anchor="middle">for the coaching.</text>
+
+  <!-- arrows phone to eyes/ears -->
+  <line x1="226" y1="215" x2="262" y2="215" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- EYES -->
+  <rect x="266" y="118" width="272" height="240" rx="16" fill="#171a21" stroke="#34d399" stroke-width="2"/>
+  <circle cx="292" cy="150" r="7" fill="#34d399"/>
+  <text class="title mint" x="308" y="157">EYES</text>
+  <text class="body" x="290" y="192">Watches the helper,</text>
+  <text class="body" x="290" y="216">not the patient.</text>
+  <text class="body" x="290" y="246">Counts the pushes.</text>
+  <text class="body" x="290" y="270">Reads the rate.</text>
+  <text class="body" x="290" y="294">Sees hands leave the wound.</text>
+  <text class="note" x="290" y="334">Says so when it cannot see.</text>
+
+  <!-- arrow eyes -> brain -->
+  <line x1="540" y1="238" x2="574" y2="238" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text class="lbl" x="557" y="226" text-anchor="middle">facts</text>
+
+  <!-- BRAIN -->
+  <rect x="578" y="118" width="272" height="240" rx="16" fill="#171a21" stroke="#ff3b30" stroke-width="2"/>
+  <circle cx="604" cy="150" r="7" fill="#ff3b30"/>
+  <text class="title red" x="620" y="157">BRAIN</text>
+  <text class="body" x="602" y="192">The published first-aid</text>
+  <text class="body" x="602" y="216">steps, written as a script</text>
+  <text class="body" x="602" y="240">it follows line by line.</text>
+  <text class="body" x="602" y="274">AHA. Stop the Bleed.</text>
+  <text class="body" x="602" y="298">Red Cross.</text>
+  <text class="note" x="602" y="334">No AI writes a step. Ever.</text>
+
+  <!-- arrow brain -> voice -->
+  <line x1="852" y1="238" x2="886" y2="238" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text class="lbl" x="869" y="226" text-anchor="middle">the line</text>
+
+  <!-- VOICE -->
+  <rect x="890" y="118" width="262" height="240" rx="16" fill="#171a21" stroke="#60a5fa" stroke-width="2"/>
+  <circle cx="916" cy="150" r="7" fill="#60a5fa"/>
+  <text class="title blue" x="932" y="157">VOICE</text>
+  <text class="body" x="914" y="192">Speaks each step.</text>
+  <text class="body" x="914" y="216">Keeps the beat at 110.</text>
+  <text class="body" x="914" y="246">Corrects you within</text>
+  <text class="body" x="914" y="270">a second:</text>
+  <text class="body amber" x="914" y="298">"Faster. Push with the beat."</text>
+  <text class="note" x="914" y="334">Works with the network off.</text>
+
+  <!-- YOU -->
+  <rect x="266" y="390" width="886" height="76" rx="16" fill="#171a21" stroke="#2a2f3a" stroke-width="2"/>
+  <text class="title" x="292" y="422" font-size="20">YOU</text>
+  <text class="you" x="352" y="418">Say what is happening. Answer yes or no. Tap NEXT. Press CALL 911 and read the script on screen.</text>
+  <text class="note" x="352" y="446">Every voice command is also a button. The app never dials.</text>
+  <!-- arrow you -> brain -->
+  <line x1="714" y1="388" x2="714" y2="362" stroke="#9aa3b2" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text class="lbl" x="726" y="380">answers</text>
+
+  <!-- cloud helpers -->
+  <rect x="266" y="496" width="886" height="132" rx="16" fill="#0f1a2c" stroke="#60a5fa" stroke-width="2" stroke-dasharray="8 6"/>
+  <text class="title blue" x="292" y="528" font-size="18">CLOUD HELPERS</text>
+  <text class="note" x="292" y="552">Optional. Off by default. Never in charge. Mayday is complete without them.</text>
+  <text class="cloud" x="292" y="582"><tspan font-weight="700">Gemini API</tspan>  looks at one photo, once, and asks a question:</text>
+  <text class="cloud" x="292" y="606">"It looks like someone is bleeding badly. Say yes, or tap."</text>
+  <text class="cloud" x="740" y="582"><tspan font-weight="700">ElevenLabs</tspan>  gives the coach a calm human voice</text>
+  <text class="cloud" x="740" y="606">and plays the 911 call-taker in the demo.</text>
+  <!-- dotted arrows from cloud up to the loop -->
+  <line x1="402" y1="494" x2="402" y2="470" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowdim)"/>
+  <line x1="1020" y1="494" x2="1020" y2="470" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrowdim)"/>
+
+  <!-- handoff -->
+  <rect x="48" y="450" width="176" height="174" rx="16" fill="#171a21" stroke="#2a2f3a" stroke-width="2"/>
+  <text class="title" x="136" y="482" text-anchor="middle" font-size="16">HANDOFF</text>
+  <!-- tiny QR -->
+  <g fill="#e8eaed">
+    <rect x="112" y="496" width="10" height="10"/><rect x="126" y="496" width="10" height="10"/><rect x="154" y="496" width="10" height="10"/>
+    <rect x="112" y="510" width="10" height="10"/><rect x="140" y="510" width="10" height="10"/><rect x="154" y="510" width="10" height="10"/>
+    <rect x="126" y="524" width="10" height="10"/><rect x="140" y="524" width="10" height="10"/>
+    <rect x="112" y="538" width="10" height="10"/><rect x="154" y="538" width="10" height="10"/>
+  </g>
+  <text class="note" x="136" y="576" text-anchor="middle">Paramedics arrive:</text>
+  <text class="note" x="136" y="596" text-anchor="middle">a timeline of what</text>
+  <text class="note" x="136" y="616" text-anchor="middle">happened, and a QR.</text>
+
+  <text class="note" x="1152" y="650" text-anchor="end">Wifi off? Eyes, Brain and Voice keep working.</text>
+</svg>
