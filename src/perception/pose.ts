@@ -11,9 +11,18 @@ export const POSE_MODEL_URL = `${base}/models/pose_landmarker_lite.task`;
 type VisionFileset = Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>;
 let filesetPromise: Promise<VisionFileset> | null = null;
 
-/** The WASM fileset is shared by every MediaPipe task (pose now, hands in M3). */
+/**
+ * The WASM fileset is shared by every MediaPipe task (pose now, hands in M3).
+ *
+ * A REJECTED promise is never kept. The runtime is ~11 MB and the phone fetches it over the
+ * LAN, so one dropped request is normal; caching that rejection would blind the camera for
+ * the life of the page and leave a reload as the only way back.
+ */
 export function loadVisionFileset(): Promise<VisionFileset> {
-  filesetPromise ??= FilesetResolver.forVisionTasks(WASM_URL);
+  filesetPromise ??= FilesetResolver.forVisionTasks(WASM_URL).catch((err: unknown) => {
+    filesetPromise = null;
+    throw err;
+  });
   return filesetPromise;
 }
 

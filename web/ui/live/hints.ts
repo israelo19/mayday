@@ -38,19 +38,31 @@ export function voiceOffLabel(code: string | null, platform: Platform, supported
 export const TRIAGE_LOOK_MS = 3000;
 /** With a frame out to the scene model, the look may run this long before the card comes up anyway. */
 export const TRIAGE_LOOK_MAX_MS = 7000;
+/**
+ * The longest the look card waits on a camera that has not answered. Past this the question
+ * and its three buttons come up regardless, because audio-and-buttons is the floor the app
+ * promises (CLAUDE.md principle 4) and a permission sheet must never sit below it.
+ */
+export const CAMERA_WAIT_MAX_MS = 12000;
 
 export type LookInput = {
   phase: string;
   /** The eyes chip's status: only a camera that exists gets a look. */
-  eyesStatus: 'off' | 'starting' | 'watching' | 'blind' | 'error';
+  eyesStatus: 'off' | 'starting' | 'awaiting' | 'watching' | 'blind' | 'error';
   /** A suggestion (from the camera or the mic) ends the look: there is something to answer. */
   suggestion: boolean;
   /** The person tapped the look card. */
   revealed: boolean;
   /** A frame is with the scene model; its answer is worth a short wait. */
   assessing?: boolean;
-  /** Milliseconds since triage was entered. */
+  /**
+   * Milliseconds since the camera settled, not since the tap. Behind an unanswered permission
+   * sheet the two are wildly different, and the sheet is exactly when the person is not looking
+   * at our screen. See `SessionSnapshot.eyesReadyAt`.
+   */
   sinceMs: number;
+  /** Milliseconds since triage was entered, which is the tap. Only the ceiling uses it. */
+  sinceTriageMs: number;
 };
 
 /**
@@ -62,6 +74,11 @@ export type LookInput = {
 export function isLooking(i: LookInput): boolean {
   if (i.phase !== 'triage' || i.revealed || i.suggestion) return false;
   if (i.eyesStatus === 'off' || i.eyesStatus === 'error') return false;
+  // The camera has not answered yet: hold the look card rather than count a window down
+  // against a model download or a permission sheet, which is what used to put the question
+  // card up before the eyes had opened. The ceiling is the safety valve: a sheet nobody
+  // answers must not keep the three buttons off the screen for the rest of the emergency.
+  if (i.eyesStatus === 'starting' || i.eyesStatus === 'awaiting') return i.sinceTriageMs < CAMERA_WAIT_MAX_MS;
   if (i.assessing && i.sinceMs < TRIAGE_LOOK_MAX_MS) return true;
   return i.sinceMs < TRIAGE_LOOK_MS;
 }

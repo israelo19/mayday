@@ -41,9 +41,11 @@ export type ButtonTwin = { label: string; keyword: string; to: string };
 
 /**
  * What the camera is doing right now, for the screen: `error` is a refused or missing camera,
- * `blind` is a running camera that cannot see a rescuer (docs/03 confidence gate).
+ * `blind` is a running camera that cannot see a rescuer (docs/03 confidence gate), `awaiting`
+ * is a permission prompt the person has not answered yet. `awaiting` is kept apart from
+ * `starting` because nothing timed should run while a modal sheet owns the screen.
  */
-export type EyesStatus = 'off' | 'starting' | 'watching' | 'blind' | 'error';
+export type EyesStatus = 'off' | 'starting' | 'awaiting' | 'watching' | 'blind' | 'error';
 export type Eyes = {
   status: EyesStatus;
   /** Frames processed in the last second; 0 until the loop runs. */
@@ -71,6 +73,12 @@ export type SessionSnapshot = {
   lineIndex: number;
   /** When the current state was entered (session clock), so the screen can shrink a read card. */
   stateEnteredAt: number;
+  /**
+   * When the camera first stopped being an open question (running, blind, off or refused), or
+   * null while a model download or an unanswered permission sheet still owns the answer. The
+   * opening camera-first look is measured from here; the tap is too early to mean anything.
+   */
+  eyesReadyAt: number | null;
   /** The app itself is talking; the mic is muted for echo while this is true (docs/09). */
   speaking: boolean;
   twins: readonly ButtonTwin[];
@@ -220,6 +228,7 @@ export function createSession(deps: SessionDeps): Session {
   let beatOriginMs = 0;
   let guidance: string | null = null;
   let stateEnteredAt = 0;
+  let eyesReadyAt: number | null = null;
   let guidanceSpokenAt = -Infinity;
   let listening: VoiceInStatus = 'stopped';
   let listenError: string | null = null;
@@ -602,6 +611,7 @@ export function createSession(deps: SessionDeps): Session {
     return {
       status:
         status === 'error' ? 'error'
+        : status === 'awaiting-permission' ? 'awaiting'
         : status === 'loading-model' || status === 'starting-camera' || status === 'idle' ? 'starting'
         : running ? (blindNow() || !facts ? 'blind' : 'watching')
         : 'off',
@@ -618,6 +628,11 @@ export function createSession(deps: SessionDeps): Session {
     const state = cur?.state ?? null;
     const machineId = cur?.machineId ?? null;
     const t = now();
+    const eyes = eyesNow();
+    // The first moment the camera stopped being an open question, one way or the other. The
+    // screen's opening timers run from here, not from the tap, because the stretch in between
+    // is a model download and a permission sheet whose length nobody can predict.
+    if (eyesReadyAt === null && eyes.status !== 'starting' && eyes.status !== 'awaiting') eyesReadyAt = t;
     return {
       phase,
       machineId,
@@ -627,6 +642,7 @@ export function createSession(deps: SessionDeps): Session {
       lines: state?.say ?? [],
       lineIndex: lineIndexOf(state),
       stateEnteredAt,
+      eyesReadyAt,
       speaking: voice.out.isSpeaking(),
       twins: twinsOf(state),
       canAdvance: !!state && !state.terminal && state.transitions.some((tr) => tr.on.kind === 'manualAdvance'),
@@ -636,7 +652,7 @@ export function createSession(deps: SessionDeps): Session {
       facts,
       coaching,
       blind: blindNow(),
-      eyes: eyesNow(),
+      eyes,
       guidance,
       listening,
       listenError,
@@ -716,6 +732,7 @@ export function createSession(deps: SessionDeps): Session {
       geoRequested = false;
       roiAnnouncedFor = null;
       cameraSaw = null;
+      eyesReadyAt = null;
       assessment = null;
       assessing = false;
       assessTries = 0;

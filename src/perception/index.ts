@@ -43,7 +43,20 @@ export type { Sample, Tuning } from './signal';
 export { DEFAULT_TUNING, TUNING_RANGES, GUIDANCE } from './signal';
 export { primeMediaPermissions } from './camera';
 
-export type PerceptionStatus = 'idle' | 'loading-model' | 'starting-camera' | 'running' | 'stopped' | 'error';
+/**
+ * `awaiting-permission` is the stretch where getUserMedia has been called and the browser has
+ * not answered, which on a phone is a modal sheet the person is reading. It used to be folded
+ * into `starting-camera`, so the screen could not tell a 17 MB download from an unanswered
+ * prompt and counted its deadlines down through both.
+ */
+export type PerceptionStatus =
+  | 'idle'
+  | 'loading-model'
+  | 'awaiting-permission'
+  | 'starting-camera'
+  | 'running'
+  | 'stopped'
+  | 'error';
 export type PerceptionMode = 'pose' | 'pose+hands';
 export type StartOptions = {
   /** Run a recorded clip instead of the camera (replay harness). */
@@ -203,7 +216,12 @@ class PerceptionImpl implements Perception {
     this.resetSignal();
     try {
       this.statusValue = 'loading-model';
-      this.poseLoad ??= loadPoseLandmarker();
+      // Same rule as loadVisionFileset: a failed load is forgotten, so a retry refetches
+      // instead of replaying the old rejection forever.
+      this.poseLoad ??= loadPoseLandmarker().catch((err: unknown) => {
+        this.poseLoad = null;
+        throw err;
+      });
       const { landmarker, delegate } = await this.poseLoad;
       if (gen !== this.generation) return; // superseded by stop() or another start()
       this.pose = landmarker;
@@ -211,8 +229,13 @@ class PerceptionImpl implements Perception {
       if (this.modeValue === 'pose+hands') await this.ensureHands();
       if (gen !== this.generation) return;
 
-      this.statusValue = 'starting-camera';
-      const source = opts.replayUrl ? await openReplay(video, opts.replayUrl) : await openCamera(video);
+      // A replay needs no grant; the live camera is unanswered until getUserMedia resolves.
+      this.statusValue = opts.replayUrl ? 'starting-camera' : 'awaiting-permission';
+      const source = opts.replayUrl
+        ? await openReplay(video, opts.replayUrl)
+        : await openCamera(video, 'environment', () => {
+            if (gen === this.generation) this.statusValue = 'starting-camera';
+          });
       if (gen !== this.generation) {
         source.stop();
         return;
@@ -324,7 +347,10 @@ class PerceptionImpl implements Perception {
 
   private async ensureHands(): Promise<void> {
     if (this.handsModel) return;
-    this.handsLoad ??= loadHandLandmarker();
+    this.handsLoad ??= loadHandLandmarker().catch((err: unknown) => {
+      this.handsLoad = null;
+      throw err;
+    });
     const { landmarker } = await this.handsLoad;
     this.handsModel = landmarker;
   }

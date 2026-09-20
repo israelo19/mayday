@@ -527,3 +527,33 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   Brian stays the default and any miss keeps Brian. An in-app voice picker was built first and
   removed the same evening: a bystander opens the app and taps once, and a settings layer,
   however small, is a layer between them and "I NEED HELP". Sarah, the dispatcher, is fixed.
+- **Sat 20:15 (Ricky, `first-card-permissions-flow`)** The camera is an open question, not an
+  instant, and the screen now says so. Sat 07:10 moved the prompt onto I NEED HELP with
+  `primeMediaPermissions()`; an instrumented run showed what that left behind. One tap issues
+  three `getUserMedia` calls (the prime, then `openCamera`'s ideal constraints, then its plain
+  fallback), and nothing sequences them: the camera call is fired by CameraView's mount effect
+  behind `await this.poseLoad`, so it lands 83 ms after the tap on loopback and several seconds
+  later on a phone pulling 17.5 MB of WASM and model over the LAN. Browsers queue the
+  overlapping request rather than refuse it, so this is not the double-prompt it looks like,
+  but every opening deadline was anchored to the tap while the three things it describes had
+  not happened yet. Four changes, no new screen. (1) `PerceptionStatus` gains
+  `awaiting-permission`, set around `openCamera` and cleared by its new `onGranted`, so the
+  session can stop folding a modal sheet, a 17.5 MB download and a camera opening into one
+  `starting`; `EyesStatus` gains `awaiting` and the chip reads "Waiting for camera permission".
+  (2) `SessionSnapshot.eyesReadyAt` stamps the moment the camera settled either way, and
+  `isLooking` measures from it, so the three-second look no longer burns down behind a sheet;
+  `CAMERA_WAIT_MAX_MS` (12 s) is the valve, because audio-and-buttons is the floor and a
+  prompt nobody answers must never sit below it. (3) The camera-off banner carries its reason
+  and a Try again that remounts CameraView, and the MediaPipe loaders stop memoising their own
+  rejections, so one dropped fetch on hackathon wifi is no longer fatal for the life of the
+  page. Before this a person who tapped Allow a beat late stayed blind until they reloaded,
+  which is the whole product. DebugScreen had the button all along; the live screen did not.
+  (4) The launch card said "or just start talking" over a screen where nothing listens and, on
+  iOS, nothing can: `SpeechRecognition.start()` is only granted inside a tap. It now reads
+  "Camera and microphone turn on when you tap", which is the warning people were not getting.
+  Its `height: 100dvh` also double-counted the safe-area inset that `index.css` already pads
+  onto body, so on a notched phone the card overflowed by the notch and body became a scroll
+  container, which is enough to cancel a drifting thumb's tap on the one button that matters.
+  Ask-then-commit (a readiness step in front of I NEED HELP) was designed and deliberately not
+  built: it retires more of this at the cost of docs/05's zero-navigation launch, and that is
+  the team's call, not a bug fix.

@@ -66,6 +66,7 @@ function snapshot(p: Perception): Snapshot {
 const STATUS_LABEL: Record<PerceptionStatus, string> = {
   idle: 'Idle',
   'loading-model': 'Loading the model',
+  'awaiting-permission': 'Waiting for camera permission',
   'starting-camera': 'Starting the camera',
   running: 'Live',
   stopped: 'Stopped',
