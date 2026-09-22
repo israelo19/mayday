@@ -1,6 +1,9 @@
 // Simulated 911 dispatcher, docs/07 P3 task 7: the SCRIPTED local stub. Deterministic,
-// zero network, works with the wifi off; the caller renders the big red SIMULATED banner
-// (CLAUDE.md principle 5 - a human dials, we never touch a real line). The DispatcherSim
+// zero network, works with the wifi off; the caller renders its lines in the call panel,
+// which reads "911 / On the line" and never labels itself, because the disclosure that the
+// call-taker is not real lives on the LAUNCH screen (CLAUDE.md principle 5 - a human dials,
+// we never touch a real line, and tests/boundaries.test.ts keeps the panel free of the
+// word). The DispatcherSim
 // shape lives in src/ai/dispatcher.ts and is pulled in type-only, which `npm run lint`'s
 // AI-boundary check allows: a type has no runtime effect and can never place a call.
 //
@@ -82,7 +85,7 @@ export function createScriptedDispatcher(voice: Pick<VoiceOutFull, 'speakInterna
       let acked = false;
 
       const say = (line: string): void => {
-        onDispatcherLine(line); // the panel shows the line under the SIMULATED banner
+        onDispatcherLine(line); // the call panel shows the line
         voice.speakInternal({
           text: line,
           priority: 'narration',

@@ -45,9 +45,12 @@ export type ElevenLabsOptions = {
   firstAudioTimeoutMs?: number;
   /** This many misses in a row and the session stops trying until a warm() succeeds. */
   maxConsecutiveFailures?: number;
+  /** While unhealthy, one line per this interval still tries the network, so a wifi that came back is noticed. */
+  retryIntervalMs?: number;
   /** Test seams. */
   fetchFn?: typeof fetch;
   player?: AudioPlayer;
+  now?: () => number;
 };
 
 const DEFAULTS = {
@@ -56,7 +59,17 @@ const DEFAULTS = {
   outputFormat: 'mp3_22050_32', // codec_samplerate_bitrate; plenty for a phone speaker
   firstAudioTimeoutMs: 800,
   maxConsecutiveFailures: 3,
+  retryIntervalMs: 30_000,
 } as const;
+
+/**
+ * Playback that never ends is treated as playback that failed: an AudioContext that another
+ * app silenced (a phone call, audio focus taken) never fires onended, and the line's promise
+ * would otherwise hang the whole queue. The budget is the audio's own length plus this slack.
+ */
+const PLAYBACK_SLACK_MS = 1500;
+/** When the decoded audio does not say how long it is, assume a slow coaching pace. */
+const MS_PER_CHAR = 90;
 
 /** Web Audio playback with its own lazy context; kept out of the class for testability. */
 function webAudioPlayer(): AudioPlayer {
@@ -99,13 +112,21 @@ function webAudioPlayer(): AudioPlayer {
 export class ElevenLabsProvider implements SpeakerProvider {
   readonly name = 'elevenlabs';
   // Not readonly: setVoice() swaps in the configured coach voice once the proxy answers.
-  private o: Required<Omit<ElevenLabsOptions, 'dispatcherVoiceId' | 'voiceName' | 'fetchFn' | 'player'>> &
+  private o: Required<Omit<ElevenLabsOptions, 'dispatcherVoiceId' | 'voiceName' | 'fetchFn' | 'player' | 'now'>> &
     Pick<ElevenLabsOptions, 'dispatcherVoiceId' | 'voiceName'>;
   private readonly fetchFn: typeof fetch;
   private readonly player: AudioPlayer;
+  private readonly now: () => number;
   /** (voice, model, text) -> decoded audio. The whole protocol fits here comfortably. */
   private readonly cache = new Map<string, unknown>();
   private consecutiveFailures = 0;
+  /**
+   * While unhealthy, the next moment a line may try the network again. Only warm() used to
+   * reset the failure count, and LiveApp warms once at LAUNCH: a wifi blip early in a run
+   * left every later line on the local voice for the rest of the session, even after the
+   * network came back. One probe every retryIntervalMs costs at most one late line.
+   */
+  private retryAfter = Number.NEGATIVE_INFINITY;
   /**
    * Bumped by every cancel(). A speak that was waiting on the network when the queue moved on
    * compares the epoch it started in against this one and drops its result. Without it, a
@@ -121,6 +142,7 @@ export class ElevenLabsProvider implements SpeakerProvider {
     this.o = { ...DEFAULTS, ...options };
     this.fetchFn = options.fetchFn ?? ((...args) => fetch(...args));
     this.player = options.player ?? webAudioPlayer();
+    this.now = options.now ?? (() => Date.now());
   }
 
   /** True while recent lines are actually coming out of ElevenLabs, for the debug panel. */
@@ -170,11 +192,15 @@ export class ElevenLabsProvider implements SpeakerProvider {
     if (voiceId === null) return this.o.fallback.speak(text, opts);
 
     const cached = this.cache.get(this.key(voiceId, text));
-    if (cached !== undefined) return this.play(cached, opts);
+    if (cached !== undefined) return this.play(cached, text, opts);
 
     // The session already proved the network is not delivering: stop burning the budget
-    // on every line and go straight to the voice that always works.
-    if (!this.healthy()) return this.o.fallback.speak(text, opts);
+    // on every line and go straight to the voice that always works. One line per interval
+    // still probes, so a network that came back is noticed without a second warm().
+    if (!this.healthy()) {
+      if (this.now() < this.retryAfter) return this.o.fallback.speak(text, opts);
+      this.retryAfter = this.now() + this.o.retryIntervalMs;
+    }
 
     const decoded = await this.synthesize(voiceId, text, true);
     // Cancelled while the network had it: keep the bytes, say nothing.
@@ -183,12 +209,19 @@ export class ElevenLabsProvider implements SpeakerProvider {
       return;
     }
     if (decoded === null) {
-      this.consecutiveFailures++;
+      this.noteFailure();
       return this.o.fallback.speak(text, opts);
     }
     this.consecutiveFailures = 0;
     this.cache.set(this.key(voiceId, text), decoded);
-    return this.play(decoded, opts);
+    return this.play(decoded, text, opts);
+  }
+
+  /** One more miss; the first that crosses the threshold also starts the retry clock. */
+  private noteFailure(): void {
+    const wasHealthy = this.healthy();
+    this.consecutiveFailures++;
+    if (wasHealthy && !this.healthy()) this.retryAfter = this.now() + this.o.retryIntervalMs;
   }
 
   /**
@@ -211,6 +244,16 @@ export class ElevenLabsProvider implements SpeakerProvider {
       }
     }
     return cachedCount;
+  }
+
+  /**
+   * The scripted call-taker's lines in the dispatcher voice (Sarah), so the first CALL 911
+   * tap does not wait on the network for its opener. Nothing to warm without a second voice:
+   * those lines speak on the fallback, which needs no cache.
+   */
+  async warmDispatcher(lines: readonly string[]): Promise<number> {
+    if (!this.o.dispatcherVoiceId) return 0;
+    return this.warm(lines, this.o.dispatcherVoiceId);
   }
 
   /**
@@ -244,15 +287,29 @@ export class ElevenLabsProvider implements SpeakerProvider {
     }
   }
 
-  private play(decoded: unknown, opts?: SpeakOptions): Promise<void> {
+  private play(decoded: unknown, text: string, opts?: SpeakOptions): Promise<void> {
+    const rate = 1 + 0.04 * (opts?.insistence ?? 0);
     const handle = this.player.play(decoded, {
       // Pre-rendered audio cannot change words or pitch; a nudge of playback rate carries
       // the insistence instead. Subtle on purpose.
-      rate: 1 + 0.04 * (opts?.insistence ?? 0),
+      rate,
       onStart: () => opts?.onStart?.(),
     });
     this.playing = handle;
-    return handle.done.then(() => {
+    // Race the audio against its own length: a source whose onended never comes (the
+    // context was suspended under us) is stopped, counted as a miss, and the line is over.
+    const seconds = (decoded as { duration?: unknown } | null)?.duration;
+    const budgetMs = (typeof seconds === 'number' ? (seconds * 1000) / rate : text.length * MS_PER_CHAR) + PLAYBACK_SLACK_MS;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const timedOut = new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => resolve(true), budgetMs);
+    });
+    return Promise.race([handle.done.then(() => false), timedOut]).then((stalled) => {
+      if (timer !== null) clearTimeout(timer);
+      if (stalled) {
+        handle.stop();
+        this.noteFailure();
+      }
       if (this.playing === handle) this.playing = null;
     });
   }

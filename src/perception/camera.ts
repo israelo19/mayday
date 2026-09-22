@@ -49,11 +49,28 @@ async function waitForMetadata(video: HTMLVideoElement): Promise<void> {
   });
 }
 
+export type OpenCameraHooks = {
+  /** Fires the moment a stream is granted, so the caller can stop saying "waiting for permission". */
+  onGranted?: () => void;
+  /**
+   * Fires when the camera goes away under a running session (another app took it, the OS
+   * revoked it, the phone slept). requestVideoFrameCallback simply stops firing then, so
+   * without this the loop looked alive with no facts forever and no "Try again" appeared.
+   */
+  onEnded?: () => void;
+  /**
+   * Asked after the grant, before the element is touched. A start() superseded by stop() or
+   * a newer start() while the permission sheet was up used to win the race anyway: it set
+   * srcObject to its stream and its stop() then nulled the element out from under the
+   * current generation. False here means release the stream and give up.
+   */
+  isCurrent?: () => boolean;
+};
+
 export async function openCamera(
   video: HTMLVideoElement,
   prefer: 'environment' | 'user' = 'environment',
-  /** Fires the moment a stream is granted, so the caller can stop saying "waiting for permission". */
-  onGranted?: () => void,
+  hooks: OpenCameraHooks = {},
 ): Promise<CameraHandle> {
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error('Camera API unavailable. Open the app over HTTPS (or localhost).');
@@ -76,11 +93,18 @@ export async function openCamera(
     }
   }
   if (!stream) throw lastErr instanceof Error ? lastErr : new Error('Camera unavailable');
-  onGranted?.();
+  const release = (): void => stream.getTracks().forEach((t) => t.stop());
+  if (hooks.isCurrent && !hooks.isCurrent()) {
+    release();
+    throw new Error('Camera open superseded');
+  }
+  hooks.onGranted?.();
 
   const track = stream.getVideoTracks()[0];
   const settings = track?.getSettings() ?? {};
   const facing: Facing = settings.facingMode === 'user' ? 'user' : settings.facingMode === 'environment' ? 'environment' : 'unknown';
+  const onEnded = hooks.onEnded ?? null;
+  if (track && onEnded) track.addEventListener('ended', onEnded);
 
   video.removeAttribute('src');
   video.loop = false;
@@ -88,8 +112,17 @@ export async function openCamera(
   video.muted = true;
   video.playsInline = true;
   video.setAttribute('playsinline', '');
-  await waitForMetadata(video);
-  await video.play();
+  try {
+    await waitForMetadata(video);
+    await video.play();
+  } catch (err) {
+    // The grant went through but the element would not play it. Left running, the tracks
+    // kept the camera light on and "Try again" opened a second stream beside the first.
+    if (track && onEnded) track.removeEventListener('ended', onEnded);
+    release();
+    if (video.srcObject === stream) video.srcObject = null;
+    throw err;
+  }
 
   return {
     kind: 'camera',
@@ -97,8 +130,10 @@ export async function openCamera(
     width: video.videoWidth,
     height: video.videoHeight,
     stop: () => {
-      stream.getTracks().forEach((t) => t.stop());
-      video.srcObject = null;
+      if (track && onEnded) track.removeEventListener('ended', onEnded);
+      release();
+      // Only our own stream: a superseded open must not null out the one that replaced it.
+      if (video.srcObject === stream) video.srcObject = null;
     },
   };
 }

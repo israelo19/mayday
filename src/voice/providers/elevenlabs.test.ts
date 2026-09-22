@@ -1,7 +1,7 @@
 // The 800 ms promise in test form: no audio in budget means the fallback speaks THAT line,
 // repeated misses stop the session from trying, a cache hit never refetches, and cancel
 // aborts the wire. fetch and the audio sink are fakes, so it all runs in node.
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SpeakerProvider, SpeakOptions } from '../out';
 import { ElevenLabsProvider, type AudioPlayer } from './elevenlabs';
 
@@ -68,7 +68,7 @@ const okAudio = () =>
 
 function build(
   script: FetchScript,
-  extra?: { timeoutMs?: number; dispatcherVoiceId?: string; autoFinish?: boolean },
+  extra?: { timeoutMs?: number; dispatcherVoiceId?: string; autoFinish?: boolean; now?: () => number },
 ) {
   const fallback = new FakeFallback();
   const { player, played, stops } = fakePlayer(extra?.autoFinish ?? true);
@@ -81,6 +81,7 @@ function build(
     fetchFn,
     player,
     firstAudioTimeoutMs: extra?.timeoutMs ?? 30,
+    now: extra?.now,
   });
   return { provider, fallback, played, stops, calls, aborted };
 }
@@ -146,6 +147,44 @@ describe('ElevenLabsProvider', () => {
     expect(provider.cachedLineCount()).toBe(2);
   });
 
+  it('warmDispatcher() caches the call-taker lines in the second voice, or nothing without one', async () => {
+    const withVoice = build(okAudio, { dispatcherVoiceId: 'sarah' });
+    expect(await withVoice.provider.warmDispatcher(['9 1 1, what is the address of your emergency?'])).toBe(1);
+    expect(withVoice.calls[0]).toContain('/text-to-speech/sarah/');
+    await withVoice.provider.speak('9 1 1, what is the address of your emergency?', { voice: 'dispatcher' });
+    expect(withVoice.calls.length).toBe(1); // served from the warm
+
+    const withoutVoice = build(okAudio);
+    expect(await withoutVoice.provider.warmDispatcher(['9 1 1, what is the address of your emergency?'])).toBe(0);
+    expect(withoutVoice.calls.length).toBe(0);
+  });
+
+  it('probes the network once per interval while unhealthy, and recovers when it answers', async () => {
+    // Only warm() reset the failure count, and LiveApp warms once at LAUNCH: a wifi blip in
+    // the first minute left every later line on the local voice for the whole session.
+    let t = 0;
+    let dead = true;
+    const { provider, fallback, calls } = build(() => (dead ? 'hang' : okAudio()), { now: () => t });
+    for (const line of ['one', 'two', 'three']) await provider.speak(line);
+    expect(provider.healthy()).toBe(false);
+    await provider.speak('four'); // inside the interval: straight to fallback, no fetch spent
+    t += 29_999;
+    await provider.speak('five');
+    expect(calls.length).toBe(3);
+    t += 1;
+    await provider.speak('six'); // the probe, still dead: one fetch, still unhealthy
+    expect(calls.length).toBe(4);
+    expect(provider.healthy()).toBe(false);
+    await provider.speak('seven'); // the failed probe bought another full interval
+    expect(calls.length).toBe(4);
+    t += 30_000;
+    dead = false;
+    await provider.speak('eight'); // the probe lands: healthy again, spoken by ElevenLabs
+    expect(calls.length).toBe(5);
+    expect(provider.healthy()).toBe(true);
+    expect(fallback.spoken).toEqual(['one', 'two', 'three', 'four', 'five', 'six', 'seven']);
+  });
+
   it('routes dispatcher lines to the second voice, or to the fallback without one', async () => {
     const withVoice = build(okAudio, { dispatcherVoiceId: 'dispatchvoice' });
     await withVoice.provider.speak('9 1 1, what is your emergency?', { voice: 'dispatcher' });
@@ -196,6 +235,75 @@ describe('ElevenLabsProvider', () => {
     for (let i = 0; i < 3; i++) await dead.provider.speak(`line ${i}`);
     expect(dead.provider.healthy()).toBe(false);
     expect(dead.provider.currentVoiceName()).toBe('fallback');
+  });
+});
+
+/**
+ * The default Web Audio player against a context whose sources never end, which is what a
+ * suspended AudioContext looks like when another app takes the speaker: onended never fires,
+ * and the line's promise used to hang the whole queue for the rest of the session.
+ */
+describe('ElevenLabsProvider playback watchdog', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  function stubSilentAudioContext(durationSeconds: number) {
+    const sources: { stopped: number }[] = [];
+    class SilentAudioContext {
+      destination = {};
+      resume = async () => {};
+      decodeAudioData = async () => ({ duration: durationSeconds });
+      createBufferSource() {
+        const entry = { stopped: 0 };
+        sources.push(entry);
+        return {
+          buffer: null as unknown,
+          playbackRate: { value: 1 },
+          onended: null as (() => void) | null,
+          connect() {},
+          start() {},
+          stop() {
+            entry.stopped++;
+          },
+        };
+      }
+    }
+    vi.stubGlobal('AudioContext', SilentAudioContext);
+    return sources;
+  }
+
+  it('gives up on audio that never ends after its own length plus slack, and counts the miss', async () => {
+    const sources = stubSilentAudioContext(0.5);
+    const fallback = new FakeFallback();
+    const { fetchFn } = fakeFetch(okAudio);
+    const provider = new ElevenLabsProvider({
+      voiceId: 'coachvoice',
+      baseUrl: 'https://proxy.test',
+      fallback,
+      fetchFn,
+      firstAudioTimeoutMs: 30,
+      maxConsecutiveFailures: 2,
+    });
+    let settled = false;
+    const speaking = provider.speak('Push hard and fast.').then(() => (settled = true));
+    await vi.advanceTimersByTimeAsync(1999); // 500 ms of audio plus 1500 ms of slack
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await speaking;
+    expect(sources[0].stopped).toBe(1);
+    expect(provider.healthy()).toBe(true); // one miss is not yet a verdict
+    expect(fallback.spoken).toEqual([]); // the line's moment has passed; it is not said twice
+
+    // The same line, now cached, stalls the same way: that is the second miss.
+    const again = provider.speak('Push hard and fast.');
+    await vi.advanceTimersByTimeAsync(2000);
+    await again;
+    expect(provider.healthy()).toBe(false);
+    await provider.speak('Faster.'); // and the local voice carries the next one
+    expect(fallback.spoken).toEqual(['Faster.']);
   });
 });
 

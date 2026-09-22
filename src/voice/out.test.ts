@@ -6,6 +6,7 @@ import type { CoachingEvent } from '../types';
 import {
   createVoiceOut,
   DEFAULT_COOLDOWN_MS,
+  speechBudgetMs,
   type SpeakerProvider,
   type SpeakOptions,
   type VoiceOutFull,
@@ -57,13 +58,32 @@ function setup(over?: { onSpoken?: (e: CoachingEvent, latencyMs: number | null) 
   const speaker = new FakeSpeaker();
   let t = 0;
   const earcons: number[] = [];
+  /** The queue's watchdogs, armed but never fired unless a test says so. */
+  const timers: { fn: () => void; ms: number }[] = [];
   const voice: VoiceOutFull = createVoiceOut({
     provider: speaker,
     now: () => t,
+    schedule: (fn, ms) => {
+      const timer = { fn, ms };
+      timers.push(timer);
+      return () => {
+        const i = timers.indexOf(timer);
+        if (i >= 0) timers.splice(i, 1);
+      };
+    },
     metronome: { start: () => {}, stop: () => {}, earcon: () => earcons.push(t) },
     onSpoken: over?.onSpoken,
   });
-  return { speaker, voice, earcons, tick: (ms: number) => (t += ms) };
+  return {
+    speaker,
+    voice,
+    earcons,
+    timers,
+    tick: (ms: number) => (t += ms),
+    fireWatchdogs: () => {
+      for (const timer of timers.splice(0)) timer.fn();
+    },
+  };
 }
 
 describe('the speaker queue', () => {
@@ -87,6 +107,60 @@ describe('the speaker queue', () => {
     voice.enqueue(ev('narration', 'The line after it.'));
     await flush();
     expect(speaker.texts()).toContain('The line after it.');
+  });
+
+  it('releases the queue when a provider never settles, on the budget WebSpeech gives itself', async () => {
+    // Rejection was covered; a promise that simply never settles was not. An AudioContext
+    // another app silenced never fires onended, so the ElevenLabs line never resolved,
+    // `current` stayed set, and the queue pumped nothing for the rest of the session.
+    const { speaker, voice, timers, tick, fireWatchdogs } = setup();
+    speaker.cancel = () => {}; // this one does not even let go when told to
+    const stuck = 'A line whose audio never ends.';
+    voice.enqueue(ev('narration', stuck));
+    voice.enqueue(ev('narration', 'The line after it.'));
+    await flush();
+    expect(speaker.texts()).toEqual([stuck]);
+    expect(timers.map((x) => x.ms)).toEqual([speechBudgetMs(stuck)]);
+    tick(speechBudgetMs(stuck));
+    fireWatchdogs();
+    await flush();
+    expect(speaker.texts()).toEqual([stuck, 'The line after it.']);
+    expect(voice.recentlySpoken()).toContain(stuck); // it counted as said, so cooldowns still hold
+  });
+
+  it('disarms the watchdog when the provider settles normally', async () => {
+    const { speaker, voice, timers } = setup();
+    voice.enqueue(ev('narration', 'one'));
+    await flush();
+    expect(timers.length).toBe(1);
+    speaker.finish();
+    await flush();
+    expect(timers.length).toBe(0);
+  });
+
+  it('counts speech from outside the queue as its own, for both echo layers', () => {
+    // The live dispatcher agent plays its own audio, so neither layer saw it and "yes, help
+    // is on the way" answered a yes/no question the coach had asked (principle 1).
+    const { voice, tick } = setup();
+    expect(voice.isSpeaking()).toBe(false);
+    voice.noteExternalSpeech('Yes, help is on the way. Keep going.', 3000);
+    expect(voice.isSpeaking()).toBe(true);
+    expect(voice.quietForMs()).toBe(0);
+    expect(voice.recentlySpoken()).toEqual(['Yes, help is on the way. Keep going.']);
+    tick(3000);
+    expect(voice.isSpeaking()).toBe(false);
+    tick(500);
+    expect(voice.quietForMs()).toBe(500);
+  });
+
+  it('estimates how long external speech lasts from its text when not told', () => {
+    const { voice, tick } = setup();
+    const line = 'Help is on the way.';
+    voice.noteExternalSpeech(line);
+    tick(speechBudgetMs(line) - 1);
+    expect(voice.isSpeaking()).toBe(true);
+    tick(1);
+    expect(voice.isSpeaking()).toBe(false);
   });
 
   it('replays a chopped narration line that carries a dedupeKey, which is what the engine emits', async () => {

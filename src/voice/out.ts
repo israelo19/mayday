@@ -48,6 +48,16 @@ export interface SpeakerProvider {
   unlock?(): Promise<void>;
 }
 
+/**
+ * How long a line can plausibly take to say, with slack: about 90 ms a character (a slow,
+ * clear coaching pace) plus a second and a half, never under four seconds. The WebSpeech
+ * watchdog, the queue's own watchdog and the external-speech estimate all use this one
+ * number, so a provider that never settles is released on the same schedule everywhere.
+ */
+export function speechBudgetMs(text: string): number {
+  return Math.max(4000, text.length * 90 + 1500);
+}
+
 /** Web Speech API synthesis. Works offline, needs no keys. The floor everything falls back to. */
 export class WebSpeechProvider implements SpeakerProvider {
   readonly name = 'webspeech';
@@ -130,9 +140,12 @@ export class WebSpeechProvider implements SpeakerProvider {
   }
 
   private speakOne(text: string, opts: SpeakOptions, onStart?: () => void): Promise<void> {
-    // Only interrupt when something is actually playing: on iOS Safari a cancel() followed
-    // immediately by speak() can leave the new utterance silent with no end/error event.
-    if (speechSynthesis.speaking || speechSynthesis.pending) this.cancelUtterance();
+    // Only interrupt when one of OUR utterances is still in flight: on iOS Safari a cancel()
+    // followed immediately by speak() can leave the new utterance silent with no end/error
+    // event. With nothing of ours current, what is pending is the silent unlock utterance
+    // (or a chunk that already ended), and the first real line used to cancel it and go
+    // silent in exactly that way. Let it play out; it is inaudible and short.
+    if (this.current !== null && (speechSynthesis.speaking || speechSynthesis.pending)) this.cancelUtterance();
     return new Promise((resolve) => {
       const insistence = opts.insistence ?? 0;
       const asDispatcher = opts.voice === 'dispatcher';
@@ -156,7 +169,7 @@ export class WebSpeechProvider implements SpeakerProvider {
       // Watchdog: some engines (iOS Safari in particular) occasionally never fire end or
       // error. A promise that never settles would freeze a coaching queue, so resolve after
       // the line's plausible duration instead. Seen on the demo iPhone during M0 (P1).
-      const watchdog = window.setTimeout(done, Math.max(4000, text.length * 90 + 1500));
+      const watchdog = window.setTimeout(done, speechBudgetMs(text));
       if (onStart) u.onstart = () => onStart();
       u.onend = done;
       u.onerror = done;
@@ -208,6 +221,14 @@ export interface VoiceOutFull extends VoiceOut {
   quietForMs(): number;
   /** The last few spoken texts, for VoiceIn's transcript-vs-own-speech echo gate. */
   recentlySpoken(): readonly string[];
+  /**
+   * Speech that came out of this phone's speaker without going through the queue: the live
+   * dispatcher agent plays its own audio. Both echo layers read from here, so telling the
+   * queue about it is what stops the mic routing the engine on the agent's words ("yes, help
+   * is on the way" must not answer a yes/no question). The text joins recentlySpoken() and
+   * the queue counts as speaking for `ms`, estimated from the text when not given.
+   */
+  noteExternalSpeech(text: string, ms?: number): void;
   /** Drop every queued line and stop the current one. State change or session end. */
   cancelAll(): void;
   /**
@@ -231,6 +252,8 @@ export type VoiceOutOptions = {
   metronome?: MetronomeLike;
   /** Injected clock so every queue test runs in node with no real timers. */
   now?: () => number;
+  /** Injected timer for the queue's watchdog; returns a cancel. Defaults to setTimeout. */
+  schedule?: (fn: () => void, ms: number) => () => void;
   /** Fires the moment a line is audible; latencyMs is null when no fact time is known. */
   onSpoken?: (e: CoachingEvent, latencyMs: number | null) => void;
 };
@@ -269,6 +292,12 @@ export function createVoiceOut(opts: VoiceOutOptions): VoiceOutFull {
   let provider = opts.provider;
   const metronome = opts.metronome ?? null;
   const now = opts.now ?? (() => Date.now());
+  const schedule =
+    opts.schedule ??
+    ((fn: () => void, ms: number) => {
+      const id = setTimeout(fn, ms);
+      return () => clearTimeout(id);
+    });
 
   const lanes: Record<CoachingEvent['priority'], Queued[]> = {
     critical: [],
@@ -286,6 +315,8 @@ export function createVoiceOut(opts: VoiceOutOptions): VoiceOutFull {
   let token = 0;
   let lastFactT: number | null = null;
   let lastEndedAt: number | null = null;
+  /** Until when speech from outside the queue (the dispatcher agent) is presumed audible. */
+  let externalUntil = Number.NEGATIVE_INFINITY;
   /** The protocol state of the newest protocol event; queued narration for any other state is stale. */
   let latestStateId: string | null = null;
 
@@ -369,6 +400,27 @@ export function createVoiceOut(opts: VoiceOutOptions): VoiceOutFull {
     // start; under stress the first word otherwise goes unheard.
     if (q.e.priority === 'critical') metronome?.earcon?.();
     let startedAt: number | null = null;
+    // A provider that rejects, or never settles, used to end the session's voice: `current`
+    // stayed set, pump() returned at its first line, and nothing was ever spoken again. The
+    // app looked alive and said nothing, which is the one state principle 4 forbids. The
+    // catch below covers rejection; this watchdog covers a promise that never settles at all
+    // (an AudioContext another app silenced, an engine that lost its end event), on the same
+    // budget WebSpeech gives itself. The line counts as done: what it was for has passed.
+    const release = (): void => {
+      if (current?.token !== myToken) return; // preempted; the preemptor owns the queue now
+      // Provider never reported a start (some engines have no start event): count the
+      // line as audible at completion so cooldowns still hold and nags never machine-gun.
+      if (startedAt === null) markAudible(q, now());
+      current = null;
+      lastEndedAt = now();
+      q.onDone?.(); // natural end only: a preempted line replays before it counts as done
+      pump();
+    };
+    const cancelWatchdog = schedule(() => {
+      if (current?.token !== myToken) return;
+      provider.cancel(); // whatever it is still holding, let go of it before moving on
+      release();
+    }, speechBudgetMs(q.e.text));
     void provider
       .speak(q.e.text, {
         insistence: insistenceOf(q.e),
@@ -380,19 +432,11 @@ export function createVoiceOut(opts: VoiceOutOptions): VoiceOutFull {
         },
       })
       .then(() => {
-        if (current?.token !== myToken) return; // preempted; the preemptor owns the queue now
-        // Provider never reported a start (some engines have no start event): count the
-        // line as audible at completion so cooldowns still hold and nags never machine-gun.
-        if (startedAt === null) markAudible(q, now());
-        current = null;
-        lastEndedAt = now();
-        q.onDone?.(); // natural end only: a preempted line replays before it counts as done
-        pump();
+        cancelWatchdog();
+        release();
       })
-      // A provider that rejects, or never settles, used to end the session's voice: `current`
-      // stayed set, pump() returned at its first line, and nothing was ever spoken again. The
-      // app looked alive and said nothing, which is the one state principle 4 forbids.
       .catch(() => {
+        cancelWatchdog();
         if (current?.token !== myToken) return;
         current = null;
         lastEndedAt = now();
@@ -452,7 +496,7 @@ export function createVoiceOut(opts: VoiceOutOptions): VoiceOutFull {
     },
 
     isSpeaking(): boolean {
-      return current !== null;
+      return current !== null || now() < externalUntil;
     },
 
     setProvider(p: SpeakerProvider): void {
@@ -465,11 +509,20 @@ export function createVoiceOut(opts: VoiceOutOptions): VoiceOutFull {
 
     quietForMs(): number {
       if (current !== null) return 0;
-      return lastEndedAt === null ? Number.POSITIVE_INFINITY : now() - lastEndedAt;
+      // The newest end, whichever mouth it came out of; still inside the external window is 0.
+      const ended = lastEndedAt === null ? externalUntil : Math.max(lastEndedAt, externalUntil);
+      if (ended === Number.NEGATIVE_INFINITY) return Number.POSITIVE_INFINITY;
+      return Math.max(0, now() - ended);
     },
 
     recentlySpoken(): readonly string[] {
       return recent;
+    },
+
+    noteExternalSpeech(text: string, ms?: number): void {
+      recent.push(text);
+      while (recent.length > 6) recent.shift();
+      externalUntil = Math.max(externalUntil, now() + (ms ?? speechBudgetMs(text)));
     },
 
     cancelAll(): void {
