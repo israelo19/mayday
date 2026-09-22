@@ -14,3 +14,13 @@ connected to any real emergency line. The first-aid protocols it coaches are
 transcribed from published guidelines (AHA, Stop the Bleed, Red Cross), cited in
 each machine file under src/protocol/machines. Anyone redistributing or modifying
 this software should read Sections 7 and 8 of the LICENSE.
+
+Third-party
+
+  MediaPipe model files in public/models (pose_landmarker_lite.task and
+  hand_landmarker.task) and the @mediapipe/tasks-vision WebAssembly runtime
+  copied into public/wasm at install time: Copyright Google LLC, licensed under
+  the Apache License, Version 2.0.
+  qrcode: Copyright (c) 2012 Ryan Day, MIT License.
+  React and react-dom: Copyright (c) Meta Platforms, Inc. and affiliates, MIT
+  License.

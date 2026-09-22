@@ -6,7 +6,9 @@ deploy. Every environment variable the repo reads is listed in `.env.example` wi
 
 ## Run it (dev, HTTPS)
 
-Needs Node 20.19+ or 22.12+. `vite@8`/rolldown silently skip installing their native binary on
+Needs Node 22.18 or newer (`package.json` says so under `engines`): `scripts/assess-frame.mjs`
+imports a TypeScript file and relies on Node's built-in type stripping, which older releases
+only had behind a flag. `vite@8`/rolldown silently skip installing their native binary on
 older Node instead of erroring, which looks like a broken install (see `DECISIONS.md`, Sat
 02:50). Camera access needs a secure context, so dev runs over HTTPS. Chrome is the demo browser.
 
@@ -39,6 +41,17 @@ check), `npm run build` (output in `dist/`), `npm run preview`, `npm run diagram
 4173 under `npm run preview`): every
 protocol picture, a simulated bystander to watch the guide react, and a coach-screen preview.
 No camera needed.
+
+Two more URL switches, both dev only and both changing nothing the app says:
+
+- `?trace=1` (`web/trace.ts`): the page posts what the session sees (mic status and error
+  codes, every recognizer event, transcripts, whether the app is speaking, camera status, JS
+  errors) to the dev server's `/__trace` sink, which prints each line under `[trace]`. Set
+  `MAYDAY_TRACE_FILE=trace.log npm run dev` to append the same lines to a file. A phone gets
+  debugged from the laptop this way; without the flag nothing in that file runs.
+- `?replay=<url>` (`web/ui/DebugScreen.tsx`, with `?debug=1`): runs a recorded clip, any webm
+  URL you host, through the same perception pipeline as the live camera, so tuning does not
+  need a human on a pillow. No clips ship in the repo.
 
 ## Run it on a phone
 
@@ -98,7 +111,7 @@ stay for anyone who prefers to tap.
 
 1. Put `GEMINI_API_KEY=...` in `.env.local` (a free key from [AI Studio](https://aistudio.google.com/apikey)).
    `npm run dev` then mounts `/api/proxy/vision/assess` and prints
-   `Scene model: gemini-3.6-flash (gemini) via /api/proxy/vision/assess`. `GEMINI_VISION_MODEL`
+   `Frame model: gemini-3.6-flash (gemini), serving ?flag=sceneAssess`. `GEMINI_VISION_MODEL`
    picks another model; `gemini-3.5-flash-lite` is quicker and weaker. `FEATHERLESS_API_KEY`
    is the fallback provider, used when there is no Gemini key or when `MODEL_PROVIDER=featherless`.
 2. Open the phone URL with `?flag=sceneAssess`. After "I NEED HELP" the look card reads "One
@@ -138,7 +151,7 @@ same model gets the sentence and the buttons that are on the screen right now (d
 Two more behind flags, both bound by CLAUDE.md principle 1: the model interprets and rewords,
 the machine decides (docs/04 items 5 and 8, DECISIONS.md Sat 20:40 and 21:55).
 
-1. Answers. The cardiac and bleeding machines carry 25 cited answers to what people ask mid
+1. Answers. The cardiac and bleeding machines carry 26 cited answers (14 and 12) to what people ask mid
    protocol ("am I pushing hard enough?", "can I use a belt?"). Say the phrase and it speaks.
    With `?flag=intentRoute` the router is offered them as questions next to the buttons, so
    "did I just crack something in his chest?" gets the rib answer at once, no yes/no, and
@@ -230,6 +243,7 @@ Target is DigitalOcean App Platform, spec in `.do/app.yaml` (static site, `npm r
 or point App Platform's "create from GitHub repo" flow at the same file. The app is a PWA
 (`vite-plugin-pwa`): the shell precaches, MediaPipe's models and WASM runtime cache on first
 successful fetch, so a reload with wifi off works once the session has loaded at least once.
-The `/api/proxy` function (the key proxy for ElevenLabs and Gemini, docs/04 TODO 1) is the
-DigitalOcean Function version of `src/voice/providers/devproxy.mjs`, which the dev and preview
-servers mount today; it is added once the keys are ready to move.
+The `/api/proxy` function (the key proxy for ElevenLabs, Gemini, Featherless and xAI, docs/04
+TODO 1) is the DigitalOcean Function version of `src/voice/providers/devproxy.mjs`, which the
+dev and preview servers mount today; it does not exist yet, so the deployed static site runs
+with every cloud helper on its local fallback until it is added.

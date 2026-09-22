@@ -161,9 +161,14 @@ const call = dispatcher.connect((line) => panel.show(line)); // into the red-bor
   16 kHz with echo cancellation on, because the phone speaker is inches from it. The agent's
   chunks are scheduled back to back on one context; an `interruption` event flushes them.
 - Falls back to the script, with the same panel callback, on: no agent configured, mic
-  refused, socket refused or dropped, no initiation metadata within 4 s. Replies typed
-  meanwhile are replayed to whichever side wins. `onStatus` reports connecting / live /
+  refused, socket refused, no initiation metadata within 4 s. A socket that drops after the
+  call went live ends the call instead of replaying the script's opener mid-coaching. Replies
+  typed meanwhile are replayed to whichever side wins. `onStatus` reports connecting / live /
   fallback / ended for the panel's chip.
+- Every agent reply is screened by `looksLikeCoaching` (src/protocol/validate.ts) before it is
+  shown or played: a reply that reads like first-aid instruction is dropped and the scripted
+  dispatcher takes the call (principle 1; the agent answers questions and reassures, it never
+  coaches).
 - The agent's prompt forbids medical instructions ("keep following the coaching you are
   hearing"). It is a stage character; the machines stay the only authority (principle 1).
 - Voice input needs network, same honesty note as below. The scripted call works with wifi off.

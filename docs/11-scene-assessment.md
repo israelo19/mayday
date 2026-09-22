@@ -81,12 +81,12 @@ coaching loop and never blocks it (principle 3); when the picture is bad the app
    literature to `PersonDownDetector`. Nothing new leaves the device; the judge sees the eyes
    reasoning before any button is offered.
 2. **One frame to a VLM for the unclear case (cloud, sponsor, 3 to 4 hours).** docs/04
-   item 7 as written: `EmergencyClassifier` in `src/ai`, `captureFrame()` at the end of the
-   look phase, Gemini through the key proxy, a JSON schema with the enum
+   item 7 as written: `EmergencyClassifier` in `src/ai`, `captureFrame()` about 1.2 s into
+   triage (`ASSESS_AFTER_MS` in `web/session.ts`, one retry at 6 s, two tries at most), Gemini through the key proxy, a JSON schema with the enum
    `collapsed | bleeding | choking | unclear`, one scene sentence, visible cloth for the
    bleeding case, and the patient's `box_2d` to draw. The label picks a pre-written confirm
-   line and highlights a button; yes routes by the keyword triage already accepts; 3 s
-   timeout; on any miss, nothing happens. Behind a flag, off by default, and the launch line
+   line and highlights a button; yes routes by the keyword triage already accepts; 6 s
+   timeout (`ASSESS_TIMEOUT_MS` in `src/ai/assess.ts`); on any miss, nothing happens. Behind a flag, off by default, and the launch line
    says a frame leaves the phone when it is on. Fallback is tier 1.
 3. **Hands at throat in triage** once hand tracking has a phone fps number (docs/03 roadmap).
 4. **On-device VLM** (SmolVLM or Gemma 3n) as the post-hackathon replacement for tier 2, so

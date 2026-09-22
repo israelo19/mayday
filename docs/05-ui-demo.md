@@ -10,7 +10,7 @@
 - Wifi off: coach screen, metronome, rate coaching, all voice via WebSpeech keep working. We kill wifi live on stage.
 - Judge-proof: every voice transition has a visible button twin. A wedged demo must be recoverable by one tap without explanation.
 - The blind test: cover the camera mid-compressions => app says the blind-mode line within 2s and keeps the metronome. Judges will do this without asking.
-- Latency: correction lines audible within ~1s of the triggering fact. If ElevenLabs adds more, demo on WebSpeech.
+- Latency: correction lines designed to be audible within ~1s of the triggering fact (the budget and the measurement protocol are in docs/latency.md; the phone run was never recorded). If ElevenLabs adds more, demo on WebSpeech.
 
 ## Demo script (rehearse 6x, once with a hostile volunteer, once with wifi off)
 1. Cold open stat (see pitch notes) -> teammate collapses.
@@ -21,13 +21,13 @@
 6. Wifi off, coaching continues. Close on HANDOFF screen: "and the ambulance is still four minutes away."
 Record a full run as the sub-3-minute Devpost video Saturday night. It is the insurance policy.
 
-## Pitch notes (deck lives in /docs/pitch.md when written)
+## Pitch notes (a deck file at docs/pitch.md was planned and never written; the authority slide is docs/pitch-authority.md)
 - Stats slide, verify Saturday against heart.org and stopthebleed.org before putting numbers on it: ~350k US out-of-hospital cardiac arrests/yr (~one every 90s), survival falls ~10%/min without CPR, bystander CPR can double or triple survival, avg EMS response ~7 min, severe bleeding can kill in ~5.
 - Lineage slide: dispatcher-assisted CPR is proven practice; ChatCPR (JAMA Internal Medicine 2026, UCSD + Pitt + Johns Hopkins) showed an AI agent out-coaching dispatchers over AUDIO. Mayday adds eyes. Cite it; some judges may know the authors.
 - Architecture slide: one machine per emergency, plug-in data files, engine untouched. Three machines in the repo, two demoed. The demo is CPR and bleeding; the product is any emergency with a published bystander protocol.
 - Threat model slide: the 6-row table from docs/01.
 - Limits slide, said before asked: coaching aid not a medical device; no depth-in-cm claims from monocular video; real deployment = FDA SaMD pathway + dispatch integration via platforms like RapidSOS.
-- Track: Bloomberg (Most Philanthropic). Opt-ins: ElevenLabs x2, Gemini, DigitalOcean, GoDaddy, SpaceXAI, Auctor if their requirement is light. Select EXACTLY ONE track on Devpost.
+- Track: Most Philanthropic Hack. Sponsor challenges entered: Gemini API, ElevenLabs (x2), SpaceXAI. DigitalOcean, GoDaddy and Auctor were considered and not entered (no function and no domain shipped). Select EXACTLY ONE track on Devpost.
 
 ## Step guides (pictures for each protocol line)
 

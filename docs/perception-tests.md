@@ -1,5 +1,9 @@
 # Perception failure-mode matrix (P1)
 
+Historical: this matrix was never filled in during the weekend. The conditions and thresholds
+are still the ones to walk; the cells are empty because no run was recorded, not because the
+runs passed.
+
 Fill this in on the demo phone, propped where it will be on stage. One row per condition.
 "Rate" is the eyes-screen number against a metronome at 110 on a pillow; "Blind" is whether
 covering the lens produced the banner within 2 s; "Hands" is whether the wound region locked

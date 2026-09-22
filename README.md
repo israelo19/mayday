@@ -85,7 +85,8 @@ the most from it. The section above on why this is philanthropy is the case.
 question: collapse, bleeding, choking, or unclear, with a box around the patient. The answer
 becomes a spoken question, "It looks like someone is bleeding badly. Say yes, or tap.", and
 nothing moves until the person says yes. The label is a closed list, so Gemini can suggest but
-never invent a step.
+never invent a step, and the phone itself never looks for blood in the video: that one photo
+is the only place "bleeding" is ever read from a picture.
 
 **Best Use of ElevenLabs, Best Project Built with ElevenLabs.** The coach speaks as Brian, a low,
 calm voice, with every line cached at launch so it keeps playing with wifi off. The 911
@@ -116,8 +117,9 @@ is enforced by a test a judge can open.
 | **Fail loud, never wrong** | When the camera cannot see well, the numbers go blank, the app says so, and coaching continues by voice. Unwatched time is reported as unmeasured, never as a pause. | While blind, only lines marked safe may play. Unmeasured time is a named field in the report. |
 | **A human dials 911** | The app never places a call. The call-taker in the demo is simulated, and the launch screen says so once. | A test fails on any phone-dialing code, requires the disclosure on the launch screen, and forbids the word "simulated" on the call itself. |
 
-Behind that: 347 tests, four scripts with every medical step citing a live guideline page, an
-engine of 279 lines with no dependencies, and zero network calls in the coaching loop. The
+Behind that: 541 tests, four scripts with every medical step citing a live guideline page,
+an engine of 291 lines plus a 74-line rule evaluator with no dependencies, and zero network
+calls in the coaching loop. The
 scripts are drawn from their data in [docs/protocol-diagrams.md](docs/protocol-diagrams.md).
 
 ## 🧰 Under the hood
@@ -143,7 +145,7 @@ the helper's hands and shoulders, which is where the corrections come from.
 
 ## 🚀 Run it
 
-Needs Node 20.19 or newer and Chrome. The dev server serves self-signed HTTPS for the camera;
+Needs Node 22.18 or newer and Chrome. The dev server serves self-signed HTTPS for the camera;
 accept the warning once per device, scan the QR it prints with a phone on the same wifi, and
 "Add to Home Screen".
 
@@ -175,28 +177,38 @@ the walkthrough for each switch and the checks the team walks before a judged ru
 ```
 mayday/
 ├── src/                     the engine, no browser code in here
-│   ├── perception/          camera, pose and hand tracking, the signals (docs/03)
-│   ├── protocol/            the state machine engine, the linter, the paraphrase validator (docs/02)
+│   ├── types.ts             the shared types: facts, coaching events, machines, reports
+│   ├── flags.ts             the ?flag= switches, all off by default
+│   ├── perception/          camera, pose and hand tracking, the signals (docs/03): camera, pose, hands, signal, roi, scene, luma, overlay, and fake for ?fake=1
+│   ├── protocol/            the state machine engine, the linter, the paraphrase validator (docs/02): engine, rules, lint, validate, keywords, language, phrases, mermaid
 │   │   └── machines/        one data file per emergency: triage, cardiac, bleeding, choking
 │   ├── voice/               speaking (queue, metronome) and listening (keyword spotting) (docs/04, docs/09)
 │   │   └── providers/       the one place a network call is allowed: ElevenLabs voice and agent, the key proxy
 │   ├── ai/                  the cloud helpers behind interfaces: scene photo, sentence matching, rewording (docs/04, docs/11)
 │   └── sitrep/              the event log, the SITREP, the paramedic handoff
 ├── web/                     the browser app
+│   ├── main.tsx, App.tsx    the entry point and the root: which screen the URL asks for
 │   ├── session.ts           the orchestrator: where camera, engine, voice and log meet (docs/10)
 │   ├── providers.ts         local by default, cloud behind a switch, chosen once per session
 │   ├── geocode.ts           turns the GPS fix into a street address for the SITREP
+│   ├── trace.ts             ?trace=1, dev only: the phone posts what the session sees to the laptop
 │   └── ui/
 │       ├── LaunchScreen.tsx, CameraView.tsx, DebugScreen.tsx, Waveform.tsx
-│       ├── live/            the live screen: LiveApp, DispatcherPanel, HandoffPanel, useSession
+│       ├── live/            the live screen: LiveApp, DispatcherPanel, HandoffPanel, useSession, hints, FakeControls for ?fake=1
 │       └── guide/           one picture per line, gallery at ?guide=1 (docs/05)
-├── docs/                    the context documents, reading order below
-│   └── images/              the diagrams in this README
+├── docs/                    the context documents, 01 to 12, reading order below
+│   ├── images/              the diagrams in this README
+│   ├── protocol-diagrams.md generated from the machines by npm run diagrams, never edited by hand
+│   └── latency.md, perception-tests.md, pitch-authority.md, START_PROMPT.md   hackathon-time records, kept as written
 ├── public/
 │   ├── models/              MediaPipe model files, committed, nothing fetched at runtime
-│   └── wasm/                MediaPipe runtime, generated on install, gitignored
+│   ├── wasm/                MediaPipe runtime, generated on install, gitignored
+│   └── icon.svg, icon-512.png, apple-touch-icon.png   the PWA icons
 ├── scripts/                 prepare-assets, check-ai-boundaries, assess-frame, create-dispatcher-agent
-└── tests/                   engine, scripts, keywords, validator, SITREP, boundaries, diagrams
+├── tests/                   engine, machines, keywords, language, phrases, validator, narration attacks, assessment hints, SITREP, boundaries, diagrams, the key proxy; harness is the shared rig. Unit tests also sit beside their modules as *.test.ts
+├── .do/app.yaml             the App Platform spec: a static site
+├── vite.config.ts           the dev server: HTTPS, the QR, the key proxy mount, the ?trace=1 sink
+└── .env.example             every environment variable the repo reads, with its usage
 ```
 
 ## 📚 Docs
@@ -207,6 +219,11 @@ In reading order: [CLAUDE.md](CLAUDE.md) for the five rules and the scope,
 [docs/03-perception.md](docs/03-perception.md) for the camera signals,
 [docs/04-voice-and-apis.md](docs/04-voice-and-apis.md) for the voice queue and the AI seams,
 [docs/05-ui-demo.md](docs/05-ui-demo.md) for the screens and the demo contract,
+[docs/06-plan.md](docs/06-plan.md) for the build plan and the kill criteria,
+[docs/07-work-split.md](docs/07-work-split.md) for who owned what and the seams between them,
+[docs/08-protocol-integration.md](docs/08-protocol-integration.md) for wiring the engine and the SITREP,
+[docs/09-voice.md](docs/09-voice.md) for wiring the voice module,
+[docs/10-session.md](docs/10-session.md) for the session where the modules meet,
 [docs/11-scene-assessment.md](docs/11-scene-assessment.md) for the research behind the eyes,
 [docs/12-run-and-check.md](docs/12-run-and-check.md) for the run guide, and
 [DECISIONS.md](DECISIONS.md) for every choice the docs did not settle.

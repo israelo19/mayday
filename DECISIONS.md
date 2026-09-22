@@ -649,7 +649,7 @@ five principles in CLAUDE.md intact. Newest at the bottom. Times are EDT.
   problem: the whole app held ONE approved answer to a question (bleeding: tourniquet), so
   "am I pushing hard enough?" had nothing it was allowed to say back. Two things, both inside
   principle 1. (1) Answers. `KeywordResponse` carries the question it answers; cardiac has
-  fourteen and bleeding eleven, cited, drafted from the AHA and Stop the Bleed pages the way
+  fourteen and bleeding eleven (twelve by the Sun 22 scan, 26 in all), cited, drafted from the AHA and Stop the Bleed pages the way
   the states were, and a human verifies them against the live pages before the demo. The
   intent router is offered them next to the step's moves, marked Question; a move still asks
   for a yes, an answer moves nothing so it just speaks. The linter refuses an answer whose
