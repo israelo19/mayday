@@ -37,12 +37,12 @@ export async function reverseGeocode(lat: number, lon: number, timeoutMs = 5000)
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const url = `${ENDPOINT}?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
-    const res = await fetch(url, {
-      signal: controller.signal,
-      // Nominatim's usage policy asks for an identifying header; a Referer is what a browser
-      // fetch can actually set (User-Agent is restricted client-side).
-      headers: { Referer: typeof location !== 'undefined' ? location.origin : 'mayday-app' },
-    });
+    // Nominatim's usage policy asks callers to identify themselves. A page cannot: User-Agent
+    // and Referer are both forbidden header names, and a browser drops them from a fetch
+    // without a word. The request goes out as the browser's own, with the Referer the browser
+    // attaches by itself, and at one call per session it sits far inside the policy's one
+    // request a second.
+    const res = await fetch(url, { signal: controller.signal });
     if (!res.ok) return null;
     const data = (await res.json()) as NominatimReverse;
     return (data.address ? formatAddress(data.address) : null) ?? data.display_name ?? null;

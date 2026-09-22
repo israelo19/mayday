@@ -5,7 +5,7 @@ import mkcert from 'vite-plugin-mkcert';
 import { VitePWA } from 'vite-plugin-pwa';
 import * as QRCode from 'qrcode';
 import { appendFileSync } from 'node:fs';
-import { createKeyProxy, readLocalEnv, resolveProvider } from './src/voice/providers/devproxy.mjs';
+import { createKeyProxy, keySources, readBody, readLocalEnv, resolveProvider, sendTooLarge } from './src/voice/providers/devproxy.mjs';
 
 // HTTPS in dev because getUserMedia needs a secure context on any origin other than
 // localhost (the phone on the LAN hits https://<laptop-ip>:5173).
@@ -72,6 +72,9 @@ function keyProxy(): PluginOption {
       return;
     }
     server.middlewares.use('/api/proxy', createKeyProxy({ apiKey, agentId, coachVoice, provider, visionProvider }));
+    // Which file each key came from, never the key: a key in the wrong file used to be
+    // invisible, and read exactly like a key that does not work.
+    console.log(`  Keys: ${keySources(['ELEVENLABS_API_KEY', 'GEMINI_API_KEY', 'FEATHERLESS_API_KEY', 'XAI_API_KEY'])}`);
     console.log(
       `  ElevenLabs: ${apiKey ? `key proxy at /api/proxy, dispatcher agent ${agentId ? 'set' : 'NOT set'}, coach voice ${coachVoice ? `"${coachVoice}"` : 'default'}` : 'off (no ELEVENLABS_API_KEY)'}`,
     );
@@ -81,11 +84,26 @@ function keyProxy(): PluginOption {
   return { name: 'mayday-key-proxy', configureServer: mount, configurePreviewServer: mount };
 }
 
+/** A flush of the trace queue is a few hundred bytes of JSON lines; anything near this is not the app. */
+const TRACE_BODY_LIMIT = 64 * 1024;
+
+/**
+ * A line that came in off the network, made safe to print: terminal escape sequences and the
+ * other control characters go, so a crafted POST cannot redraw or retitle the dev terminal.
+ * The app's own lines are JSON, which already escapes these, so nothing real is lost.
+ */
+function plain(line: string): string {
+  return line
+    .replace(/\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-Z\\-_])/g, '')
+    .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '');
+}
+
 /**
  * Dev-only sink for the phone trace (web/trace.ts, `?trace=1`): the page posts JSON lines to
  * /__trace and they print here under [trace], and append to MAYDAY_TRACE_FILE when set. A
  * phone has no console a laptop can read; this is how a mic or camera problem on the phone
- * gets debugged from the laptop. Never mounted on the preview or the deploy.
+ * gets debugged from the laptop. Never mounted on the preview or the deploy. Reads at most
+ * TRACE_BODY_LIMIT bytes per post and answers 413 for more, the same way the proxy does.
  */
 function traceSink(): PluginOption {
   return {
@@ -98,13 +116,14 @@ function traceSink(): PluginOption {
           res.end();
           return;
         }
-        let body = '';
-        req.on('data', (chunk: Buffer | string) => {
-          body += chunk.toString();
-        });
-        req.on('end', () => {
-          for (const line of body.split('\n')) if (line.trim()) console.log(`  [trace] ${line}`);
-          if (file) appendFileSync(file, body.endsWith('\n') ? body : `${body}\n`);
+        void readBody(req, TRACE_BODY_LIMIT).then((raw) => {
+          if (raw === null) {
+            sendTooLarge(req, res);
+            return;
+          }
+          const lines = (raw?.toString('utf8') ?? '').split('\n').map(plain).filter((line) => line.trim() !== '');
+          for (const line of lines) console.log(`  [trace] ${line}`);
+          if (file && lines.length > 0) appendFileSync(file, `${lines.join('\n')}\n`);
           res.statusCode = 204;
           res.end();
         });
