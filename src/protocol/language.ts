@@ -4,12 +4,16 @@
 //   - a light stemmer, so "choke", "choked", "choking" and "chokes" are one word;
 //   - recognizer-error tolerance, one letter of difference between two long words;
 //   - apostrophes ignored ("hes not breathing", "cant breathe");
-//   - word-bounded phrase matching, longest phrase first, so 'no' never wins over
-//     'no response' and 'shot' never fires inside 'shotgun';
+//   - word-bounded phrase matching, so 'shot' never fires inside 'shotgun', and a phrase
+//     that contains the winner ('no response' over 'no') is the one that was said;
 //   - up to two filler words inside a phrase ("the ambulance IS here" is 'ambulance here'),
 //     except in phrases that start with a negation, and never across a negation;
 //   - a keyword that is not itself a negation is skipped when the word before it is
-//     no/not/never/can't/don't, so "it's not safe" does not mean safe.
+//     no/not/never/can't/don't, so "it's not safe" does not mean safe;
+//   - a keyword under a condition ("tell me WHEN it's safe") or inside a question ("IS it
+//     safe?") is skipped too: neither is the person saying the thing;
+//   - `matchKeyword` answers in the caller's order, so a list is a priority list, and the
+//     machines list the safety-critical keyword of a state first (lint.ts holds them to it).
 // Pure and tested in tests/language.test.ts. Owned by P2 (docs/07); built on `polish`.
 
 /** Words the trailing-s rule must leave alone: singular words that end in s. */
@@ -113,7 +117,12 @@ export function sameWord(a: string, b: string): boolean {
  * so "can't" and "don't" arrive as "cant" / "dont". A keyword that itself starts with one
  * of these ("not breathing", "can't cough") is not flipped: the negation is the keyword.
  */
-const NEGATION = new Set(['no', 'not', 'never', 'cant', 'cannot', 'dont', 'doesnt', 'didnt', 'isnt', 'wont', 'couldnt', 'aint']);
+const NEGATION = new Set([
+  'no', 'not', 'never', 'cant', 'cannot', 'dont', 'doesnt', 'didnt', 'isnt', 'wont', 'couldnt', 'aint',
+  // "he HASN'T collapsed" reached 'collapsed' and sent a choking patient to CPR positioning:
+  // the perfect and past auxiliaries were missing, and so were the plain words for no.
+  'hasnt', 'havent', 'hadnt', 'wasnt', 'werent', 'shouldnt', 'wouldnt', 'nope', 'neither',
+]);
 
 /**
  * Filler words a speaker drops inside a phrase: "the ambulance IS here" must still be
@@ -156,6 +165,8 @@ export function containsTokens(text: readonly string[], phrase: readonly string[
       at = found;
     }
     if (negatedAt(text, i, phrase)) continue;
+    if (conditionalAt(text, i)) continue;
+    if (questionAt(text, i)) continue;
     return true;
   }
   return false;
@@ -206,18 +217,91 @@ function negatedAt(text: readonly string[], start: number, phrase: readonly stri
 }
 
 /**
- * The longest keyword present in the transcript, or null. Same contract as before: the
- * keyword comes back exactly as the caller listed it. Longest first is what keeps 'no
- * response' from being swallowed by 'no' when a state offers both (docs/07 decision 4).
+ * Words that make what follows a condition rather than a report. "I'll tell you WHEN it's
+ * safe", "I'll wait UNTIL it's safe" and "ONCE it's safe I'll go" all reached 'safe' and opened
+ * the bleeding machine's scene-safety gate on a sentence that said the opposite: that it is
+ * not safe yet. Stemmed, because the transcript is.
+ */
+const CONDITIONAL = new Set(['if', 'when', 'until', 'once', 'unless', 'whether', 'before', 'after'].map(stem));
+
+/** Subjects a question or a condition puts between its opening word and the keyword. */
+const PRONOUN = new Set(['it', 'he', 'she', 'they', 'i', 'you', 'we', 'hes', 'im', 'theyr']);
+
+/**
+ * Words a yes/no question opens with. "IS it safe to go over there?" and "AM I safe?" are the
+ * person asking, and the same gate answered yes. A sentence that opens with one of these and
+ * runs on nothing but a subject and filler up to the keyword is that question.
+ */
+const AUXILIARY = new Set(['is', 'are', 'am', 'was', 'were', 'do', 'does', 'did', 'should', 'can', 'could', 'will', 'would'].map(stem));
+
+/** True when a conditional sits just before the phrase, reached through filler, hedges and a subject. */
+function conditionalAt(text: readonly string[], start: number): boolean {
+  for (let i = start - 1; i >= 0 && start - i <= 3; i--) {
+    const w = text[i];
+    if (CONDITIONAL.has(w)) return true;
+    if (!HEDGES.has(w) && !FILLER.has(w) && !PRONOUN.has(w)) return false;
+  }
+  return false;
+}
+
+/**
+ * True when the sentence is a yes/no question whose subject is the thing the phrase is about.
+ * A subject is required: "we're safe" arrives as "were safe" once the apostrophe is gone, and
+ * a question needs someone to be asking about.
+ */
+function questionAt(text: readonly string[], start: number): boolean {
+  if (start === 0 || !AUXILIARY.has(text[0])) return false;
+  let subject = false;
+  for (let k = 1; k < start; k++) {
+    const w = text[k];
+    if (PRONOUN.has(w)) subject = true;
+    else if (!FILLER.has(w) && !HEDGES.has(w)) return false;
+  }
+  return subject;
+}
+
+/** Every keyword present in the transcript, in the order the caller listed them. */
+export function matchKeywords(transcript: string, keywords: readonly string[]): string[] {
+  const text = tokens(transcript);
+  if (text.length === 0) return [];
+  return keywords.filter((keyword) => containsTokens(text, tokens(keyword)));
+}
+
+/**
+ * The keyword to act on, or null. The keyword comes back exactly as the caller listed it, and
+ * the list is a priority list: the first keyword present wins. The machines list a state's
+ * safety-critical keywords first, so "he's breathing but gasping" in check_breathing is
+ * 'gasping' and not "he's breathing" (the state's own line says gasping does not count), and
+ * the linter refuses a machine that lists them the other way round.
+ *
+ * One exception, the reason longest-first used to be the rule: when a later keyword contains
+ * the winner ('no response' contains 'no'), the longer one is what was said (docs/07
+ * decision 4). The linter only lets such a pair lead to different targets when the longer
+ * one is listed first, so this tie-break never changes where the engine goes.
  */
 export function matchKeyword(transcript: string, keywords: readonly string[]): string | null {
-  const text = tokens(transcript);
-  if (text.length === 0) return null;
-  const candidates = [...keywords].sort((a, b) => b.length - a.length);
-  for (const keyword of candidates) {
-    if (containsTokens(text, tokens(keyword))) return keyword;
+  const hits = matchKeywords(transcript, keywords);
+  if (hits.length === 0) return null;
+  const first = tokens(hits[0]);
+  let best = hits[0];
+  let bestLength = first.length;
+  for (const hit of hits.slice(1)) {
+    const candidate = tokens(hit);
+    if (candidate.length > bestLength && isSubsequence(first, candidate)) {
+      best = hit;
+      bestLength = candidate.length;
+    }
   }
-  return null;
+  return best;
+}
+
+/** True when every word of `inner` appears in `outer`, in order, with the matcher's tolerance. */
+export function isSubsequence(inner: readonly string[], outer: readonly string[]): boolean {
+  let j = 0;
+  for (const word of outer) {
+    if (j < inner.length && sameWord(word, inner[j])) j++;
+  }
+  return j === inner.length;
 }
 
 /** Two keywords that stem to the same tokens would be one keyword twice; the linter refuses them. */

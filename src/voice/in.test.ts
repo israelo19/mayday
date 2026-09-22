@@ -221,6 +221,49 @@ describe('the keyword listener', () => {
     expect(s.recs.length).toBe(2); // and it must not have built a third
   });
 
+  it('schedules a retry when a fresh recognizer refuses to start, and says so', () => {
+    // start() throws while the previous instance winds down. The comment promised the
+    // backoff would retry; nothing scheduled one, and the chip said "listening" over a
+    // mic that was off for the rest of the session.
+    let throwOnce = true;
+    const recs: FakeRecognition[] = [];
+    const pending: (() => void)[] = [];
+    const statuses: string[] = [];
+    const events: string[] = [];
+    const voiceIn = createVoiceIn({
+      factory: () => {
+        const r = new FakeRecognition();
+        if (throwOnce) {
+          throwOnce = false;
+          r.start = () => {
+            throw new Error('recognition has already started');
+          };
+        }
+        recs.push(r);
+        return r;
+      },
+      schedule: (fn) => {
+        pending.push(fn);
+        return () => {};
+      },
+    });
+    voiceIn.start({
+      keywords: () => ['not breathing'],
+      onKeyword: () => {},
+      onTranscript: () => {},
+      suppress: () => false,
+      onStatus: (s) => statuses.push(s),
+      onEvent: (name) => events.push(name),
+    });
+    expect(events).toContain('start-threw');
+    expect(statuses).toEqual(['restarting']); // never 'listening' over a dead mic
+    expect(pending.length).toBe(1);
+    pending.splice(0).forEach((fn) => fn());
+    expect(recs.length).toBe(2);
+    expect(recs[1].started).toBe(1);
+    expect(statuses).toEqual(['restarting', 'listening']);
+  });
+
   it('gives up for the session when the mic permission is denied', () => {
     const s = setup();
     s.rec().onerror?.({ error: 'not-allowed' });
@@ -299,5 +342,55 @@ describe('a recognizer that never sends a final (WebKit continuous mode)', () =>
     s.rec().hear('my dad fell over', false);
     expect(interim).toEqual(['my dad', 'my dad fell over']);
     expect(s.transcripts).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Short keywords ('no', 'yes', 'aed') are a hypothesis away from a different word. They wait
+// for a final, or for the interim to settle; long phrases keep firing from interims.
+// ---------------------------------------------------------------------------
+
+describe('short keywords wait for a final or a settled result', () => {
+  it('never fires `no` from "he\'s no..." on its way to "he\'s not breathing"', () => {
+    const s = setup();
+    s.rec().hear("he's no", false);
+    expect(s.heardKeywords).toEqual([]);
+    s.rec().hear("he's not breathing", true);
+    expect(s.heardKeywords).toEqual(['not breathing']);
+  });
+
+  it('fires a short keyword from a final, even when the interim already showed it', () => {
+    const s = setup();
+    s.rec().hear('no', false);
+    expect(s.heardKeywords).toEqual([]);
+    s.rec().hear('no', true);
+    expect(s.heardKeywords).toEqual(['no']);
+  });
+
+  it('fires a short keyword once the interim settles, for a recognizer that never sends a final', () => {
+    const s = setup();
+    s.rec().hear('no', false);
+    expect(s.heardKeywords).toEqual([]);
+    s.tick(INTERIM_SETTLE_MS + 1);
+    s.runPending();
+    expect(s.transcripts).toEqual(['no']);
+    expect(s.heardKeywords).toEqual(['no']);
+    // The transcript grows and settles again: the same `no` is not a new one.
+    s.tick(KEYWORD_REFIRE_MS + 500);
+    s.rec().hear('no he is cold', false);
+    s.tick(INTERIM_SETTLE_MS + 1);
+    s.runPending();
+    expect(s.heardKeywords).toEqual(['no']);
+  });
+
+  it('still fires long phrases from interims, and holds a settled short keyword the app itself said', () => {
+    const s = setup({ echoText: () => ['Say yes, or tap.'], keywords: () => ['yes', 'not breathing'] });
+    s.rec().hear("he's not breathing", false);
+    expect(s.heardKeywords).toEqual(['not breathing']);
+    s.rec().hear('yes', false);
+    s.setSuppressed(true); // the app is asking its question as the settle lands
+    s.tick(INTERIM_SETTLE_MS + 1);
+    s.runPending();
+    expect(s.heardKeywords).toEqual(['not breathing']); // our own "yes", held back
   });
 });

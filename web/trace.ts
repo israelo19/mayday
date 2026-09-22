@@ -8,7 +8,9 @@ import type { Session, SessionSnapshot } from './session';
 
 type Line = Record<string, unknown>;
 
-const enabled = typeof location !== 'undefined' && new URLSearchParams(location.search).has('trace');
+// Dev builds only, matching the sink, which is never mounted on the preview or the deploy: a
+// production page with `?trace=1` would otherwise post the session's transcripts at a 404.
+const enabled = import.meta.env.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).has('trace');
 const t0 = Date.now();
 let queue: Line[] = [];
 let timer: number | null = null;

@@ -33,6 +33,8 @@ export const bleeding: Machine = {
         { on: { kind: 'keyword', keyword: "it's safe" }, to: 'call_911', label: 'I am safe' },
         { on: { kind: 'keyword', keyword: 'safe now' }, to: 'call_911', label: 'I am safe' },
         { on: { kind: 'keyword', keyword: "they're gone" }, to: 'call_911', label: 'I am safe' },
+        { on: { kind: 'keyword', keyword: 'they are gone' }, to: 'call_911', label: 'I am safe' },
+        { on: { kind: 'keyword', keyword: 'gone' }, to: 'call_911', label: 'Attacker gone' },
         { on: { kind: 'keyword', keyword: 'they left' }, to: 'call_911', label: 'I am safe' },
         { on: { kind: 'keyword', keyword: 'all clear' }, to: 'call_911', label: 'I am safe' },
         { on: { kind: 'manualAdvance' }, to: 'call_911', label: 'Next' },

@@ -39,7 +39,7 @@ export type Voice = {
   in: VoiceIn;
   /** Speaks the "Say this to the dispatcher" block, pausable, yields to criticals. */
   readAloud: ReadAloud;
-  /** The scripted, offline dispatcher sim. Rendered under the SIMULATED banner. */
+  /** The scripted, offline dispatcher sim. Its lines go to the call panel ("911 / On the line"); the LAUNCH screen carries the disclosure. */
   dispatcher: DispatcherSim;
   /** Fact-to-audible latency percentiles for the debug panel and docs/latency.md. */
   stats(): LatencyStats;

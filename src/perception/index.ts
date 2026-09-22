@@ -38,7 +38,7 @@ import {
 } from './signal';
 
 export type { Hand, Roi, RoiState } from './hands';
-export type { Facing } from './camera';
+export type { Facing, OpenCameraHooks } from './camera';
 export type { Sample, Tuning } from './signal';
 export { DEFAULT_TUNING, TUNING_RANGES, GUIDANCE } from './signal';
 export { primeMediaPermissions } from './camera';
@@ -234,8 +234,12 @@ class PerceptionImpl implements Perception {
       this.statusValue = opts.replayUrl ? 'starting-camera' : 'awaiting-permission';
       const source = opts.replayUrl
         ? await openReplay(video, opts.replayUrl)
-        : await openCamera(video, 'environment', () => {
-            if (gen === this.generation) this.statusValue = 'starting-camera';
+        : await openCamera(video, 'environment', {
+            onGranted: () => {
+              if (gen === this.generation) this.statusValue = 'starting-camera';
+            },
+            isCurrent: () => gen === this.generation,
+            onEnded: () => this.onCameraEnded(gen),
           });
       if (gen !== this.generation) {
         source.stop();
@@ -258,6 +262,19 @@ class PerceptionImpl implements Perception {
     this.generation++;
     this.teardown();
     this.statusValue = 'stopped';
+  }
+
+  /**
+   * The camera track ended on its own. Said out loud as an error, the same as a refused
+   * camera, so the screen shows "Camera off" with its Try again (principle 4: never a live
+   * looking screen with nothing behind it). A track from an older generation is ignored.
+   */
+  private onCameraEnded(gen: number): void {
+    if (gen !== this.generation) return;
+    this.generation++;
+    this.teardown();
+    this.statusValue = 'error';
+    this.errorValue = 'Camera stopped';
   }
 
   subscribe(cb: (f: PerceptionFacts) => void): () => void {
@@ -384,40 +401,49 @@ class PerceptionImpl implements Perception {
     const video = this.video;
     const pose = this.pose;
     if (!this.running || !video || !pose) return;
-    if (video.readyState >= 2 && video.currentTime !== this.lastVideoTime) {
-      this.lastVideoTime = video.currentTime;
-      const now = performance.now();
-      // MediaPipe VIDEO mode needs strictly increasing integer-ish ms timestamps.
-      let ts = Math.round(now);
-      if (ts <= this.lastTs) ts = this.lastTs + 1;
-      this.lastTs = ts;
-      this.frameIndex++;
-      this.frameTimes.push(now);
-      while (this.frameTimes.length > 0 && this.frameTimes[0] < now - 1000) this.frameTimes.shift();
+    try {
+      if (video.readyState >= 2 && video.currentTime !== this.lastVideoTime) {
+        this.lastVideoTime = video.currentTime;
+        const now = performance.now();
+        // MediaPipe VIDEO mode needs strictly increasing integer-ish ms timestamps.
+        let ts = Math.round(now);
+        if (ts <= this.lastTs) ts = this.lastTs + 1;
+        this.lastTs = ts;
+        this.frameIndex++;
+        this.frameTimes.push(now);
+        while (this.frameTimes.length > 0 && this.frameTimes[0] < now - 1000) this.frameTimes.shift();
 
-      const withHands = this.modeValue === 'pose+hands' && this.handsModel !== null;
-      // With both models running, the pose runs on every other frame to keep the hands
-      // responsive: the bleeding loop cares about hands, the confidence gate can wait a frame.
-      const runPose = !withHands || this.frameIndex % 2 === 0;
-      try {
-        if (runPose) {
-          pose.detectForVideo(video, ts, (result) => {
-            this.scene = this.sceneTracker.update(result.landmarks, now);
-            this.onPose(pickRescuer(result.landmarks, this.lastMid), now);
-          });
+        const withHands = this.modeValue === 'pose+hands' && this.handsModel !== null;
+        // With both models running, the pose runs on every other frame to keep the hands
+        // responsive: the bleeding loop cares about hands, the confidence gate can wait a frame.
+        const runPose = !withHands || this.frameIndex % 2 === 0;
+        try {
+          if (runPose) {
+            pose.detectForVideo(video, ts, (result) => {
+              this.scene = this.sceneTracker.update(result.landmarks, now);
+              this.onPose(pickRescuer(result.landmarks, this.lastMid), now);
+            });
+          }
+          if (withHands && this.handsModel) {
+            this.onHands(toHands(this.handsModel.detectForVideo(video, ts)), now);
+          }
+        } catch (err) {
+          console.warn('[perception] detection failed on a frame', err);
         }
-        if (withHands && this.handsModel) {
-          this.onHands(toHands(this.handsModel.detectForVideo(video, ts)), now);
-        }
-      } catch (err) {
-        console.warn('[perception] detection failed on a frame', err);
+        this.luma.sample(video, now);
+        this.guidance = cameraGuidance({ now, shouldersSeenAt: this.shouldersSeenAt, span: this.span, luma: this.luma.current() });
+        this.draw();
+        this.emit(now);
       }
-      this.luma.sample(video, now);
-      this.guidance = cameraGuidance({ now, shouldersSeenAt: this.shouldersSeenAt, span: this.span, luma: this.luma.current() });
-      this.draw();
-      this.emit(now);
+    } catch (err) {
+      console.warn('[perception] a frame failed after detection', err);
+    } finally {
+      // Whatever a frame did, the loop goes on. Only detection used to be guarded: a throw
+      // from the overlay or a subscriber skipped the reschedule, and the status stayed
+      // 'running' with no facts ever again, which is the silent state principle 4 forbids.
+      // scheduleFrame() itself honours stop(): a stopped loop is not resurrected here.
+      this.scheduleFrame();
     }
-    this.scheduleFrame();
   }
 
   private onPose(lm: NormalizedLandmark[] | undefined, now: number): void {
@@ -479,7 +505,15 @@ class PerceptionImpl implements Perception {
       scene: this.scene,
     };
     this.facts = facts;
-    for (const cb of this.subs) cb(facts);
+    for (const cb of this.subs) {
+      // One subscriber's bug must not starve the others (the engine, the voice queue, the
+      // screen all listen here) or stop the loop.
+      try {
+        cb(facts);
+      } catch (err) {
+        console.warn('[perception] a facts subscriber threw', err);
+      }
+    }
   }
 
   private draw(): void {

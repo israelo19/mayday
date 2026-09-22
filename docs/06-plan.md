@@ -22,7 +22,7 @@ scene_safety through pressure states. ROI lock, handsOnRegion, handsOffMs, the d
 Order: key proxy -> ElevenLabs coach voice -> dispatcher sim -> Gemini vision describe -> domain. Each behind its flag, each reverts to stub on failure. STOP adding at hour 18 regardless.
 
 ## M5 (hours 18-24) - polish, rehearsal, submission
-Failure modes tested (light, angle, distance, wifi off). 6 demo rehearsals. Devpost: description written from these docs, sub-3-min video recorded from a full run, track=Bloomberg only, opt-ins checked, all 4 teammates added, repo public. Submit by 8:40 AM Sunday, alarm at 8:30, hands off after.
+Failure modes tested (light, angle, distance, wifi off). 6 demo rehearsals. Devpost: description written from these docs, sub-3-min video recorded from a full run, track=Most Philanthropic Hack only, opt-ins checked, all 4 teammates added, repo public. Submit by 8:40 AM Sunday, alarm at 8:30, hands off after.
 
 ## Standing rules
 - Every hour, someone commits. If a feature can't demo, it doesn't merge.

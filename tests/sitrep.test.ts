@@ -75,6 +75,42 @@ describe('derived metrics', () => {
     expect(metrics.longestPauseMs).toBe(0);
   });
 
+  it('closes a pause at the edge of blind time instead of bridging it', () => {
+    // 6 s pause, 30 s blind, 6 s pause: two short pauses, not one 12 s one.
+    const s = session('cardiac', 'compressions', { rate: 110 });
+    s.run(10000);
+    s.facts.set({ compressing: false });
+    s.run(16000);
+    s.facts.set({ cameraCovered: true });
+    s.run(46000);
+    s.facts.set({ cameraCovered: false });
+    s.run(52000);
+    s.facts.set({ compressing: true });
+    s.run(60000);
+    const { metrics } = buildSitrep(s.log, GEO, s.now());
+    expect(metrics.longestPauseMs).toBeGreaterThanOrEqual(5500);
+    expect(metrics.longestPauseMs).toBeLessThanOrEqual(6500);
+    expect(metrics.compressionPauses).toBe(0);
+    expect(metrics.unmeasuredMs).toBeGreaterThanOrEqual(29000);
+  });
+
+  it('weights the average rate by time, not by how many samples an edge produced', () => {
+    // Two minutes at 110 with five seconds of stop-start at 60 inside: the stop-start logs a
+    // sample every half second, and used to drag the average down to about 100.
+    const s = session('cardiac', 'compressions', { rate: 110 });
+    s.run(60000);
+    s.facts.set({ rate: 60 });
+    for (let t = 60500; t <= 65000; t += 500) {
+      s.facts.set({ compressing: t % 1000 === 500 });
+      s.run(t);
+    }
+    s.facts.set({ rate: 110, compressing: true });
+    s.run(120000);
+    const { metrics } = buildSitrep(s.log, GEO, s.now());
+    expect(metrics.averageRate).toBeGreaterThanOrEqual(108);
+    expect(metrics.averageRate).toBeLessThanOrEqual(110);
+  });
+
   it('times unbroken pressure on a wound', () => {
     const s = session('bleeding', 'pressure', { handsOn: true, compressing: false });
     s.run(40000);
@@ -85,6 +121,24 @@ describe('derived metrics', () => {
     const { metrics } = buildSitrep(s.log, null, s.now());
     expect(metrics.continuousPressureMs).toBeGreaterThanOrEqual(39000);
     expect(metrics.totalPressureMs).toBeGreaterThan(metrics.continuousPressureMs);
+  });
+
+  it.each([
+    ['untracked', { handsOn: null }],
+    ['blind', { cameraCovered: true }],
+  ])('does not bridge unbroken pressure across a %s stretch', (_why, gap) => {
+    // 20 s on, 30 s of not knowing, 20 s on: the longest unbroken stretch is 20 s, the total 40.
+    const s = session('bleeding', 'pressure', { handsOn: true, compressing: false });
+    s.run(20000);
+    s.facts.set(gap);
+    s.run(50000);
+    s.facts.set({ handsOn: true, cameraCovered: false });
+    s.run(70000);
+    const { metrics } = buildSitrep(s.log, null, s.now());
+    expect(metrics.continuousPressureMs).toBeGreaterThanOrEqual(19000);
+    expect(metrics.continuousPressureMs).toBeLessThanOrEqual(21000);
+    expect(metrics.totalPressureMs).toBeGreaterThanOrEqual(39000);
+    expect(metrics.totalPressureMs).toBeLessThanOrEqual(41000);
   });
 });
 
@@ -136,6 +190,22 @@ describe('handoff report', () => {
     expect(payload.length).toBeLessThanOrEqual(2000);
     const parsed = JSON.parse(payload) as { metrics: { averageRate: number } };
     expect(parsed.metrics.averageRate).toBe(110);
+  });
+
+  it('trims the fix to what a fix is good for, so the timeline keeps an entry', () => {
+    // A raw fix spends thirty characters on decimals no receiver can use. With a street
+    // address in the payload as well, those thirty are the difference between the timeline
+    // keeping its first entry and losing it.
+    const fix: GeoFix = { lat: 39.328993827364512, lon: -76.620491827364512, accuracyM: 12.837465291, address: '3400 N Charles St, Baltimore, MD 21218, United States' };
+    expect(fix.address).toHaveLength(53);
+    const s = session('cardiac', 'compressions', { rate: 110 });
+    s.run(300000, 1000);
+    const payload = handoffQrPayload(buildHandoff(s.log, s.now(), fix));
+    const parsed = JSON.parse(payload) as { location: GeoFix; timeline: unknown[] };
+    expect(parsed.location).toEqual({ lat: 39.32899, lon: -76.62049, accuracyM: 13, address: fix.address });
+    expect(payload.length).toBeLessThanOrEqual(500);
+    expect(parsed.timeline.length).toBeGreaterThanOrEqual(1);
+    expect(parsed.timeline[0]).toEqual([-300000, 'state_enter', 'cardiac.compressions']);
   });
 
   it('starts the clock at the first medical instruction, not at triage', () => {

@@ -10,20 +10,10 @@
 // call-taker asks first (location, nature, patient status: the order of P2's SITREP block),
 // and it is told in its prompt that it gives NO medical instructions, because those come
 // from the machines alone (CLAUDE.md principle 1). The app labels it SIMULATED throughout.
-import { readFileSync } from 'node:fs';
-
-const ENV_LOCAL = new URL('../.env.local', import.meta.url);
-const DISPATCHER_VOICE_ID = 'EXAVITQu4vr4xnSDxMaL'; // Sarah, see src/voice/providers/voices.ts
-
-function readLocalEnv(name) {
-  if (process.env[name]) return process.env[name];
-  try {
-    const line = readFileSync(ENV_LOCAL, 'utf8').split('\n').find((l) => l.startsWith(`${name}=`));
-    return line?.slice(name.length + 1).trim() || null;
-  } catch {
-    return null;
-  }
-}
+// The key comes through the proxy's own reader, so this script and the proxy can never
+// disagree about which file holds it or how a quoted or exported line is read. Sarah's voice
+// id lives there too, mirrored from src/voice/providers/voices.ts.
+import { DISPATCHER_VOICE_ID, keySources, readLocalEnv } from '../src/voice/providers/devproxy.mjs';
 
 const PROMPT = `You are playing a 911 emergency dispatcher in a TRAINING SIMULATION for a first-aid coaching app called Mayday. The caller is a bystander at a medical emergency. A separate coaching system is already giving them first-aid instructions out loud; you never give medical instructions of any kind. Do not tell them how to do CPR, how to stop bleeding, or what to do with the patient. If they ask, say "Keep following the coaching you are hearing."
 
@@ -36,9 +26,10 @@ Then say help is on the way, tell them to stay on the line and keep following th
 async function main() {
   const apiKey = readLocalEnv('ELEVENLABS_API_KEY');
   if (!apiKey) {
-    console.error('No key. Set ELEVENLABS_API_KEY in the environment or .env.local.');
+    console.error('No key. Set ELEVENLABS_API_KEY in the environment, .env.local or .env.');
     process.exit(1);
   }
+  console.log(`key: ${keySources(['ELEVENLABS_API_KEY'])}`);
   const res = await fetch('https://api.elevenlabs.io/v1/convai/agents/create', {
     method: 'POST',
     headers: { 'xi-api-key': apiKey, 'content-type': 'application/json' },

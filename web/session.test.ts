@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createFakePerception } from '../src/perception/fake';
-import { createSession, HEARD_UNMATCHED_LINE, ROI_FAILED_LINE, type Session, type SessionDeps } from './session';
+import { GUIDANCE } from '../src/perception';
+import { confirmLine, TRIAGE_ROUTES } from '../src/protocol';
+import { canonicalLines, CAMERA_SAW_LINE, createSession, HEARD_UNMATCHED_LINE, ROI_FAILED_LINE, type DispatcherFactory, type Session, type SessionDeps } from './session';
 import type { Voice, VoiceInOptions, VoiceInStatus } from '../src/voice';
 import type { CoachingEvent } from '../src/types';
 import type { IntentRequest, IntentRouter } from '../src/ai/intent';
@@ -14,7 +16,9 @@ function fakeVoice() {
   const spoken: string[] = [];
   const metronome: (number | 'stop')[] = [];
   const dispatcherLines: string[] = [];
+  const external: string[] = [];
   const order: string[] = [];
+  let readAloudStops = 0;
   let listenOpts: (Omit<VoiceInOptions, 'suppress' | 'echoText'> & { onStatus?: (s: VoiceInStatus) => void }) | null = null;
   const voice = {
     out: {
@@ -33,11 +37,21 @@ function fakeVoice() {
       noteFacts: () => {},
       quietForMs: () => Infinity,
       recentlySpoken: () => spoken.slice(-6),
+      noteExternalSpeech: (text: string) => external.push(text),
       cancelAll: () => {},
       speakInternal: () => {},
     },
     in: { available: true, start: () => {}, stop: () => {} },
-    readAloud: { start: (lines: readonly string[]) => spoken.push(...lines), pause() {}, resume() {}, stop() {}, isActive: () => false, position: () => 0 },
+    readAloud: {
+      start: (lines: readonly string[]) => spoken.push(...lines),
+      pause() {},
+      resume() {},
+      stop() {
+        readAloudStops++;
+      },
+      isActive: () => false,
+      position: () => 0,
+    },
     dispatcher: {
       connect: (onLine: (t: string) => void) => {
         onLine('9 1 1, what is the address of your emergency?');
@@ -58,7 +72,7 @@ function fakeVoice() {
     },
     stopListening: () => {},
   } as unknown as Voice;
-  return { voice, enqueued, metronome, dispatcherLines, order, mic: () => listenOpts };
+  return { voice, enqueued, metronome, dispatcherLines, external, order, mic: () => listenOpts, readAloudStops: () => readAloudStops };
 }
 
 function rig(extra: Partial<SessionDeps> = {}): { s: Session; v: ReturnType<typeof fakeVoice>; p: ReturnType<typeof createFakePerception>; tick: (ms: number) => void; clock: { t: number } } {
@@ -299,6 +313,79 @@ describe('session', () => {
     expect(s.snapshot().dispatcherStatus).toBe('scripted');
     s.hangUp();
     expect(s.snapshot().callActive).toBe(false);
+  });
+
+  it("tells the voice queue about a live call-taker's lines, and not the scripted one's", () => {
+    // The agent plays its own audio, outside the queue, so the echo gates never saw it and
+    // "yes, help is on the way" could answer a yes/no question the coach had asked.
+    const live: DispatcherFactory = (_scripted, hooks) => ({
+      status: 'connecting',
+      dispatcher: {
+        connect(onLine) {
+          hooks.onStatus('live');
+          onLine('9 1 1, where are you?');
+          return {
+            sayToDispatcher: () => onLine('Yes, help is on the way. Keep going.'),
+            hangup: () => {},
+          };
+        },
+      },
+    });
+    const { s, v } = rig({ dispatcher: live });
+    s.start();
+    s.say('not breathing');
+    s.call911();
+    s.replyToDispatcher('We are at the library.');
+    expect(v.external).toEqual(['9 1 1, where are you?', 'Yes, help is on the way. Keep going.']);
+    expect(s.snapshot().dispatcherStatus).toBe('live');
+
+    const scripted = rig();
+    scripted.s.start();
+    scripted.s.call911();
+    scripted.s.replyToDispatcher('We are at the library.');
+    expect(scripted.v.external).toEqual([]); // the script speaks through the queue already
+  });
+
+  it('logs why the call changed hands, from the dispatcher factory, as a system line', () => {
+    const noting: DispatcherFactory = (scripted, hooks) => ({
+      status: 'connecting',
+      dispatcher: {
+        connect(onLine) {
+          hooks.onStatus('fallback');
+          hooks.onNote('agent line refused (read like coaching), scripted dispatcher took over');
+          return scripted.connect(onLine);
+        },
+      },
+    });
+    const { s } = rig({ dispatcher: noting });
+    s.start();
+    s.call911();
+    expect(s.log.entries().some((e) => e.kind === 'system' && e.detail === 'simulated dispatcher: agent line refused (read like coaching), scripted dispatcher took over')).toBe(true);
+  });
+
+  it('logs a recognizer error once while it repeats, not once per restart', () => {
+    // Offline Chrome answers every restart with 'network', about one every four seconds.
+    const { s, v } = rig();
+    s.start();
+    v.mic()!.onError?.('network');
+    v.mic()!.onError?.('network');
+    v.mic()!.onError?.('network');
+    const errors = s.log.entries().filter((e) => e.detail === 'speech recognition error: network');
+    expect(errors).toHaveLength(1);
+    v.mic()!.onError?.('no-speech');
+    v.mic()!.onError?.('network'); // a different line in between makes it news again
+    expect(s.log.entries().filter((e) => e.detail === 'speech recognition error: network')).toHaveLength(2);
+    expect(s.snapshot().listenError).toBe('network');
+  });
+
+  it('stop() ends a read-aloud in progress', () => {
+    const { s, v, tick } = rig();
+    s.start();
+    s.say('no pulse');
+    tick(1100);
+    s.readSitrepAloud();
+    s.stop();
+    expect(v.readAloudStops()).toBe(1);
   });
 
   it('restart wipes the log and returns to triage', () => {
@@ -686,7 +773,7 @@ function fakeFlavor(reply: (canonical: string, ctx: FlavorContext) => string | n
 
 describe('rewording (injected behind ?flag=narrationFlavor)', () => {
   it("rewords the next step's lines before it is reached; the session's first lines speak as written", async () => {
-    const f = fakeFlavor((canonical) => `Warmly: ${canonical}`);
+    const f = fakeFlavor((canonical) => `Okay, ${canonical}`);
     const { s, v } = rig({ flavor: f.flavor });
     s.start();
     // Triage's own line had no earlier moment to be reworded in.
@@ -699,12 +786,12 @@ describe('rewording (injected behind ?flag=narrationFlavor)', () => {
     await f.settle();
     v.mic()!.onKeyword('not breathing');
     const texts = v.enqueued.map((e) => e.text);
-    expect(texts).toContain("Warmly: Make sure it's safe to approach.");
-    expect(texts).toContain('Warmly: Tap his shoulders and shout: are you okay?');
+    expect(texts).toContain("Okay, Make sure it's safe to approach.");
+    expect(texts).toContain('Okay, Tap his shoulders and shout: are you okay?');
     expect(texts).not.toContain("Make sure it's safe to approach.");
     // The screen still knows which step line was said.
     expect(s.snapshot().lineIndex).toBe(1);
-    expect(s.log.entries().some((e) => e.detail === 'said as: "Warmly: Make sure it\'s safe to approach."')).toBe(true);
+    expect(s.log.entries().some((e) => e.detail === 'said as: "Okay, Make sure it\'s safe to approach."')).toBe(true);
   });
 
   it('refuses a rewording that drops a number or invents one; the canonical line speaks', async () => {
@@ -713,7 +800,7 @@ describe('rewording (injected behind ?flag=narrationFlavor)', () => {
         ? 'Call the emergency number right now. Put the phone on speaker and lay it on the ground beside him.'
         : canonical === 'Follow my beat. Do not stop.'
           ? 'Follow my beat at 110. Do not stop.'
-          : `Warmly: ${canonical}`,
+          : `Okay, ${canonical}`,
     );
     const { s, v } = rig({ flavor: f.flavor });
     s.start();
@@ -729,7 +816,7 @@ describe('rewording (injected behind ?flag=narrationFlavor)', () => {
     await f.settle();
     s.advance(); // compressions
     const texts = v.enqueued.map((e) => e.text);
-    expect(texts).toContain('Warmly: Push hard and fast, at least two inches deep.');
+    expect(texts).toContain('Okay, Push hard and fast, at least two inches deep.');
     expect(texts).toContain('Follow my beat. Do not stop.');
     expect(s.log.entries().some((e) => e.detail.startsWith('rewording refused (introduced the number 110)'))).toBe(true);
   });
@@ -737,7 +824,7 @@ describe('rewording (injected behind ?flag=narrationFlavor)', () => {
   it('a nag is canonical the first time and personal on the repeat: what they said, what the camera measures', async () => {
     const f = fakeFlavor((canonical, ctx) =>
       canonical === 'Faster. Push with the beat.' && ctx.heard !== null && ctx.numbers.length > 0
-        ? `Your arms are burning, I know. You are at ${ctx.numbers[0]}. Faster. Push with the beat.`
+        ? `I know this is hard, you are at ${ctx.numbers[0]}. Faster. Push with the beat.`
         : null,
     );
     const { s, v, p, tick, clock } = rig({ flavor: f.flavor });
@@ -763,7 +850,40 @@ describe('rewording (injected behind ?flag=narrationFlavor)', () => {
     expect(ask?.ctx.numbers).toContain(80);
     await f.settle();
     run(7000);
-    expect(nags()).toEqual(['Faster. Push with the beat.', 'Your arms are burning, I know. You are at 80. Faster. Push with the beat.']);
+    expect(nags()).toEqual(['Faster. Push with the beat.', 'I know this is hard, you are at 80. Faster. Push with the beat.']);
+  });
+
+  it('drops a nag rewording once the number it quoted has moved on, inside its own twenty seconds', async () => {
+    const f = fakeFlavor((canonical, ctx) =>
+      canonical === 'Faster. Push with the beat.' && ctx.numbers.length > 0 ? `You are at ${ctx.numbers[0]}. Faster. Push with the beat.` : null,
+    );
+    const { s, v, p, tick, clock } = rig({ flavor: f.flavor });
+    s.start();
+    s.say('not breathing');
+    for (let i = 0; i < 4; i++) s.advance();
+    p.setControls({ rate: 80, compressing: true });
+    const run = (ms: number) => {
+      for (let i = 0; i < ms / 100; i++) {
+        tick(100);
+        p.emitAt(clock.t);
+      }
+    };
+    const nags = () => v.enqueued.filter((e) => e.dedupeKey === 'rate-low').map((e) => e.text);
+    run(4500);
+    expect(nags()).toEqual(['Faster. Push with the beat.']);
+    await f.settle();
+    run(7000);
+    expect(nags().at(-1)).toBe('You are at 80. Faster. Push with the beat.');
+    // The person speeds up, still under the bar: the "80" line is nine seconds old and would
+    // have been kept for eleven more. It contradicts the beat now, so the canonical line speaks.
+    p.setControls({ rate: 95 });
+    await f.settle();
+    run(7000);
+    expect(nags().at(-1)).toBe('Faster. Push with the beat.');
+    expect(f.asked.filter((a) => a.canonical === 'Faster. Push with the beat.').map((a) => a.ctx.numbers[0])).toContain(95);
+    await f.settle();
+    run(7000);
+    expect(nags().at(-1)).toBe('You are at 95. Faster. Push with the beat.');
   });
 
   it('asks nothing and changes nothing without a provider', () => {
@@ -771,5 +891,16 @@ describe('rewording (injected behind ?flag=narrationFlavor)', () => {
     s.start();
     v.mic()!.onKeyword('not breathing');
     expect(v.enqueued.map((e) => e.text)).toContain("Make sure it's safe to approach.");
+  });
+});
+
+describe('canonicalLines', () => {
+  it('covers the lines the session itself speaks and the questions it asks, not only the machines', () => {
+    const lines = canonicalLines();
+    for (const line of [ROI_FAILED_LINE, CAMERA_SAW_LINE, HEARD_UNMATCHED_LINE, GUIDANCE.dark, GUIDANCE.closer, GUIDANCE.back]) expect(lines).toContain(line);
+    for (const r of TRIAGE_ROUTES) expect(lines).toContain(r.confirm);
+    expect(lines).toContain(confirmLine('Not breathing'));
+    expect(lines).not.toContain(GUIDANCE.unseen); // the engine's own blind rule says that one
+    expect(new Set(lines).size).toBe(lines.length);
   });
 });

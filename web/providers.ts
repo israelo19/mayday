@@ -9,6 +9,7 @@ import type { DispatcherSim } from '../src/ai/dispatcher';
 import { ModelNarrationFlavor, type NarrationFlavor } from '../src/ai';
 import { flags } from '../src/flags';
 import type { SceneLabel } from '../src/types';
+import { DISPATCHER_ACK, DISPATCHER_SCRIPT } from '../src/voice';
 import { WebSpeechProvider, type SpeakerProvider } from '../src/voice/out';
 import { ElevenLabsProvider } from '../src/voice/providers/elevenlabs';
 import { createAgentDispatcher, type AgentDispatcherStatus } from '../src/voice/providers/elevenlabs-agent';
@@ -40,7 +41,7 @@ export async function configureCoachVoice(speaker: SpeakerProvider): Promise<voi
 /** The scripted call-taker speaks through the queue; the ElevenLabs agent, behind its flag, wraps it as the fallback. */
 export function createDispatcher(
   scripted: DispatcherSim,
-  hooks: { onStatus: (s: AgentDispatcherStatus) => void; onTranscript: (t: string) => void },
+  hooks: { onStatus: (s: AgentDispatcherStatus) => void; onTranscript: (t: string) => void; onNote: (detail: string) => void },
 ): { dispatcher: DispatcherSim; status: 'scripted' | 'connecting' } {
   if (!flags.dispatcherSim) return { dispatcher: scripted, status: 'scripted' };
   return { dispatcher: createAgentDispatcher({ fallback: scripted, ...hooks }), status: 'connecting' };
@@ -64,9 +65,14 @@ export function createRouter(fake: boolean): IntentRouter | undefined {
   return fake ? createStubIntentRouter() : createIntentRouter();
 }
 
-/** Warm the ElevenLabs cache with every line the machines can say, so replays are free and offline (docs/09). */
+/**
+ * Warm the ElevenLabs cache with every line the coach can say, so replays are free and
+ * offline (docs/09), then the scripted call-taker's lines in her own voice: the first CALL
+ * 911 tap used to wait on the network for its opener, and lost it with the wifi off.
+ */
 export function warmSpeaker(speaker: SpeakerProvider, lines: readonly string[]): void {
-  if (speaker instanceof ElevenLabsProvider) void speaker.warm(lines);
+  if (!(speaker instanceof ElevenLabsProvider)) return;
+  void speaker.warm(lines).then(() => speaker.warmDispatcher([...DISPATCHER_SCRIPT, DISPATCHER_ACK]));
 }
 
 /** Rewording of canonical lines behind its flag; absent, every line speaks as written (docs/04 item 5). */

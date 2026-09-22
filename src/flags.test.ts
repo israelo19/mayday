@@ -33,4 +33,18 @@ describe('parseFlags', () => {
     expect(f.elevenLabs).toBe(true);
     expect(f.dispatcherSim).toBe(false);
   });
+
+  it('ignores a name the object only inherits', () => {
+    const f = parseFlags('?flag=toString,constructor');
+    expect(f).toEqual(parseFlags(''));
+    expect(Object.hasOwn(f, 'toString')).toBe(false);
+    expect(() => String(f)).not.toThrow();
+  });
+
+  it('honours every flag= in the query, not just the first', () => {
+    const f = parseFlags('?flag=elevenLabs&debug=1&flag=dispatcherSim');
+    expect(f.elevenLabs).toBe(true);
+    expect(f.dispatcherSim).toBe(true);
+    expect(f.visionDescribe).toBe(false);
+  });
 });

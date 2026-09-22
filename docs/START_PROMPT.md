@@ -1,8 +1,9 @@
 # Starting prompt for Claude Code (paste everything below the line)
 
-Historical: this is the M0 kickoff prompt and M0 is done. The current milestone is in
-docs/06-plan.md and file ownership is in docs/07-work-split.md. A fresh session follows the
-reading order in CLAUDE.md, not this file.
+Historical: this is the Friday-night kickoff prompt, kept for the record. Current behaviour
+is described by CLAUDE.md and docs/01-architecture.md, and a fresh session follows the reading
+order in CLAUDE.md, not this file; several constraints below (stubs only, ~120 engine lines)
+were overtaken during the weekend.
 
 ---
 

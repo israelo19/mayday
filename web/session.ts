@@ -35,7 +35,12 @@ export type DispatcherLine = { who: 'dispatcher' | 'you'; text: string };
 /** How the session obtains its dispatcher: the scripted one from the voice module, or a flagged wrapper around it. */
 export type DispatcherFactory = (
   scripted: DispatcherSim,
-  hooks: { onStatus: (s: Exclude<DispatcherStatus, 'scripted'>) => void; onTranscript: (t: string) => void },
+  hooks: {
+    onStatus: (s: Exclude<DispatcherStatus, 'scripted'>) => void;
+    onTranscript: (t: string) => void;
+    /** Why the call changed hands (a refused agent line, a dropped socket), for the log only. */
+    onNote: (detail: string) => void;
+  },
 ) => { dispatcher: DispatcherSim; status: DispatcherStatus };
 
 /** A button that does exactly what saying its keyword does (docs/05: every voice path has a twin). */
@@ -224,6 +229,12 @@ const FLAVOR_LIVE_MS = 20_000;
 const FLAVOR_STEP_MS = 60 * 60_000;
 /** What the person said is context for a rewording this long. */
 const FLAVOR_HEARD_MS = 15_000;
+/**
+ * A rewording that quotes a live number ("about 95 a minute") is stale once the camera's
+ * number has moved this far from it, however young the rewording is: said on the repeat with
+ * the old figure, it contradicts the beat the person can hear. Compressions per minute.
+ */
+const FLAVOR_NUMBER_DRIFT = 5;
 
 export function createSession(deps: SessionDeps): Session {
   const { perception, voice } = deps;
@@ -260,8 +271,8 @@ export function createSession(deps: SessionDeps): Session {
   let pendingTranscript: { text: string; t: number } | null = null;
   let suggestion: (RouteSuggestion & { at: number }) | null = null;
   let sessionStartedAt = 0;
-  /** Validated rewordings by `${machine}.${state}|${canonical}`, good until the session clock passes `until`. */
-  const flavored = new Map<string, { text: string; until: number }>();
+  /** Validated rewordings by `${machine}.${state}|${canonical}`, good until the session clock passes `until`, with the live numbers they were built on. */
+  const flavored = new Map<string, { text: string; until: number; numbers: readonly number[] }>();
   const flavorPending = new Set<string>();
   /** Rewording -> canonical line, so the screen can still tell which step line was spoken. */
   const canonicalOf = new Map<string, string>();
@@ -648,14 +659,19 @@ export function createSession(deps: SessionDeps): Session {
       .then((text) => {
         flavorPending.delete(key);
         if (phase === 'idle' || !text) return;
-        const v = validateNarration(text, canonical, state, ctx.numbers);
+        const v = validateNarration(text, canonical, state, ctx.numbers, { observations: ctx.observations.join(' ') });
         if (!v.ok) {
           log.append({ t: now(), kind: 'system', detail: `rewording refused (${v.reason}), canonical stands: "${text}"` });
           return;
         }
-        flavored.set(key, { text: v.text, until: now() + keepMs });
+        flavored.set(key, { text: v.text, until: now() + keepMs, numbers: ctx.numbers });
         canonicalOf.set(v.text, canonical);
       });
+  }
+
+  /** The camera's numbers have moved away from the ones a rewording was built on. */
+  function numbersDrifted(was: readonly number[], is: readonly number[]): boolean {
+    return was.length !== is.length || was.some((n, i) => Math.abs(n - is[i]) > FLAVOR_NUMBER_DRIFT);
   }
 
   /** The steps this one can lead to get their lines reworded now, so they are ready on arrival. */
@@ -718,12 +734,19 @@ export function createSession(deps: SessionDeps): Session {
     const count = (saidCount.get(key) ?? 0) + 1;
     saidCount.set(key, count);
     const t = now();
-    const have = flavored.get(key);
-    const ready = have && have.until > t ? have.text : null;
+    let have = flavored.get(key);
     // A step's own lines were reworded ahead of time and stand; a nag is refreshed for its next repeat.
     if (!event.dedupeKey?.includes(':say:')) {
-      requestFlavor(cur.machineId, cur.state, event.text, liveContext(cur.machineId, cur.state, event.text, count - 1), FLAVOR_LIVE_MS);
+      const ctx = liveContext(cur.machineId, cur.state, event.text, count - 1);
+      // A rewording that quoted the camera's number is dropped once the number has moved on,
+      // even inside its twenty seconds; the canonical line speaks and a fresh one is asked for.
+      if (have && numbersDrifted(have.numbers, ctx.numbers)) {
+        flavored.delete(key);
+        have = undefined;
+      }
+      requestFlavor(cur.machineId, cur.state, event.text, ctx, FLAVOR_LIVE_MS);
     }
+    const ready = have && have.until > t ? have.text : null;
     if (ready !== null) log.append({ t, kind: 'system', detail: `said as: "${ready}"` });
     return ready ?? event.text;
   }
@@ -789,10 +812,19 @@ export function createSession(deps: SessionDeps): Session {
       },
       onError: (code) => {
         listenError = code;
-        log.append({ t: now(), kind: 'system', detail: `speech recognition error: ${code}` });
+        // Offline Chrome answers every restart with 'network', about one every four seconds;
+        // a second identical line in a row says nothing the log does not already say.
+        logSystemOnce(`speech recognition error: ${code}`);
         notify();
       },
     });
+  }
+
+  /** A system line, unless the log's newest entry is already exactly this one. */
+  function logSystemOnce(detail: string): void {
+    const last = log.entries().at(-1);
+    if (last?.kind === 'system' && last.detail === detail) return;
+    log.append({ t: now(), kind: 'system', detail });
   }
 
   // ---- snapshot --------------------------------------------------------------------------
@@ -942,6 +974,9 @@ export function createSession(deps: SessionDeps): Session {
       unsubscribePerception?.();
       unsubscribePerception = null;
       voice.stopListening();
+      // The read-aloud paces itself line by line through the queue: cancelAll() alone drops
+      // the line in flight and the next one then starts over a session that is ending.
+      voice.readAloud.stop();
       voice.out.cancelAll();
       if (metronomeBpm !== null) voice.out.stopMetronome();
       metronomeBpm = null;
@@ -1054,10 +1089,19 @@ export function createSession(deps: SessionDeps): Session {
           log.append({ t: now(), kind: 'user', detail: `to dispatcher: ${text}` });
           notify();
         },
+        onNote: (detail) => {
+          log.append({ t: now(), kind: 'system', detail: `simulated dispatcher: ${detail}` });
+          notify();
+        },
       });
       dispatcherStatus = made.status;
       call = made.dispatcher.connect((line) => {
         dispatcherLines = [...dispatcherLines, { who: 'dispatcher', text: line }];
+        // The live agent plays its own audio, outside the queue, so neither echo layer saw
+        // it and the mic could route the engine on the call-taker's words ("yes, help is on
+        // the way" answering a yes/no question; principle 1). The scripted call-taker speaks
+        // through the queue and is already covered.
+        if (dispatcherStatus === 'live') voice.out.noteExternalSpeech(line);
         notify();
       });
       notify();
@@ -1114,16 +1158,29 @@ export function createSession(deps: SessionDeps): Session {
   return session;
 }
 
-/** Every line the machines can say, for warming a networked speaker's cache (docs/09). */
+/**
+ * Every line the coach can say in its own voice, for warming a networked speaker's cache
+ * (docs/09): the machines' lines and answers, the session's own lines about the phone and
+ * the camera, and every question it asks before routing. Lines a warm missed still speak,
+ * over the network or on the local voice; a warmed line speaks at once and with the wifi off.
+ * The dispatcher's lines are a second voice and are warmed by web/providers.ts.
+ */
 export function canonicalLines(): string[] {
   const lines = new Set<string>();
   for (const m of machines) {
     for (const st of m.states) {
       for (const line of st.say) lines.add(line);
       for (const r of st.coachingRules ?? []) lines.add(r.say);
+      // "Did you say X? Say yes, or tap.", for every move the intent router may point at.
+      for (const tr of st.transitions) if (tr.on.kind === 'keyword') lines.add(confirmLine(tr.label));
     }
     for (const a of m.keywordResponses ?? []) lines.add(a.say);
   }
+  // GUIDANCE.unseen is left out on purpose: the engine's own blind rule says that one.
+  for (const line of [ROI_FAILED_LINE, CAMERA_SAW_LINE, HEARD_UNMATCHED_LINE, GUIDANCE.dark, GUIDANCE.closer, GUIDANCE.back]) lines.add(line);
+  for (const r of TRIAGE_ROUTES) lines.add(r.confirm);
+  for (const h of Object.values(SCENE_HINTS)) lines.add(h.confirm);
+  for (const h of Object.values(ASSESSMENT_HINTS)) lines.add(h.confirm);
   return [...lines];
 }
 

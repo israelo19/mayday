@@ -1,5 +1,9 @@
 # Slide: authority is deterministic
 
+Historical: slide notes written Saturday for a deck that was never built as a file. Kept for
+the record; CLAUDE.md and docs/01 describe current behaviour. The numbers below were refreshed
+from the code on Sun 22.
+
 For P4's deck. One slide, three claims, each pointing at code a judge can open.
 
 ## The claim
@@ -39,7 +43,7 @@ when the truth is that we could not see.
 
 | | |
 |---|---|
-| Tests | 204, fake clock throughout |
+| Tests | 541, fake clock throughout |
 | Machines | 4, every medical state citing a live guideline URL |
-| Engine | 240 lines of code plus a 55-line rule evaluator, zero dependencies |
+| Engine | 291 lines of code plus a 74-line rule evaluator, zero dependencies |
 | Network calls in the coaching path | 0, enforced by a test |

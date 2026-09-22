@@ -12,7 +12,7 @@ import {
   type State,
   type Transition,
 } from '../types';
-import { matchKeyword } from './keywords';
+import { matchKeywords } from './keywords';
 import { NO_FACTS, RuleEvaluator } from './rules';
 
 /** Facts older than this are treated as blind: a frozen number must never coach (principle 4). */
@@ -30,8 +30,9 @@ export type EngineOutput =
   | { type: 'log'; entry: EventLogEntry };
 
 export interface Engine {
-  start(machineId: string, stateId?: string): void;
-  /** Begin a fresh run: clears coaching-rule history that is meant to live for one session. */
+  /** `now` moves the clock first, so a state entered before any tick does not start at time zero. */
+  start(machineId: string, stateId?: string, now?: number): void;
+  /** Begin a fresh run: clears coaching-rule history and the last run's facts, so nothing carries over. */
   reset(now: number): void;
   onFacts(f: PerceptionFacts): void;
   /** Raw transcript or an exact keyword; matching is phrase level and word bounded. */
@@ -68,10 +69,17 @@ class ProtocolEngine implements Engine {
   }
 
   reset(now: number): void {
+    if (now > this.now) this.now = now;
     this.evaluator.reset(now);
+    // The last run's facts would read as stale on the first tick of the next one, and the
+    // metric sampler would sit on the last shape it saw and skip the new run's first sample.
+    this.facts = null;
+    this.lastMetricShape = '';
+    this.lastMetricAt = 0;
   }
 
-  start(machineId: string, stateId?: string): void {
+  start(machineId: string, stateId?: string, now?: number): void {
+    if (now !== undefined && now > this.now) this.now = now;
     const machine = this.registry.get(machineId);
     if (!machine) throw new Error(`unknown machine: ${machineId}`);
     const state = machine.states.find((s) => s.id === (stateId ?? machine.initial));
@@ -94,20 +102,23 @@ class ProtocolEngine implements Engine {
     this.log('user', `heard: ${k}`);
     const spoken = state.transitions.filter(isKeyword).map((t) => t.on.keyword);
     const answers = machine.keywordResponses ?? [];
-    const hit = matchKeyword(k, [...spoken, ...answers.map((a) => a.keyword), ...GLOBAL_KEYWORDS]);
-    if (hit === null) return;
-    const transition = state.transitions.find((t) => isKeyword(t) && t.on.keyword === hit);
+    const hits = new Set(matchKeywords(k, [...spoken, ...answers.map((a) => a.keyword), ...GLOBAL_KEYWORDS]));
+    if (hits.size === 0) return;
+    // The first transition in data order whose keyword was heard. Data order is medical
+    // priority: "he's breathing but gasping" hears both, and the machine lists 'gasping'
+    // (call 911) before "he's breathing" (recovery hold). The linter keeps it that way.
+    const transition = state.transitions.find((t) => isKeyword(t) && hits.has(t.on.keyword));
     if (transition) {
       this.go(transition.to);
       return;
     }
-    const answer = answers.find((a) => a.keyword === hit);
+    const answer = answers.find((a) => hits.has(a.keyword));
     if (answer) {
       this.speak(answer.say, answer.priority, `answer:${answer.keyword}`);
       return;
     }
-    if (hit === 'next') this.advance();
-    if (hit === 'repeat') this.sayLines(state);
+    if (hits.has('next')) this.advance();
+    else if (hits.has('repeat')) this.sayLines(state);
   }
 
   advance(): void {

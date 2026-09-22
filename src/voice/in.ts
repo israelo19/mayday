@@ -29,6 +29,13 @@
 export const KEYWORD_REFIRE_MS = 1500;
 /** An interim result unchanged for this long is the sentence (WebKit never sends the final). */
 export const INTERIM_SETTLE_MS = 1200;
+/**
+ * Keywords this short ('no', 'yes', 'aed') fire only from a final or a settled result, never
+ * from an interim hypothesis: "he's no..." used to fire `no` a moment before it became "he's
+ * not breathing", and in cardiac.check_breathing that is the opposite branch. Longer phrases
+ * keep the interim path, because routing must not wait for a final WebKit never sends.
+ */
+export const SHORT_KEYWORD_MAX_CHARS = 3;
 /** Layer 2 only ever drops near-verbatim readbacks, never short answers. */
 const ECHO_MIN_WORDS = 4;
 const ECHO_COVERAGE = 0.8;
@@ -66,6 +73,20 @@ export function spotKeyword(transcript: string, keywords: readonly string[]): st
  * True when the transcript is a near-verbatim, in-order readback of one of the app's own
  * recent lines. Four words minimum: a bystander's short answer is never treated as an echo.
  */
+function isShort(keyword: string): boolean {
+  return normalizeTranscript(keyword).length <= SHORT_KEYWORD_MAX_CHARS;
+}
+
+/** The keywords an interim hypothesis may fire: everything but the short ones. */
+export function interimKeywords(keywords: readonly string[]): string[] {
+  return keywords.filter((k) => !isShort(k));
+}
+
+/** The keywords a settled interim still owes: only the short ones, the rest fired as it grew. */
+export function settledKeywords(keywords: readonly string[]): string[] {
+  return keywords.filter(isShort);
+}
+
 export function isEchoOf(transcript: string, spoken: readonly string[]): boolean {
   const words = normalizeTranscript(transcript).split(' ').filter(Boolean);
   if (words.length < ECHO_MIN_WORDS) return false;
@@ -216,8 +237,24 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
     r.onnomatch = null;
   }
 
-  function attach(): void {
-    if (!factory || !opts) return;
+  /**
+   * A fresh recognizer after the backoff, whether the last one ended on its own (Chrome's
+   * schedule) or refused to start. 'listening' is reported only once the new one is up.
+   */
+  function scheduleRestart(): void {
+    cancelRestart?.();
+    status('restarting');
+    cancelRestart = schedule(() => {
+      cancelRestart = null;
+      if (!running) return;
+      if (attach()) status('listening');
+    }, backoffMs);
+    backoffMs = Math.min(backoffMs * 2, 4000); // reset on the next result
+  }
+
+  /** Builds and starts a recognizer; false when start() threw and a retry is already scheduled. */
+  function attach(): boolean {
+    if (!factory || !opts) return false;
     const o = opts;
     const r = factory();
     const ev = o.onEvent;
@@ -234,17 +271,46 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
       r.onspeechend = () => ev('speechend');
       r.onnomatch = () => ev('nomatch');
     }
+    const spot = o.spot ?? spotKeyword;
+    /** The app said this keyword in one of its recent lines, so hearing it now may be our own voice. */
+    const saidByApp = (keyword: string): boolean => (o.echoText?.() ?? []).some((line) => spot(line, [keyword]) === keyword);
+    /**
+     * One keyword found in a stretch of transcript, against the words already judged. True
+     * when it was held back for the echo gate, so the caller leaves its baseline alone.
+     */
+    const consider = (keyword: string | null, already: boolean, muted: boolean): boolean => {
+      if (keyword === null || already) return false;
+      if (muted && saidByApp(keyword)) {
+        ev?.('suppressed', keyword);
+        return true; // judged again once the app is quiet
+      }
+      if (now() - (firedAt.get(keyword) ?? Number.NEGATIVE_INFINITY) > KEYWORD_REFIRE_MS) {
+        firedAt.set(keyword, now());
+        o.onKeyword(keyword);
+      }
+      return false;
+    };
     // The transcript each result index last showed, so a refresh of a growing transcript is
     // told apart from a new sentence; and the interim waiting to become the sentence.
     const prevByIndex = new Map<number, string>();
     let settle: { cancel: () => void; text: string } | null = null;
     let settledText: string | null = null;
+    /** The text the short keywords were last judged against at a settle, for the same once-per-occurrence rule. */
+    let settledBase = '';
     const flushSettle = (): void => {
       if (!settle) return;
       const { text } = settle;
       settle = null;
       settledText = text;
       o.onTranscript(text);
+      // The settled sentence is as final as WebKit gets: the short keywords it held back from
+      // the interims fire now, once per occurrence, from the words the last settle had not seen.
+      const grew = settledBase.length > 0 && text.startsWith(settledBase);
+      const from = grew ? tailStart(settledBase) : 0;
+      const short = settledKeywords(o.keywords());
+      const keyword = spot(text.slice(from), short);
+      const already = keyword !== null && grew && spot(settledBase.slice(from), short) === keyword;
+      if (!consider(keyword, already, o.suppress())) settledBase = text;
     };
     const armSettle = (text: string): void => {
       settle?.cancel();
@@ -253,9 +319,6 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
       }, INTERIM_SETTLE_MS);
       settle = { cancel, text };
     };
-    const spot = o.spot ?? spotKeyword;
-    /** The app said this keyword in one of its recent lines, so hearing it now may be our own voice. */
-    const saidByApp = (keyword: string): boolean => (o.echoText?.() ?? []).some((line) => spot(line, [keyword]) === keyword);
     r.onresult = (e) => {
       backoffMs = 250; // hearing anything at all means the engine is healthy again
       const muted = o.suppress(); // layer 1: the app is talking, or just was
@@ -277,29 +340,25 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
           settle = null;
           if (settledText !== text) o.onTranscript(text); // the settle already logged this one
           settledText = null;
+          settledBase = '';
         } else {
           o.onInterim?.(text);
           armSettle(text);
         }
         // Interim results are spotted too: routing must not wait for a final that WebKit never
         // sends. A keyword fires once per occurrence: when the transcript only grew, the words
-        // already there are looked at again only where a phrase could straddle the join.
+        // already there are looked at again only where a phrase could straddle the join. The
+        // short keywords wait for the final (or the settle above), so the baseline for what an
+        // interim already fired is the interim's own, shorter list.
         const prev = prevByIndex.get(i) ?? '';
         const grew = prev.length > 0 && text.startsWith(prev);
         const from = grew ? tailStart(prev) : 0;
-        const keyword = spot(text.slice(from), o.keywords());
-        const already = keyword !== null && grew && spot(prev.slice(from), o.keywords()) === keyword;
-        if (keyword !== null && !already && muted && saidByApp(keyword)) {
-          ev?.('suppressed', keyword);
-          continue; // judged again once the app is quiet; the baseline stays where it was
-        }
+        const eligible = result.isFinal ? o.keywords() : interimKeywords(o.keywords());
+        const keyword = spot(text.slice(from), eligible);
+        const already = keyword !== null && grew && spot(prev.slice(from), interimKeywords(o.keywords())) === keyword;
+        if (consider(keyword, already, muted)) continue; // held back; the baseline stays where it was
         if (result.isFinal) prevByIndex.delete(i);
         else prevByIndex.set(i, text);
-        if (keyword === null || already) continue;
-        if (now() - (firedAt.get(keyword) ?? Number.NEGATIVE_INFINITY) > KEYWORD_REFIRE_MS) {
-          firedAt.set(keyword, now());
-          o.onKeyword(keyword);
-        }
       }
     };
     r.onerror = (e) => {
@@ -322,14 +381,7 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
         status('stopped');
         return;
       }
-      status('restarting');
-      cancelRestart = schedule(() => {
-        cancelRestart = null;
-        if (!running) return;
-        attach();
-        status('listening');
-      }, backoffMs);
-      backoffMs = Math.min(backoffMs * 2, 4000); // reset on the next result
+      scheduleRestart();
     };
     // A restart that races a still-open instance would otherwise leave two live recognizers.
     detach(rec);
@@ -338,9 +390,17 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
     try {
       ev?.('starting');
       r.start();
+      return true;
     } catch (err) {
-      // start() throws if a previous instance is still winding down; the backoff retries.
+      // start() throws if a previous instance is still winding down. Nothing will ever come
+      // from this one (it never started, so no `end` follows), so the retry has to be
+      // scheduled here; it used to be described and never done, and the mic stayed off
+      // with the chip still saying "listening".
       ev?.('start-threw', String(err));
+      detach(r);
+      rec = null;
+      scheduleRestart();
+      return false;
     }
   }
 
@@ -356,8 +416,7 @@ export function createVoiceIn(deps?: VoiceInDeps): VoiceIn {
       if (running) return;
       running = true;
       backoffMs = 250;
-      attach();
-      status('listening');
+      if (attach()) status('listening');
     },
 
     stop(): void {

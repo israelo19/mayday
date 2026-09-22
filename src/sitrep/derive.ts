@@ -28,8 +28,18 @@ export function deriveMetrics(entries: readonly EventLogEntry[], now: number): S
   // false claim.
   const cprStartedAt = compressionsEnteredAt(entries);
 
-  const rates = intervals.filter((i) => i.compressionActive && i.rate !== null).map((i) => i.rate as number);
-  const averageRate = rates.length > 0 ? Math.round(rates.reduce((a, b) => a + b, 0) / rates.length) : null;
+  // Weighted by how long each sample stood, not by how many samples there were: the engine
+  // logs a sample on every edge, so a few seconds of stop-start at a bad rate used to weigh
+  // as much as minutes at a good one.
+  let rateMs = 0;
+  let rateSum = 0;
+  for (const i of intervals) {
+    if (!i.compressionActive || i.rate === null) continue;
+    const span = Math.max(0, i.until - i.t);
+    rateMs += span;
+    rateSum += i.rate * span;
+  }
+  const averageRate = rateMs > 0 ? Math.round(rateSum / rateMs) : null;
 
   let compressionPauses = 0;
   let longestPauseMs = 0;
@@ -43,7 +53,12 @@ export function deriveMetrics(entries: readonly EventLogEntry[], now: number): S
     const span = Math.max(0, i.until - i.t);
     if (i.blind) {
       unmeasuredMs += span;
-      // Unknown, so it neither extends nor ends a pause.
+      // Unknown, so it extends nothing, and it ends whatever was running: a pause on either
+      // side of a covered lens is two pauses, not one long one, and pressure we could not see
+      // held is not pressure held.
+      if (pause > LONG_PAUSE_MS) compressionPauses += 1;
+      pause = 0;
+      pressure = 0;
       continue;
     }
     if (cprStartedAt !== null && i.t >= cprStartedAt && !i.compressionActive) {
@@ -57,7 +72,8 @@ export function deriveMetrics(entries: readonly EventLogEntry[], now: number): S
       pressure += span;
       totalPressureMs += span;
       continuousPressureMs = Math.max(continuousPressureMs, pressure);
-    } else if (i.handsOnRegion === false) {
+    } else {
+      // Off, or not tracked: either way the unbroken stretch is over.
       pressure = 0;
     }
   }

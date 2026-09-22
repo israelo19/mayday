@@ -7,9 +7,10 @@
 //   node scripts/assess-frame.mjs photo.jpg gemini-3.5-flash-lite  # same provider, another model
 //   MODEL_PROVIDER=featherless node scripts/assess-frame.mjs photo.jpg
 //
-// Needs GEMINI_API_KEY or FEATHERLESS_API_KEY in the environment or .env.local. Node 24 runs
-// the TypeScript module directly (type stripping), so the prompt cannot drift from what the
-// app sends.
+// Needs GEMINI_API_KEY or FEATHERLESS_API_KEY in the environment or .env.local. xAI is a
+// text-only provider here: the frame route skips it, and so does this script, even with
+// MODEL_PROVIDER=xai. Node 24 runs the TypeScript module directly (type stripping), so the
+// prompt cannot drift from what the app sends.
 import { readFileSync } from 'node:fs';
 import { ASSESS_SYSTEM, ASSESS_USER, parseAssessment } from '../src/ai/assess.ts';
 import { askModel, resolveProvider } from '../src/voice/providers/devproxy.mjs';
@@ -19,9 +20,11 @@ if (!file) {
   console.error('usage: node scripts/assess-frame.mjs <photo.jpg> [model]');
   process.exit(2);
 }
-const provider = resolveProvider();
+// The same resolution as the proxy's frame route: MODEL_PROVIDER still picks between the
+// vision providers, and a text-only one (xAI) drops out instead of receiving the photo.
+const provider = resolveProvider(undefined, { vision: true });
 if (!provider) {
-  console.error('No key. Set GEMINI_API_KEY or FEATHERLESS_API_KEY in the environment or .env.local.');
+  console.error('No vision key. Set GEMINI_API_KEY or FEATHERLESS_API_KEY in the environment or .env.local; XAI_API_KEY serves the text routes only and never sees a frame.');
   process.exit(1);
 }
 const model = modelArg ?? provider.model;

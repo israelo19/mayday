@@ -39,6 +39,9 @@ export const cardiac: Machine = {
       id: 'check_breathing',
       source: AHA_ADULT_CPR,
       say: ['Look at his chest. Is he breathing normally? Gasping does not count as breathing.'],
+      // Order is priority. The engine takes the first keyword it hears in this list, so every
+      // way of saying "not really" sits above every way of saying "yes": "he's breathing but
+      // gasping", "he's breathing but not normally" and "yes but barely" all mean call 911.
       transitions: [
         { on: { kind: 'keyword', keyword: 'not breathing' }, to: 'call_911', label: 'Not breathing' },
         { on: { kind: 'keyword', keyword: 'gasping' }, to: 'call_911', label: 'Only gasping' },
@@ -48,9 +51,12 @@ export const cardiac: Machine = {
         { on: { kind: 'keyword', keyword: 'stopped breathing' }, to: 'call_911', label: 'Not breathing' },
         { on: { kind: 'keyword', keyword: 'no breathing' }, to: 'call_911', label: 'Not breathing' },
         { on: { kind: 'keyword', keyword: 'barely breathing' }, to: 'call_911', label: 'Not breathing' },
+        { on: { kind: 'keyword', keyword: 'barely' }, to: 'call_911', label: 'Not breathing' },
         { on: { kind: 'keyword', keyword: 'not breathing normally' }, to: 'call_911', label: 'Not breathing' },
+        { on: { kind: 'keyword', keyword: 'not normally' }, to: 'call_911', label: 'Not breathing' },
         { on: { kind: 'keyword', keyword: "he's breathing" }, to: 'recovery_hold', label: 'He is breathing' },
         { on: { kind: 'keyword', keyword: "she's breathing" }, to: 'recovery_hold', label: 'She is breathing' },
+        { on: { kind: 'keyword', keyword: 'is breathing' }, to: 'recovery_hold', label: 'He is breathing' },
         { on: { kind: 'keyword', keyword: 'yes' }, to: 'recovery_hold', label: 'Yes, breathing' },
         { on: { kind: 'keyword', keyword: "they're breathing" }, to: 'recovery_hold', label: 'Yes, breathing' },
         { on: { kind: 'keyword', keyword: 'breathing normally' }, to: 'recovery_hold', label: 'Yes, breathing' },
@@ -155,8 +161,20 @@ export const cardiac: Machine = {
         'If he stops breathing, tell me right away.',
         'Wait for the ambulance.',
       ],
+      // The line invites "tell me right away", so every way check_breathing hears "not
+      // breathing" is heard here too. Not the bare 'no': that answers the question
+      // check_breathing asks, and this state asks none.
       transitions: [
         { on: { kind: 'keyword', keyword: 'not breathing' }, to: 'call_911', label: 'He stopped breathing' },
+        { on: { kind: 'keyword', keyword: 'stopped breathing' }, to: 'call_911', label: 'He stopped breathing' },
+        { on: { kind: 'keyword', keyword: "isn't breathing" }, to: 'call_911', label: 'He stopped breathing' },
+        { on: { kind: 'keyword', keyword: 'no breathing' }, to: 'call_911', label: 'He stopped breathing' },
+        { on: { kind: 'keyword', keyword: 'gasping' }, to: 'call_911', label: 'He stopped breathing' },
+        { on: { kind: 'keyword', keyword: 'no pulse' }, to: 'call_911', label: 'He stopped breathing' },
+        { on: { kind: 'keyword', keyword: 'barely breathing' }, to: 'call_911', label: 'He stopped breathing' },
+        { on: { kind: 'keyword', keyword: 'barely' }, to: 'call_911', label: 'He stopped breathing' },
+        { on: { kind: 'keyword', keyword: 'not breathing normally' }, to: 'call_911', label: 'He stopped breathing' },
+        { on: { kind: 'keyword', keyword: 'not normally' }, to: 'call_911', label: 'He stopped breathing' },
         { on: { kind: 'keyword', keyword: 'ambulance here' }, to: 'handoff', label: 'Ambulance is here' },
         { on: { kind: 'keyword', keyword: 'ambulance is here' }, to: 'handoff', label: 'Ambulance is here' },
         { on: { kind: 'keyword', keyword: 'paramedics are here' }, to: 'handoff', label: 'Ambulance is here' },

@@ -6,6 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DispatcherSim } from '../../ai/dispatcher';
 import {
+  browserMic,
   createAgentDispatcher,
   float32FromPcm16Base64,
   pcm16Base64FromFloat32,
@@ -112,6 +113,7 @@ function build(fetchScript: () => Promise<Response>, extra?: { connectTimeoutMs?
   const statuses: string[] = [];
   const lines: string[] = [];
   const transcripts: string[] = [];
+  const notes: string[] = [];
   const dispatcher = createAgentDispatcher({
     baseUrl: 'https://proxy.test',
     fallback: scripted.sim,
@@ -126,9 +128,10 @@ function build(fetchScript: () => Promise<Response>, extra?: { connectTimeoutMs?
     connectTimeoutMs: extra?.connectTimeoutMs ?? 50,
     onStatus: (s) => statuses.push(s),
     onTranscript: (t) => transcripts.push(t),
+    onNote: (d) => notes.push(d),
   });
   const call = dispatcher.connect((line) => lines.push(line));
-  return { call, sockets, speak, stopped, listening, played, flushed, scripted, statuses, lines, transcripts };
+  return { call, sockets, speak, stopped, listening, played, flushed, scripted, statuses, lines, transcripts, notes };
 }
 
 /** Fetch the session, open the socket, and get the initiation metadata: the happy path. */
@@ -233,6 +236,74 @@ describe('createAgentDispatcher', () => {
     await tick();
     b.call.hangup();
     expect(b.scripted.hangups()).toBe(1);
+  });
+
+  it('refuses an agent line that reads like coaching: nothing shown or heard, the script takes the call', async () => {
+    // The agent is a model on an open mic; anyone nearby can talk it into "stop the
+    // compressions". Principle 1: a medical instruction never comes from a model.
+    const b = build(sessionOk);
+    const socket = await goLive(b);
+    socket.receive({ type: 'agent_response', agent_response_event: { agent_response: 'Stop the compressions and sit him up.' } });
+    expect(b.lines).toEqual(['9 1 1, where are you?', '9 1 1, what is the address of your emergency?']);
+    expect(b.lines.join(' ')).not.toContain('Stop the compressions');
+    expect(b.flushed()).toBeGreaterThanOrEqual(1); // its audio was cut
+    expect(b.stopped()).toBe(1); // the agent no longer hears the room
+    expect(socket.closed).toBe(1);
+    expect(b.scripted.connects()).toBe(1);
+    expect(b.statuses.at(-1)).toBe('fallback');
+    expect(b.notes).toEqual(['agent line refused (read like coaching), scripted dispatcher took over']);
+    // A plain call-taker line still goes through.
+    const c = build(sessionOk);
+    const s2 = await goLive(c);
+    s2.receive({ type: 'agent_response', agent_response_event: { agent_response: 'Help is on the way. Stay on the line with me.' } });
+    expect(c.lines.at(-1)).toBe('Help is on the way. Stay on the line with me.');
+    expect(c.scripted.connects()).toBe(0);
+  });
+
+  it('a socket that closes after the call went live ends the call instead of replaying the opener', async () => {
+    // The agent hanging up, or the wifi going, used to hand the call to the script, which
+    // started over with "9 1 1, what is the address of your emergency?" mid-coaching.
+    const b = build(sessionOk);
+    const socket = await goLive(b);
+    socket.onclose?.();
+    expect(b.statuses.at(-1)).toBe('ended');
+    expect(b.scripted.connects()).toBe(0);
+    expect(b.lines).toEqual(['9 1 1, where are you?']);
+    expect(b.stopped()).toBe(1);
+    expect(b.notes).toEqual(['the live call dropped']);
+    b.call.sayToDispatcher('Hello?'); // nobody is on the line
+    expect(socket.sentJson()).not.toContainEqual({ type: 'user_message', text: 'Hello?' });
+  });
+
+  it('a socket that closes before the call went live still falls back to the script', async () => {
+    const b = build(sessionOk);
+    await tick();
+    const socket = b.sockets[0];
+    socket.onopen?.();
+    socket.onclose?.(); // refused before any metadata arrived
+    expect(b.statuses.at(-1)).toBe('fallback');
+    expect(b.scripted.connects()).toBe(1);
+  });
+});
+
+describe('browserMic', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('releases a stream that arrives after stop(), and never opens the AudioContext for it', async () => {
+    // A hang-up while the permission sheet is still up: stop() found nothing to stop, then
+    // getUserMedia resolved and the mic and an AudioContext stayed open for the whole session.
+    const track = { stop: vi.fn() };
+    let grant: ((s: unknown) => void) | null = null;
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia: () => new Promise((resolve) => (grant = resolve)) } });
+    const contexts = vi.fn();
+    vi.stubGlobal('AudioContext', class { constructor() { contexts(); } });
+    const mic = browserMic();
+    const started = mic.start(() => {});
+    mic.stop();
+    grant!({ getTracks: () => [track] });
+    await started;
+    expect(track.stop).toHaveBeenCalledTimes(1);
+    expect(contexts).not.toHaveBeenCalled();
   });
 });
 

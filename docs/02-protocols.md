@@ -6,7 +6,7 @@
 - Team member B owns verifying every line against the published guideline pages on Saturday and pasting source URLs into the comments. Nothing ships unverified.
 - Canonical text is written to be SPOKEN. Short sentences. Imperative. No medical jargon.
 
-## Engine semantics (/src/protocol/engine.ts, ~240 lines, with rule evaluation split into rules.ts; the original budget was ~120)
+## Engine semantics (/src/protocol/engine.ts, 291 lines, with rule evaluation split into the 74-line rules.ts; the original budget was ~120)
 - A machine = `{ id, states: State[] }`. A State = `{ id, say: string[], metronome?: number, coachingRules?: Rule[], transitions: Transition[] }`.
 - Transition triggers: `keyword(k)`, `timerMs(n)`, `fact(predicate)`, `manualAdvance` (big NEXT button, always available as fallback so a demo can never wedge).
 - Coaching rules run every facts tick while in the state: `{ when: predicate, event: CoachingEvent, cooldownMs }`. Cooldown prevents nagging (default 6000ms per dedupeKey).
@@ -56,7 +56,7 @@ States:
    - manualAdvance => pressure   // episodic AI hook: on entry, ONE camera frame may go to vision API to list visible cloth/materials; result speaks as narration: "I can see a shirt on the ground. Grab it." Feature-flagged, off by default until API added.
 4. `pressure` say: ["Take cloth if you have it. Press it hard onto the wound with both hands.", "Push down with your full body weight. It should be hard enough to hurt.", "Do not lift your hands to look. Do not stop."]
    coachingRules (THE closed loop for this machine):
-   - when handsOffMs>1500 => critical "Don't let go! Hands back on the wound. Press harder." ('hands-off')
+   - when handsOffMs>1000 => critical "Don't let go! Hands back on the wound. Press harder." ('hands-off')   // HANDS_OFF_MS in bleeding.ts; 1500 in the first draft, lowered in docs/07 decision 5
    - when handsOnRegion for 30000ms => narration "Good. Keep that pressure. You're slowing the bleeding." ('encourage', cooldown 45000)
    - when poseConfidence<0.5 => system blind-mode line, keep verbal coaching ('blind')
    - transitions: keyword 'blood soaking through'|'still bleeding' => pack ; keyword 'ambulance here' => handoff

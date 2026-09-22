@@ -1,9 +1,10 @@
 // ElevenLabs Agents dispatcher, docs/04 TODO item 3 and docs/07 P3 task 7: the simulated
 // 911 call-taker as a live voice agent. The phone mic streams to the agent, the agent's
-// voice plays back, and its words land on the SIMULATED panel. Lives under
-// src/voice/providers/ because it is a network path (src/voice/boundaries.test.ts), and it
-// exists only behind `flags.dispatcherSim`; the scripted dispatcher is the floor it falls
-// back to at every step, so the wifi-off demo never depends on this file.
+// voice plays back, and its words land on the call panel (which reads "911 / On the line";
+// the disclosure that the call-taker is not real lives on the LAUNCH screen, principle 5).
+// Lives under src/voice/providers/ because it is a network path (src/voice/boundaries.test.ts),
+// and it exists only behind `flags.dispatcherSim`; the scripted dispatcher is the floor it
+// falls back to at every step, so the wifi-off demo never depends on this file.
 //
 // Shape of the deal:
 //   - The agent id lives in the key proxy, not here: GET {baseUrl}/dispatcher/session
@@ -11,13 +12,18 @@
 //   - Audio both ways is base64 PCM16 at 16 kHz, the agent's default, so the browser mic
 //     runs an AudioContext at that rate and the agent's chunks are queued back to back.
 //   - Any miss before the session is live (no agent configured, socket refused, no
-//     initiation metadata within the budget) or a drop mid-call hands the call to the
-//     scripted dispatcher with the same panel callback; replies typed meanwhile are replayed.
+//     initiation metadata within the budget) hands the call to the scripted dispatcher with
+//     the same panel callback; replies typed meanwhile are replayed. A socket that closes
+//     AFTER the call went live ends the call, the way a real call drops: restarting the
+//     script from "9 1 1, what is the address" mid-coaching read as a second call nobody made.
 //   - The bystander's words have no authority anywhere (CLAUDE.md principle 1): this agent
-//     is a stage character. The coaching lines come from the machines, never from here.
+//     is a stage character. The coaching lines come from the machines, never from here. The
+//     agent is a model on an open mic, so every line it says is screened for instruction
+//     shape before it is shown; one hit and the scripted call-taker takes the call.
 //
 // Owned by P3 (docs/07).
 import type { DispatcherSim } from '../../ai/dispatcher';
+import { looksLikeCoaching } from '../../protocol/validate';
 
 // =============================================================================
 // Injectable seams: the socket, the mic and the speaker
@@ -61,6 +67,8 @@ export type AgentDispatcherOptions = {
   onStatus?: (s: AgentDispatcherStatus) => void;
   /** What the agent heard the bystander say, for the EventLog (kind 'user', docs/04). */
   onTranscript?: (t: string) => void;
+  /** Why the call changed hands, for the EventLog (kind 'system'). Never shown on the panel. */
+  onNote?: (detail: string) => void;
   /** Test seams; the browser adapters below are the defaults. */
   fetchFn?: typeof fetch;
   socketFactory?: AgentSocketFactory;
@@ -170,13 +178,39 @@ export function createAgentDispatcher(options: AgentDispatcherOptions): Dispatch
         }
       };
 
-      const fallBack = (): void => {
+      const fallBack = (reason?: string): void => {
         if (status === 'fallback' || status === 'ended') return;
         clearTimeout(liveTimer);
         teardownAgent();
         setStatus('fallback');
+        if (reason) o.onNote?.(reason);
         scripted = o.fallback.connect(onDispatcherLine);
         for (const text of pending.splice(0)) scripted.sayToDispatcher(text);
+      };
+
+      /**
+       * The socket went away. Before the call was live that is a failed connection and the
+       * script takes over; after, it is the call ending (the agent hung up, or the wifi did),
+       * and a fresh CALL 911 tap is the way back, not the opener replaying over the coaching.
+       */
+      const onDropped = (): void => {
+        if (status === 'live') {
+          teardownAgent();
+          setStatus('ended');
+          o.onNote?.('the live call dropped');
+          return;
+        }
+        fallBack();
+      };
+
+      /** A model on an open mic: anyone in the room can talk it into an instruction. */
+      const onAgentLine = (line: string): void => {
+        if (looksLikeCoaching(line)) {
+          player.flush(); // the audio for it is already streaming; cut it before it says more
+          fallBack('agent line refused (read like coaching), scripted dispatcher took over');
+          return;
+        }
+        onDispatcherLine(line);
       };
 
       // No initiation metadata in time means no live call: hand over, do not wait on hope.
@@ -201,7 +235,7 @@ export function createAgentDispatcher(options: AgentDispatcherOptions): Dispatch
             player.play((event as { audio_event: { audio_base_64: string } }).audio_event.audio_base_64);
             break;
           case 'agent_response':
-            onDispatcherLine((event as { agent_response_event: { agent_response: string } }).agent_response_event.agent_response);
+            onAgentLine((event as { agent_response_event: { agent_response: string } }).agent_response_event.agent_response);
             break;
           case 'user_transcript':
             o.onTranscript?.((event as { user_transcript_event: { user_transcript: string } }).user_transcript_event.user_transcript);
@@ -232,19 +266,19 @@ export function createAgentDispatcher(options: AgentDispatcherOptions): Dispatch
         const s = socketFactory(signedUrl);
         socket = s;
         s.onmessage = onServerEvent;
-        s.onclose = fallBack;
-        s.onerror = fallBack;
+        s.onclose = onDropped;
+        s.onerror = onDropped;
         s.onopen = () => {
           if (status !== 'connecting' && status !== 'live') return;
           // Mic before metadata: the agent's first words are its own, and the bystander
           // often answers before our state machine notices the session is live.
           micStarted = true;
           // A call-taker who cannot hear is no call-taker: mic refused means the script.
-          mic.start((pcm16Base64) => socket?.send(JSON.stringify({ user_audio_chunk: pcm16Base64 }))).catch(fallBack);
+          mic.start((pcm16Base64) => socket?.send(JSON.stringify({ user_audio_chunk: pcm16Base64 }))).catch(() => fallBack());
         };
       };
       void player.unlock?.();
-      open().catch(fallBack);
+      open().catch(() => fallBack());
 
       return {
         sayToDispatcher(text: string): void {
@@ -266,7 +300,8 @@ export function createAgentDispatcher(options: AgentDispatcherOptions): Dispatch
 }
 
 // =============================================================================
-// Browser adapters (default seams; kept out of the tests)
+// Browser adapters (default seams; the mic is exported for its hang-up test, the rest stay
+// out of the tests)
 // =============================================================================
 
 function browserSocket(url: string): AgentSocket {
@@ -294,16 +329,26 @@ function browserSocket(url: string): AgentSocket {
  * deprecated but universal; an AudioWorklet needs a separate module file the PWA would
  * have to precache, which is not worth it for a demo-only path.
  */
-function browserMic(): MicSource {
+export function browserMic(): MicSource {
   let stream: MediaStream | null = null;
   let ctx: AudioContext | null = null;
   let node: ScriptProcessorNode | null = null;
+  // stop() can land while getUserMedia is still up as a permission sheet (a hang-up during
+  // the prompt); it then finds nothing to stop, and the stream that arrives afterwards used
+  // to open an AudioContext nobody would ever close. The flag lets start() see it came late.
+  let stopped = false;
   return {
     async start(onChunk) {
-      stream = await navigator.mediaDevices.getUserMedia({
+      stopped = false;
+      const granted = await navigator.mediaDevices.getUserMedia({
         // The phone speaker is inches from the mic: the agent must not hear itself.
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
+      if (stopped) {
+        granted.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      stream = granted;
       ctx = new AudioContext({ sampleRate: AGENT_SAMPLE_RATE });
       const source = ctx.createMediaStreamSource(stream);
       // 4096 samples at 16 kHz is a 256 ms chunk: few enough messages, small enough lag.
@@ -313,6 +358,7 @@ function browserMic(): MicSource {
       node.connect(ctx.destination); // a ScriptProcessor only runs while connected to output
     },
     stop() {
+      stopped = true;
       node?.disconnect();
       node = null;
       stream?.getTracks().forEach((t) => t.stop());

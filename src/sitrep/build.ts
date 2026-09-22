@@ -146,7 +146,7 @@ export function handoffQrPayload(report: HandoffReport, maxChars = 500): string 
     at: new Date(report.generatedAt).toISOString(),
     emergency: report.emergency,
     durationMs: report.durationMs,
-    location: report.location,
+    location: compactLocation(report.location),
     metrics: { ...report.metrics, cprStartedAt: report.metrics.cprStartedAt === null ? null : rel(report.metrics.cprStartedAt) },
     timeline: significant(report.timeline).map((e) => [rel(e.t), e.kind, e.detail] as const),
   };
@@ -156,6 +156,18 @@ export function handoffQrPayload(report: HandoffReport, maxChars = 500): string 
     payload = JSON.stringify(compact);
   }
   return payload;
+}
+
+/**
+ * Five decimals is about a metre, which is all a fix is good for; a raw GPS reading carries
+ * fifteen, and every character the location spends is a timeline entry the QR cannot keep.
+ */
+function compactLocation(geo: GeoFix | null): GeoFix | null {
+  if (!geo) return null;
+  const out: GeoFix = { lat: +geo.lat.toFixed(5), lon: +geo.lon.toFixed(5) };
+  if (geo.accuracyM !== undefined) out.accuracyM = Math.round(geo.accuracyM);
+  if (geo.address !== undefined) out.address = geo.address;
+  return out;
 }
 
 /**

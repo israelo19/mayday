@@ -5,6 +5,9 @@
   "type": "module",
   "description": "The minutes before the ambulance, coached.",
   "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "dev": "vite",
     "predev": "node scripts/prepare-assets.mjs",

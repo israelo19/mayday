@@ -29,8 +29,8 @@ stateDiagram-v2
     cardiac_scene_check --> cardiac_check_breathing: "no response" (+7 more)
     cardiac_scene_check --> cardiac_check_breathing: NEXT
     cardiac_check_breathing: check_breathing
-    cardiac_check_breathing --> cardiac_call_911: "not breathing" (+8 more)
-    cardiac_check_breathing --> cardiac_recovery_hold: "he's breathing" (+5 more)
+    cardiac_check_breathing --> cardiac_call_911: "not breathing" (+10 more)
+    cardiac_check_breathing --> cardiac_recovery_hold: "he's breathing" (+6 more)
     cardiac_check_breathing --> cardiac_call_911: NEXT
     cardiac_call_911: call_911
     cardiac_call_911 --> cardiac_position: after 8s
@@ -42,7 +42,7 @@ stateDiagram-v2
     cardiac_compressions --> cardiac_handoff: "ambulance here" (+4 more)
     cardiac_compressions --> cardiac_handoff: NEXT
     cardiac_recovery_hold: recovery_hold
-    cardiac_recovery_hold --> cardiac_call_911: "not breathing"
+    cardiac_recovery_hold --> cardiac_call_911: "not breathing" (+9 more)
     cardiac_recovery_hold --> cardiac_handoff: "ambulance here" (+4 more)
     cardiac_recovery_hold --> cardiac_handoff: NEXT
     cardiac_handoff: handoff
@@ -57,7 +57,7 @@ Source: https://www.stopthebleed.org/
 stateDiagram-v2
     [*] --> bleeding_scene_safety
     bleeding_scene_safety: scene_safety
-    bleeding_scene_safety --> bleeding_call_911: "safe" (+7 more)
+    bleeding_scene_safety --> bleeding_call_911: "safe" (+9 more)
     bleeding_scene_safety --> bleeding_call_911: NEXT
     bleeding_call_911: call_911
     bleeding_call_911 --> bleeding_find_wound: after 8s
@@ -83,14 +83,14 @@ Source: https://www.redcross.org/take-a-class/resources/learn-first-aid/adult-ch
 stateDiagram-v2
     [*] --> choking_confirm
     choking_confirm: confirm
-    choking_confirm --> choking_call_911: "can't breathe" (+8 more)
+    choking_confirm --> choking_call_911: "can't breathe" (+11 more)
     choking_confirm --> choking_encourage_cough: "coughing" (+3 more)
     choking_confirm --> choking_call_911: NEXT
     choking_call_911: call_911
     choking_call_911 --> choking_back_blows: after 8s
     choking_call_911 --> choking_back_blows: NEXT
     choking_encourage_cough: encourage_cough
-    choking_encourage_cough --> choking_call_911: "can't breathe" (+2 more)
+    choking_encourage_cough --> choking_call_911: "can't breathe" (+7 more)
     choking_encourage_cough --> choking_resolved: "it came out" (+2 more)
     choking_encourage_cough --> choking_call_911: NEXT
     choking_back_blows: back_blows

@@ -2,7 +2,7 @@
 
 ## Setup
 - @mediapipe/tasks-vision PoseLandmarker (lite model) + HandLandmarker, WASM backend, `runningMode: 'VIDEO'`. Target 15-30 fps on a laptop, accept 10 on a phone.
-- Model .task files downloaded at build time into /public/models and loaded from same-origin. No runtime hotlinking (supply-chain rule + offline demo rule).
+- Model .task files are committed in /public/models and loaded from same-origin; `scripts/prepare-assets.mjs` downloads one only if it is missing. No runtime hotlinking (supply-chain rule + offline demo rule).
 - Rear camera on phones (`facingMode: 'environment'`), any camera on laptop. Mirror-flip overlay only for front camera.
 
 ## Compression rate (the keystone signal, build FIRST)

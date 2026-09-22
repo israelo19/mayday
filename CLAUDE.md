@@ -25,8 +25,8 @@ README.md is written for judges who may not be technical, and it mirrors this fi
 - Voice out: Web Speech API speechSynthesis as the ALWAYS-WORKING default. ElevenLabs streaming TTS as an upgrade behind an interface (see docs/04). Metronome via Web Audio API oscillator.
 - Voice in: Web Speech API SpeechRecognition, used as keyword spotting only.
 - Geolocation API for SITREP location.
-- Backend: none for the core. A key proxy (`src/voice/providers/devproxy.mjs`) is mounted at /api/proxy by the dev and preview servers and holds every key: ElevenLabs, Gemini, Featherless. Its serverless version is docs/04 TODO 1.
-- Deploy target: a static site plus that one function; the App Platform spec is in `.do/app.yaml` and docs/12. Localhost with HTTPS or ngrok until then.
+- Backend: none for the core. A key proxy (`src/voice/providers/devproxy.mjs`) is mounted at /api/proxy by the dev and preview servers and holds every key: ElevenLabs, Gemini, Featherless, xAI. Its serverless version is docs/04 TODO 1.
+- Deploy target: a static site today, spec in `.do/app.yaml` and docs/12. The proxy as a serverless function is docs/04 TODO 1; until it exists the dev and preview servers mount the proxy, so the cloud helpers work on localhost with HTTPS or over ngrok and nowhere else.
 
 ## Repo rules (disqualification risk, treat as CI)
 - Repo is PUBLIC from the first commit.
@@ -35,34 +35,44 @@ README.md is written for judges who may not be technical, and it mirrors this fi
 
 ## What we are NOT building (scope walls)
 - Machines this weekend: triage, cardiac, bleeding, and choking as data only with detection disabled. Any other emergency (stroke, seizure, overdose, burns) is a future machine file, not hackathon work.
-- No accounts, no database, no ambient always-on listening, no auto-dial, no diagnosis claims, no blood detection via CV, no native app (the phone runs the PWA; an Expo Go shell was tried and dropped, DECISIONS.md Sat 05:00).
+- No accounts, no database, no ambient always-on listening, no auto-dial, no diagnosis claims, no on-device blood-pixel detection (the one cloud photo answers a closed question and never coaches), no native app (the phone runs the PWA; an Expo Go shell was tried and dropped, DECISIONS.md Sat 05:00).
 
 ## Repo layout
 ```
 mayday/
 ├── src/                     the engine, no browser code in here
-│   ├── perception/          camera, pose and hand tracking, the signals (docs/03)
-│   ├── protocol/            the state machine engine, the linter, the paraphrase validator (docs/02)
+│   ├── types.ts             the shared types: facts, coaching events, machines, reports
+│   ├── flags.ts             the ?flag= switches, all off by default
+│   ├── perception/          camera, pose and hand tracking, the signals (docs/03): camera, pose, hands, signal, roi, scene, luma, overlay, and fake for ?fake=1
+│   ├── protocol/            the state machine engine, the linter, the paraphrase validator (docs/02): engine, rules, lint, validate, keywords, language, phrases, mermaid
 │   │   └── machines/        one data file per emergency: triage, cardiac, bleeding, choking
 │   ├── voice/               speaking (queue, metronome) and listening (keyword spotting) (docs/04, docs/09)
 │   │   └── providers/       the one place a network call is allowed: ElevenLabs voice and agent, the key proxy
-│   ├── ai/                  the cloud helpers behind interfaces: scene photo, sentence matching (docs/04, docs/11)
+│   ├── ai/                  the cloud helpers behind interfaces: scene photo, sentence matching, rewording (docs/04, docs/11)
 │   └── sitrep/              the event log, the SITREP, the paramedic handoff
 ├── web/                     the browser app
+│   ├── main.tsx, App.tsx    the entry point and the root: which screen the URL asks for
 │   ├── session.ts           the orchestrator: where camera, engine, voice and log meet (docs/10)
 │   ├── providers.ts         local by default, cloud behind a switch, chosen once per session
 │   ├── geocode.ts           turns the GPS fix into a street address for the SITREP
+│   ├── trace.ts             ?trace=1, dev only: the phone posts what the session sees to the laptop
 │   └── ui/
 │       ├── LaunchScreen.tsx, CameraView.tsx, DebugScreen.tsx, Waveform.tsx
-│       ├── live/            the live screen: LiveApp, DispatcherPanel, HandoffPanel, useSession
+│       ├── live/            the live screen: LiveApp, DispatcherPanel, HandoffPanel, useSession, hints, FakeControls for ?fake=1
 │       └── guide/           one picture per line, gallery at ?guide=1 (docs/05)
-├── docs/                    these context documents; docs/07 is the four-person work split; docs/12 is the run guide and demo checks
-│   └── images/              the README diagrams, hand-drawn SVG
+├── docs/                    these context documents, 01 to 12; docs/07 is the four-person work split; docs/12 is the run guide and demo checks
+│   ├── images/              the README diagrams, hand-drawn SVG
+│   ├── protocol-diagrams.md generated from the machines by npm run diagrams, never edited by hand
+│   └── latency.md, perception-tests.md, pitch-authority.md, START_PROMPT.md   hackathon-time records, kept as written
 ├── public/
 │   ├── models/              MediaPipe model files, committed, nothing fetched at runtime
-│   └── wasm/                MediaPipe runtime, generated on install, gitignored
+│   ├── wasm/                MediaPipe runtime, generated on install, gitignored
+│   └── icon.svg, icon-512.png, apple-touch-icon.png   the PWA icons
 ├── scripts/                 prepare-assets, check-ai-boundaries, assess-frame, create-dispatcher-agent
-└── tests/                   engine, machines, keywords, validator, SITREP, boundaries, diagrams
+├── tests/                   engine, machines, keywords, language, phrases, validator, narration attacks, assessment hints, SITREP, boundaries, diagrams, the key proxy; harness is the shared rig. Unit tests also sit beside their modules as *.test.ts
+├── .do/app.yaml             the App Platform spec: a static site
+├── vite.config.ts           the dev server: HTTPS, the QR, the key proxy mount, the ?trace=1 sink
+└── .env.example             every environment variable the repo reads, with its usage
 ```
 
 ## Reading order for a fresh Claude Code session
