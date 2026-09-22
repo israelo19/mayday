@@ -32,6 +32,11 @@ export const choking: Machine = {
         { on: { kind: 'keyword', keyword: "can't speak" }, to: 'call_911', label: 'Cannot breathe' },
         { on: { kind: 'keyword', keyword: 'no air' }, to: 'call_911', label: 'Cannot breathe' },
         { on: { kind: 'keyword', keyword: 'silent' }, to: 'call_911', label: 'Cannot breathe' },
+        { on: { kind: 'keyword', keyword: 'not talking' }, to: 'call_911', label: 'Cannot breathe' },
+        { on: { kind: 'keyword', keyword: 'not speaking' }, to: 'call_911', label: 'Cannot breathe' },
+        { on: { kind: 'keyword', keyword: 'not making' }, to: 'call_911', label: 'Cannot breathe' },
+        // Above 'coughing' and 'talking' on purpose: "he's not talking" contains 'talking', and
+        // the engine takes the first keyword listed that it heard.
         { on: { kind: 'keyword', keyword: 'coughing' }, to: 'encourage_cough', label: 'He is coughing' },
         { on: { kind: 'keyword', keyword: 'he can cough' }, to: 'encourage_cough', label: 'He is coughing' },
         { on: { kind: 'keyword', keyword: 'she can cough' }, to: 'encourage_cough', label: 'He is coughing' },
@@ -63,6 +68,12 @@ export const choking: Machine = {
         { on: { kind: 'keyword', keyword: "can't breathe" }, to: 'call_911', label: 'He stopped coughing' },
         { on: { kind: 'keyword', keyword: 'stopped coughing' }, to: 'call_911', label: 'He stopped coughing' },
         { on: { kind: 'keyword', keyword: 'no sound' }, to: 'call_911', label: 'He stopped coughing' },
+        // The line says "if he stops making sound, tell me", so the ways of saying that are heard.
+        { on: { kind: 'keyword', keyword: 'stopped making sound' }, to: 'call_911', label: 'He stopped coughing' },
+        { on: { kind: 'keyword', keyword: 'not making' }, to: 'call_911', label: 'He stopped coughing' },
+        { on: { kind: 'keyword', keyword: 'no noise' }, to: 'call_911', label: 'He stopped coughing' },
+        { on: { kind: 'keyword', keyword: 'silent' }, to: 'call_911', label: 'He stopped coughing' },
+        { on: { kind: 'keyword', keyword: 'gone quiet' }, to: 'call_911', label: 'He stopped coughing' },
         { on: { kind: 'keyword', keyword: 'it came out' }, to: 'resolved', label: 'It came out' },
         { on: { kind: 'keyword', keyword: 'came out' }, to: 'resolved', label: 'It came out' },
         { on: { kind: 'keyword', keyword: "it's out" }, to: 'resolved', label: 'It came out' },

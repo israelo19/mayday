@@ -24,12 +24,16 @@ const DEFAULTS: Flags = {
   intentRoute: false,
 };
 
-/** Flags for a query string such as `?flag=elevenLabs,dispatcherSim`; unknown names are ignored. */
+/**
+ * Flags for a query string such as `?flag=elevenLabs,dispatcherSim`; unknown names are ignored,
+ * and `?flag=a&flag=b` is the same as the comma list. Own keys only: `in` also saw the
+ * prototype, so `?flag=toString` set a property that broke the first thing to print the flags.
+ */
 export function parseFlags(search: string): Flags {
   const flags = { ...DEFAULTS };
-  const requested = new URLSearchParams(search).get('flag') ?? '';
+  const requested = new URLSearchParams(search).getAll('flag').join(',');
   for (const name of requested.split(',').map((n) => n.trim())) {
-    if (name in DEFAULTS) flags[name as keyof Flags] = true;
+    if (Object.hasOwn(DEFAULTS, name)) flags[name as keyof Flags] = true;
   }
   return flags;
 }

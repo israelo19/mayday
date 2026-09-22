@@ -268,3 +268,49 @@ describe('answers', () => {
     expect(engine.availableAnswers()).toEqual([]);
   });
 });
+
+describe('the clock at start and at reset', () => {
+  it('starts the state at the time it is given, so a timer does not fire on the first tick', () => {
+    const engine = createEngine(machines);
+    engine.start('cardiac', 'call_911', T0);
+    engine.tick(T0 + 100);
+    expect(engine.currentState()?.state.id).toBe('call_911');
+    engine.tick(T0 + 7900);
+    expect(engine.currentState()?.state.id).toBe('call_911');
+    engine.tick(T0 + 8000);
+    expect(engine.currentState()?.state.id).toBe('position');
+  });
+
+  it('does not cry blind on the first tick of a run started at a real time', () => {
+    const engine = createEngine(machines);
+    const blind: string[] = [];
+    engine.subscribe((o) => {
+      if (o.type === 'coach' && o.event.dedupeKey === 'blind') blind.push(o.event.text);
+    });
+    engine.start('cardiac', 'compressions', T0);
+    engine.tick(T0 + 100);
+    expect(blind).toHaveLength(0);
+  });
+
+  it('forgets the last run\'s facts on reset, so a new run gets its grace period', () => {
+    const h = harness('cardiac', 'compressions');
+    h.run(0, 2000);
+    const before = h.fired('blind').length;
+    // Ten seconds later, a second take: the facts from the first would read as stale.
+    h.engine.reset(T0 + 10000);
+    h.engine.start('cardiac', 'compressions', T0 + 10000);
+    h.engine.tick(T0 + 10100);
+    expect(h.fired('blind').length).toBe(before);
+  });
+
+  it('logs the first metric of a reset run on its first facts', () => {
+    const h = harness('cardiac', 'compressions');
+    h.run(0, 500);
+    const metrics = () => h.log().filter((e) => e.kind === 'metric').length;
+    const before = metrics();
+    h.engine.reset(T0 + 1000);
+    h.engine.start('cardiac', 'compressions', T0 + 1000);
+    h.engine.onFacts(h.facts.at(T0 + 1100));
+    expect(metrics()).toBe(before + 1);
+  });
+});

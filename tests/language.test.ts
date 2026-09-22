@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchKeyword, sameWord, stem, tokens } from '../src/protocol/language';
+import { isSubsequence, matchKeyword, matchKeywords, sameWord, stem, tokens } from '../src/protocol/language';
 
 describe('stemming', () => {
   it('folds the inflections of the words the machines use', () => {
@@ -141,5 +141,72 @@ describe('matchKeyword', () => {
     expect(matchKeyword("he didn't collapse", ['collapsed'])).toBeNull();
     expect(matchKeyword("she doesn't breathe", ['breathing'])).toBeNull();
     expect(matchKeyword("he won't stop bleeding", ['still bleeding', 'bleeding'])).toBe('bleeding');
+  });
+});
+
+describe('the perfect and past negations', () => {
+  it.each([
+    ["he hasn't collapsed", ['collapsed']],
+    ["he hadn't collapsed", ['collapsed']],
+    ["they haven't left", ['they left']],
+    ["it wasn't safe", ['safe']],
+    ["they weren't gone", ['gone']],
+    ["it shouldn't be safe", ['safe']],
+    ["i wouldn't think it's safe", ['safe']],
+    ['nope, safe', ['safe']],
+  ])('refuses "%s"', (sentence, keywords) => {
+    expect(matchKeyword(sentence, keywords)).toBeNull();
+  });
+
+  it('still hears the same words said plainly', () => {
+    expect(matchKeyword('he has collapsed', ['collapsed'])).toBe('collapsed');
+    expect(matchKeyword('it was safe', ['safe'])).toBe('safe');
+  });
+});
+
+describe('conditions and questions are not reports', () => {
+  it.each([
+    "i'll tell you when it's safe",
+    "i'll wait until it's safe",
+    "once it's safe i'll go",
+    "if it's safe i'll go",
+    'is it safe to go over there',
+    'am i safe',
+    'do you think it is safe',
+  ])('does not hear safe in "%s"', (sentence) => {
+    expect(matchKeyword(sentence, ['safe', "it's safe", "i'm safe"])).toBeNull();
+  });
+
+  it.each(['it is safe now', "yes it's safe", 'i am safe', "we're safe", 'safe', 'it was safe before'])('hears safe in "%s"', (sentence) => {
+    expect(matchKeyword(sentence, ['safe', "it's safe", "i'm safe"])).not.toBeNull();
+  });
+
+  it('needs a subject before it calls a sentence a question', () => {
+    // "do the heimlich" opens with an auxiliary and is an instruction to the phone, not a question.
+    expect(matchKeyword('do the heimlich', ['heimlich'])).toBe('heimlich');
+    expect(matchKeyword('is the ambulance here', ['ambulance here'])).toBe('ambulance here');
+  });
+});
+
+describe('matchKeyword answers in list order', () => {
+  it('takes the first keyword listed when several are present', () => {
+    expect(matchKeyword('yes but barely', ['barely', 'yes'])).toBe('barely');
+    expect(matchKeyword('yes but barely', ['yes', 'barely'])).toBe('yes');
+  });
+
+  it('still prefers the longer phrase that contains the first hit', () => {
+    expect(matchKeyword('he has no response', ['no', 'no response'])).toBe('no response');
+    expect(matchKeyword('it is safe now', ['safe', 'safe now'])).toBe('safe now');
+  });
+
+  it('lists every hit', () => {
+    expect(matchKeywords("he's breathing but gasping", ['gasping', "he's breathing", 'no'])).toEqual(['gasping', "he's breathing"]);
+    expect(matchKeywords('', ['safe'])).toEqual([]);
+  });
+
+  it('knows when one phrase sits inside another', () => {
+    expect(isSubsequence(tokens('no'), tokens('no response'))).toBe(true);
+    expect(isSubsequence(tokens('breathing normally'), tokens('not breathing normally'))).toBe(true);
+    expect(isSubsequence(tokens('not breathing'), tokens('breathing now'))).toBe(false);
   });
 });
